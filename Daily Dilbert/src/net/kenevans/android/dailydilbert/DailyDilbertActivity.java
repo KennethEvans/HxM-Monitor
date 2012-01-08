@@ -63,11 +63,35 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		int id = item.getItemId();
 		String imageURL = null;
 		switch (id) {
+		case R.id.next:
+			imageURL = getImageUrl(cDay.incrementDay(1));
+			if (imageURL == null) {
+				return true;
+			}
+			bitmap = getBitmapFromURL(imageURL);
+			if (bitmap == null) {
+				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
+			} else {
+				mPanel.setBitmap(bitmap);
+				mPanel.invalidate();
+			}
+			return true;
+		case R.id.prev:
+			imageURL = getImageUrl(cDay.incrementDay(-1));
+			if (imageURL == null) {
+				return true;
+			}
+			bitmap = getBitmapFromURL(imageURL);
+			if (bitmap == null) {
+				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
+			} else {
+				mPanel.setBitmap(bitmap);
+				mPanel.invalidate();
+			}
+			return true;
 		case R.id.first:
 			imageURL = getImageUrl(cDayFirst);
 			if (imageURL == null) {
-				Utils.errMsg(DailyDilbertActivity.this,
-						"Failed to find image URL");
 				return true;
 			}
 			bitmap = getBitmapFromURL(imageURL);
@@ -81,8 +105,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		case R.id.today:
 			imageURL = getImageUrl(CalendarDay.invalid());
 			if (imageURL == null) {
-				Utils.errMsg(DailyDilbertActivity.this,
-						"Failed to find image URL");
 				return true;
 			}
 			bitmap = getBitmapFromURL(imageURL);
@@ -129,7 +151,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				+ cDay);
 		String imageURL = getImageUrl(cDay);
 		if (imageURL == null) {
-			Utils.errMsg(DailyDilbertActivity.this, "Failed to find image URL");
 			return;
 		}
 		bitmap = getBitmapFromURL(imageURL);
@@ -163,10 +184,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				url = new URL(urlPrefix);
 				// statusBar.setText("Today " + dateString);
 			} else {
-				// Store this value even if it is not available
-				this.cDay = cDay;
 				dateString = cDay.toString();
-
 				// Check it is not in the future as the site doesn't give a
 				// sensible result in this case
 				Calendar cal = cDay.getCalendar();
@@ -181,6 +199,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 							+ " is before the first available strip");
 					return null;
 				}
+				// Store it
+				this.cDay = cDay;
+
 				url = new URL(dateUrlPrefix + dateString);
 				// statusBar.setText(dateString);
 			}
@@ -221,6 +242,10 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					br.close();
 				}
 			}
+			if (imageUrlString == null) {
+				Utils.errMsg(DailyDilbertActivity.this,
+						"Failed to find image URL");
+			}
 		} catch (Exception ex) {
 			Utils.excMsg(this, "Getting image URL failed:", ex);
 		}
@@ -257,8 +282,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				cDay.set(year, month, day);
 				String imageURL = getImageUrl(cDay);
 				if (imageURL == null) {
-					Utils.errMsg(DailyDilbertActivity.this,
-							"Failed to find image URL");
 					return;
 				}
 				bitmap = getBitmapFromURL(imageURL);
@@ -374,6 +397,22 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		 */
 		public boolean isInvalid() {
 			return (year == -1 && month == -1 && day == -1);
+		}
+
+		/**
+		 * Returns a new CalendarDay with its values incremented by the
+		 * specified number of days from this one. If the amount is negative, it
+		 * decrements the values. The year, month, and day will be adjusted to
+		 * proper values. (Dec 31, 2012 incremented by 1 is Jan 1, 2013.)
+		 * 
+		 * @param number
+		 *            The amount by which to increment.
+		 */
+		public CalendarDay incrementDay(int number) {
+			Calendar cal = getCalendar();
+			cal.add(Calendar.DAY_OF_MONTH, number);
+			return new CalendarDay(cal.get(Calendar.YEAR),
+					cal.get(Calendar.MONTH), cal.get(Calendar.DAY_OF_MONTH));
 		}
 
 		/**
