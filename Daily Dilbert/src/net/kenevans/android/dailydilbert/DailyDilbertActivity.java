@@ -1,6 +1,8 @@
 package net.kenevans.android.dailydilbert;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -21,6 +23,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -31,6 +34,7 @@ import android.widget.DatePicker;
 import android.widget.ImageButton;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final String urlPrefix = "http://www.dilbert.com";
@@ -115,7 +119,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		case R.id.date:
 			getDate();
 			return true;
-		case R.id.share:
+		case R.id.save:
+			save();
 			return true;
 		}
 		return false;
@@ -328,6 +333,42 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Saves the current bitmap to the SD card.
+	 */
+	private void save() {
+		FileOutputStream out = null;
+		if (cDay.isInvalid() || bitmap == null) {
+			Utils.errMsg(this, "Image is invalid");
+			return;
+		}
+		String fileName = "Dilbert-" + cDay.toString() + ".png";
+		try {
+			File sdCardRoot = Environment.getExternalStorageDirectory();
+			if (sdCardRoot.canWrite()) {
+				File dir = new File(sdCardRoot, "Dilbert");
+				File file = new File(dir, fileName);
+				Log.d(TAG, this.getClass().getSimpleName() + ": save: file="
+						+ file.getPath());
+				out = new FileOutputStream(file);
+				bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+				Toast.makeText(getApplicationContext(), "Wrote " + fileName,
+						Toast.LENGTH_LONG).show();
+			} else {
+				Utils.errMsg(this, "Cannot write to SD card");
+				return;
+			}
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error saving to SD card", ex);
+		} finally {
+			try {
+				out.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+	}
+
+	/**
 	 * Class to manage a day represented by the year, month, and
 	 * day-of-the-month. These values are defines as for a Calendar. That is,
 	 * the month starts with 0 for January.
@@ -469,8 +510,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * A custom panel to display the strip.  Keeps the bitmap as a field.
-	 *
+	 * A custom panel to display the strip. Keeps the bitmap as a field.
+	 * 
 	 */
 	class Panel extends View {
 		Bitmap bitmap;

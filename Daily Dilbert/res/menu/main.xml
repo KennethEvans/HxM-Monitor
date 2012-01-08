@@ -4,5 +4,5 @@
     <item android:id="@+id/first" android:title="@string/first_item" />
     <item android:id="@+id/prev" android:title="@string/prev_item" />
     <item android:id="@+id/date" android:title="@string/date_item" />
-    <item android:id="@+id/share" android:title="@string/share_item" />
+    <item android:id="@+id/save" android:title="@string/save_item" />
 </menu>
