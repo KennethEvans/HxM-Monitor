@@ -28,6 +28,9 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.Window;
 import android.widget.DatePicker;
+import android.widget.ImageButton;
+import android.widget.RelativeLayout;
+import android.widget.TextView;
 
 public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final String urlPrefix = "http://www.dilbert.com";
@@ -39,16 +42,51 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private Bitmap bitmap;
 
 	private Panel mPanel;
+	private View mBottom;
+	private TextView mInfo;
 
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate: cDay=" + cDay);
 		super.onCreate(savedInstanceState);
-
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+		setContentView(R.layout.main);
+		mInfo = (TextView) findViewById(R.id.info);
+		// Need the bottom RelativeLayout to adjust the canvas for the panel.
+		mBottom = findViewById(R.id.bottom);
+
+		// Have to add the Panel programmatically owing to the constructor
+		RelativeLayout layout = (RelativeLayout) findViewById(R.id.layout);
 		mPanel = new Panel(this, null);
-		setContentView(mPanel);
+		layout.addView(mPanel, 0);
+
+		// Buttons (These need a margin to avoid edge sensitivity problems on
+		// the EVO 3D)
+		ImageButton button = (ImageButton) findViewById(R.id.nextbutton);
+		button.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				getStrip(cDay.incrementDay(1));
+			}
+		});
+		button = (ImageButton) findViewById(R.id.prevbutton);
+		button.setOnClickListener(new View.OnClickListener() {
+			@Override
+			public void onClick(View v) {
+				getStrip(cDay.incrementDay(-1));
+			}
+		});
+
+		// int childCount = layout.getChildCount();
+		// Log.d(TAG, this.getClass().getSimpleName() + ": childCount="
+		// + childCount);
+		// View view;
+		// for (int i = 0; i < childCount; i++) {
+		// view = layout.getChildAt(i);
+		// Log.d(TAG, this.getClass().getSimpleName() + ": " + i + " " + view);
+		// }
 	}
 
 	@Override
@@ -61,59 +99,18 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		int id = item.getItemId();
-		String imageURL = null;
 		switch (id) {
 		case R.id.next:
-			imageURL = getImageUrl(cDay.incrementDay(1));
-			if (imageURL == null) {
-				return true;
-			}
-			bitmap = getBitmapFromURL(imageURL);
-			if (bitmap == null) {
-				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-			} else {
-				mPanel.setBitmap(bitmap);
-				mPanel.invalidate();
-			}
+			getStrip(cDay.incrementDay(1));
 			return true;
 		case R.id.prev:
-			imageURL = getImageUrl(cDay.incrementDay(-1));
-			if (imageURL == null) {
-				return true;
-			}
-			bitmap = getBitmapFromURL(imageURL);
-			if (bitmap == null) {
-				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-			} else {
-				mPanel.setBitmap(bitmap);
-				mPanel.invalidate();
-			}
+			getStrip(cDay.incrementDay(-1));
 			return true;
 		case R.id.first:
-			imageURL = getImageUrl(cDayFirst);
-			if (imageURL == null) {
-				return true;
-			}
-			bitmap = getBitmapFromURL(imageURL);
-			if (bitmap == null) {
-				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-			} else {
-				mPanel.setBitmap(bitmap);
-				mPanel.invalidate();
-			}
+			getStrip(cDayFirst);
 			return true;
 		case R.id.today:
-			imageURL = getImageUrl(CalendarDay.invalid());
-			if (imageURL == null) {
-				return true;
-			}
-			bitmap = getBitmapFromURL(imageURL);
-			if (bitmap == null) {
-				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-			} else {
-				mPanel.setBitmap(bitmap);
-				mPanel.invalidate();
-			}
+			getStrip(CalendarDay.invalid());
 			return true;
 		case R.id.date:
 			getDate();
@@ -157,19 +154,71 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		if (bitmap == null) {
 			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
 		} else {
-			mPanel.setBitmap(bitmap);
-			mPanel.invalidate();
+			setNewImage();
 		}
 	}
 
-	public Bitmap getTestBitmap() {
-		Bitmap bitmap = BitmapFactory.decodeResource(getResources(),
-				R.drawable.dilbert);
-		return bitmap;
+	/**
+	 * Sets a new image in the canvas and writes the info message
+	 */
+	private void setNewImage() {
+		setInfo(cDay.toString());
+		mPanel.setBitmap(bitmap);
+		mPanel.invalidate();
 	}
 
 	/**
-	 * Gets a new image by parsing the page at dilbert.com.
+	 * Sets the message in the info area.
+	 * 
+	 * @param info
+	 */
+	public void setInfo(String info) {
+		mInfo.setText(info);
+	}
+
+	/**
+	 * Gets the strip corresponding to the given calendar day.
+	 * 
+	 * @param cDay
+	 */
+	private void getStrip(CalendarDay cDay) {
+		String imageURL = getImageUrl(cDay);
+		if (imageURL == null) {
+			return;
+		}
+		bitmap = getBitmapFromURL(imageURL);
+		if (bitmap == null) {
+			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
+		} else {
+			setNewImage();
+		}
+	}
+
+	/**
+	 * Get a Bitmap from a URL.
+	 * 
+	 * @param src
+	 *            The String URL.
+	 * @return The Bitmap.
+	 */
+	public static Bitmap getBitmapFromURL(String src) {
+		try {
+			URL url = new URL(src);
+			HttpURLConnection connection = (HttpURLConnection) url
+					.openConnection();
+			connection.setDoInput(true);
+			connection.connect();
+			InputStream input = connection.getInputStream();
+			Bitmap myBitmap = BitmapFactory.decodeStream(input);
+			return myBitmap;
+		} catch (IOException e) {
+			e.printStackTrace();
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the URL for the image by parsing the page at dilbert.com.
 	 */
 	public String getImageUrl(CalendarDay cDay) {
 		String imageUrlString = null;
@@ -253,28 +302,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Get a Bitmap from a URL.
-	 * 
-	 * @param src
-	 *            The String URL.
-	 * @return The Bitmap.
+	 * Gets a strip using the date picker to pick a date.
 	 */
-	public static Bitmap getBitmapFromURL(String src) {
-		try {
-			URL url = new URL(src);
-			HttpURLConnection connection = (HttpURLConnection) url
-					.openConnection();
-			connection.setDoInput(true);
-			connection.connect();
-			InputStream input = connection.getInputStream();
-			Bitmap myBitmap = BitmapFactory.decodeStream(input);
-			return myBitmap;
-		} catch (IOException e) {
-			e.printStackTrace();
-			return null;
-		}
-	}
-
 	private void getDate() {
 		DatePickerDialog.OnDateSetListener dateSetListener = new DatePickerDialog.OnDateSetListener() {
 			@Override
@@ -289,8 +318,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					Utils.errMsg(DailyDilbertActivity.this,
 							"Failed to get image");
 				} else {
-					mPanel.setBitmap(bitmap);
-					mPanel.invalidate();
+					setNewImage();
 				}
 			}
 		};
@@ -440,6 +468,10 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 	}
 
+	/**
+	 * A custom panel to display the strip.  Keeps the bitmap as a field.
+	 *
+	 */
 	class Panel extends View {
 		Bitmap bitmap;
 
@@ -457,6 +489,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 			// Center it
 			int cHeight = canvas.getHeight();
+			// Correct for the bottom
+			cHeight -= mBottom.getHeight();
 			int cWidth = canvas.getWidth();
 			int bHeight = bitmap.getHeight();
 			int bWidth = bitmap.getWidth();
