@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Daily Dilbert</string>
+    <string name="first_item">First</string>
+    <string name="today_item">Today</string>
+    <string name="date_item">Pick Date</string>
+    <string name="share_item">Share</string>
+
+	<!-- Utils -->
+	<string name="error">Error</string>
+	<string name="exception">Exception</string>
+	<string name="info">Info</string>
+	<string name="ok">OK</string>
+	<string name="warning">Warning</string>
+</resources>
