@@ -31,14 +31,22 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+/**
+ * @author evans
+ * 
+ */
 public class DailyDilbertActivity extends Activity implements IConstants {
+	/** Where the image URL is found for todays strip. */
 	private static final String urlPrefix = "http://www.dilbert.com";
+	/** Where the image URL is found for archive strips. Append yyyy-mm-dd. */
 	private static final String dateUrlPrefix = "http://www.dilbert.com/strips/comic/";
 	/** The first available strip is on April 16, 1989. */
 	private static final CalendarDay cDayFirst = new CalendarDay(1989, 3, 16);
+	/** Directory on the SD card where strips are saved */
+	private static final String SD_CARD_DILBERT_DIRECTORY = "Dilbert";
+
 	private CalendarDay cDay = CalendarDay.invalid();
 	private Bitmap bitmap;
-
 	private ImagePanel mPanel;
 	private TextView mInfo;
 
@@ -338,7 +346,21 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		try {
 			File sdCardRoot = Environment.getExternalStorageDirectory();
 			if (sdCardRoot.canWrite()) {
-				File dir = new File(sdCardRoot, "Dilbert");
+				File dir = new File(sdCardRoot, SD_CARD_DILBERT_DIRECTORY);
+				if (dir.exists() && dir.isFile()) {
+					Utils.errMsg(this, "Cannot create directory: " + dir
+							+ "\nA file with that name exists.");
+					return;
+				}
+				if (!dir.exists()) {
+					Log.d(TAG, this.getClass().getSimpleName()
+							+ ": create: dir=" + dir.getPath());
+					boolean res = dir.mkdir();
+					if (!res) {
+						Utils.errMsg(this, "Cannot create directory: " + dir);
+						return;
+					}
+				}
 				File file = new File(dir, fileName);
 				Log.d(TAG, this.getClass().getSimpleName() + ": save: file="
 						+ file.getPath());
