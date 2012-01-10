@@ -15,16 +15,11 @@ import java.util.regex.Pattern;
 
 import android.app.Activity;
 import android.app.DatePickerDialog;
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Matrix;
 import android.os.Bundle;
 import android.os.Environment;
-import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -33,7 +28,6 @@ import android.view.View;
 import android.view.Window;
 import android.widget.DatePicker;
 import android.widget.ImageButton;
-import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -42,12 +36,10 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final String dateUrlPrefix = "http://www.dilbert.com/strips/comic/";
 	/** The first available strip is on April 16, 1989. */
 	private static final CalendarDay cDayFirst = new CalendarDay(1989, 3, 16);
-	private static final float scaleFactor = .99f;
 	private CalendarDay cDay = CalendarDay.invalid();
 	private Bitmap bitmap;
 
-	private Panel mPanel;
-	private View mBottom;
+	private ImagePanel mPanel;
 	private TextView mInfo;
 
 	/** Called when the activity is first created. */
@@ -57,15 +49,13 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 
-		setContentView(R.layout.main);
-		mInfo = (TextView) findViewById(R.id.info);
-		// Need the bottom RelativeLayout to adjust the canvas for the panel.
-		mBottom = findViewById(R.id.bottom);
-
-		// Have to add the Panel programmatically owing to the constructor
-		RelativeLayout layout = (RelativeLayout) findViewById(R.id.layout);
-		mPanel = new Panel(this);
-		layout.addView(mPanel, 0);
+		try {
+			setContentView(R.layout.main);
+			mInfo = (TextView) findViewById(R.id.info);
+			mPanel = (ImagePanel) findViewById(R.id.panel);
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error getting resources", ex);
+		}
 
 		// Buttons (These need a margin to avoid edge sensitivity problems on
 		// the EVO 3D)
@@ -84,6 +74,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			}
 		});
 
+		// Debug
+		// RelativeLayout layout = (RelativeLayout) findViewById(R.id.layout);
 		// int childCount = layout.getChildCount();
 		// Log.d(TAG, this.getClass().getSimpleName() + ": childCount="
 		// + childCount);
@@ -506,100 +498,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		 */
 		public static CalendarDay invalid() {
 			return new CalendarDay(-1, -1, -1);
-		}
-
-	}
-
-	/**
-	 * A custom View to display the strip resized and centered.
-	 * 
-	 */
-	class Panel extends View {
-		Bitmap bitmap;
-
-		/**
-		 * Use this constructor when calling from code.
-		 * 
-		 * @param context
-		 */
-		public Panel(Context context) {
-			super(context);
-		}
-
-		/**
-		 * Use this constructor when inflating from resources.
-		 * 
-		 * @see android.view.View#View(android.content.Context,
-		 *      android.util.AttributeSet)
-		 */
-		public Panel(Context context, AttributeSet attrs) {
-			super(context, attrs);
-		}
-
-		@Override
-		public void onDraw(Canvas canvas) {
-			if (bitmap == null) {
-				return;
-			}
-			canvas.drawColor(Color.BLACK);
-
-			// Center it
-			int cHeight = canvas.getHeight();
-			// Correct for the bottom
-			cHeight -= mBottom.getHeight();
-			int cWidth = canvas.getWidth();
-			int bHeight = bitmap.getHeight();
-			int bWidth = bitmap.getWidth();
-			Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: canvas=("
-					+ cWidth + "," + cHeight + ")");
-			Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: bitmap=("
-					+ bWidth + "," + bHeight + ")");
-
-			// Calculate the scale to make it fit
-			float scaleWidth = ((float) cWidth) / bWidth;
-			float scaleHeight = ((float) cHeight) / bHeight;
-			Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: scale=("
-					+ scaleWidth + "," + scaleHeight + ")");
-
-			// Keep the aspect ratio
-			if (scaleHeight > scaleWidth) {
-				scaleHeight = scaleWidth;
-			} else {
-				scaleWidth = scaleHeight;
-			}
-			Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: adjScale=("
-					+ scaleWidth + "," + scaleHeight + ")");
-
-			// Create a matrix for the scaling
-			Matrix matrix = new Matrix();
-			// resize the bit map
-			matrix.postScale(scaleFactor * scaleWidth, scaleFactor
-					* scaleHeight);
-			// rotate the Bitmap
-			// matrix.postRotate(45);
-
-			// Recreate the bitmap
-			Bitmap newBitmap = Bitmap.createBitmap(bitmap, 0, 0, bWidth,
-					bHeight, matrix, true);
-			bHeight = newBitmap.getHeight();
-			bWidth = newBitmap.getWidth();
-			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": onDraw: newBitmap=(" + bWidth + "," + bHeight + ")");
-
-			// Center it
-			int x0 = (cWidth - bWidth) / 2;
-			int y0 = (cHeight - bHeight) / 2;
-			Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: x=(" + x0
-					+ "," + y0 + ")");
-			canvas.drawBitmap(newBitmap, x0, y0, null);
-		}
-
-		public Bitmap getBitmap() {
-			return bitmap;
-		}
-
-		public void setBitmap(Bitmap bitmap) {
-			this.bitmap = bitmap;
 		}
 
 	}
