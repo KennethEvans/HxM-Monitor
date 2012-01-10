@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	android:id="@+id/layout"
     android:orientation="vertical"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     >
-	<net.kenevans.android.dailydilbert.Panel
+	<net.kenevans.android.dailydilbert.DailyDilbertActivity.Panel
 		android:id="@+id/panel"
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
 	    android:layout_alignParentTop="true"
 	/>
-<!--
 	<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+	    android:id="@+id/bottom"
 	    android:orientation="horizontal"
 	    android:layout_width="fill_parent"
 		android:layout_height="wrap_content"
@@ -22,25 +23,29 @@
 			android:src="@drawable/arrowleft"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
+		    android:layout_marginLeft="25dip"
+		    android:background="#ff000000"
 		    android:layout_alignParentLeft="true"
-		/>
-		<TextView  
-		  	android:id="@+id/info"
-		    android:layout_width="fill_parent" 
-		    android:layout_height="70dip"
-		    android:gravity="top"
-		    android:textColor="#ff000000"
-		    android:background="#ffffffff"
-		    android:text="This is a test!"
 		/>
 		<ImageButton
 		    android:id="@+id/nextbutton"
 		    android:src="@drawable/arrowright"
 		    android:layout_width="wrap_content"
 		    android:layout_height="wrap_content"
+		    android:layout_marginRight="25dip"
+		    android:background="#ff000000"
 		    android:layout_alignParentRight="true"
 		/>
-		
+		<TextView  
+		  	android:id="@+id/info"
+		    android:layout_width="fill_parent" 
+			android:layout_height="wrap_content"
+		    android:layout_centerInParent="true"
+		    android:textColor="#ffffffff"
+		    android:background="#ff000000"
+		    android:gravity="center_vertical|center_horizontal"
+    		android:layout_toRightOf="@id/prevbutton"
+    		android:layout_toLeftOf="@id/nextbutton"
+		/>
 	</RelativeLayout>
--->	
 </RelativeLayout>

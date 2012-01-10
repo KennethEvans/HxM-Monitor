@@ -38,7 +38,6 @@
 		    android:textColor="#ffffffff"
 		    android:background="#ff000000"
 		    android:gravity="center_vertical|center_horizontal"
-		    android:text="This is a test!"
     		android:layout_toRightOf="@id/prevbutton"
     		android:layout_toLeftOf="@id/nextbutton"
 		/>

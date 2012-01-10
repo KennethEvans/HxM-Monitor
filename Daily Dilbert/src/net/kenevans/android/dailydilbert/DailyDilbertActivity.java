@@ -24,6 +24,7 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.AttributeSet;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -63,7 +64,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 		// Have to add the Panel programmatically owing to the constructor
 		RelativeLayout layout = (RelativeLayout) findViewById(R.id.layout);
-		mPanel = new Panel(this, null);
+		mPanel = new Panel(this);
 		layout.addView(mPanel, 0);
 
 		// Buttons (These need a margin to avoid edge sensitivity problems on
@@ -510,15 +511,29 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * A custom panel to display the strip. Keeps the bitmap as a field.
+	 * A custom View to display the strip resized and centered.
 	 * 
 	 */
 	class Panel extends View {
 		Bitmap bitmap;
 
-		public Panel(Context context, Bitmap bitmap) {
+		/**
+		 * Use this constructor when calling from code.
+		 * 
+		 * @param context
+		 */
+		public Panel(Context context) {
 			super(context);
-			this.bitmap = bitmap;
+		}
+
+		/**
+		 * Use this constructor when inflating from resources.
+		 * 
+		 * @see android.view.View#View(android.content.Context,
+		 *      android.util.AttributeSet)
+		 */
+		public Panel(Context context, AttributeSet attrs) {
+			super(context, attrs);
 		}
 
 		@Override
