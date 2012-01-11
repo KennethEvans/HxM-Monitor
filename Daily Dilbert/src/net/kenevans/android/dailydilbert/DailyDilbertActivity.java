@@ -44,6 +44,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final CalendarDay cDayFirst = new CalendarDay(1989, 3, 16);
 	/** Directory on the SD card where strips are saved */
 	private static final String SD_CARD_DILBERT_DIRECTORY = "Dilbert";
+	/** Filename of the cached current image. */
+	private static final String CACHE_FILENAME = "Current.png";
 
 	private CalendarDay cDay = CalendarDay.invalid();
 	private Bitmap bitmap;
@@ -137,6 +139,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		editor.putInt("month", cDay.month);
 		editor.putInt("day", cDay.day);
 		editor.commit();
+		// Cache the bitmap
+		cacheBitmap();
 	}
 
 	@Override
@@ -156,7 +160,12 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		if (imageURL == null) {
 			return;
 		}
-		bitmap = getBitmapFromURL(imageURL);
+		Bitmap cachedBitmap = getCachedBitmap();
+		if (cachedBitmap != null) {
+			bitmap = cachedBitmap;
+		} else {
+			bitmap = getBitmapFromURL(imageURL);
+		}
 		if (bitmap == null) {
 			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
 		} else {
@@ -337,11 +346,11 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * Saves the current bitmap to the SD card.
 	 */
 	private void save() {
-		FileOutputStream out = null;
 		if (cDay.isInvalid() || bitmap == null) {
 			Utils.errMsg(this, "Image is invalid");
 			return;
 		}
+		FileOutputStream out = null;
 		String fileName = "Dilbert-" + cDay.toString() + ".png";
 		try {
 			File sdCardRoot = Environment.getExternalStorageDirectory();
@@ -381,6 +390,96 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				// Do nothing
 			}
 		}
+	}
+
+	/**
+	 * Caches the current bitmap to the SD card.
+	 */
+	private void cacheBitmap() {
+		File cacheDir = getExternalFilesDir(null);
+		if (cacheDir == null || !cacheDir.canWrite()) {
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": cacheBitmap: Cache not available");
+			return;
+		}
+		// Clear the cache
+		clearCache();
+
+		if (cDay.isInvalid() || bitmap == null) {
+			return;
+		}
+		FileOutputStream out = null;
+		String fileName = "Dilbert-" + cDay.toString() + ".png";
+		try {
+			File file = new File(cacheDir, fileName);
+			out = new FileOutputStream(file);
+			bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": cacheBitmap: Cached file=" + file.getPath());
+		} catch (Exception ex) {
+			// Do nothing
+		} finally {
+			try {
+				out.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+	}
+
+	/**
+	 * Get a Bitmap from a file in the cache.
+	 * 
+	 * @return The Bitmap or null on failure.
+	 */
+	private Bitmap getCachedBitmap() {
+		File cacheDir = getExternalFilesDir(null);
+		if (cacheDir == null || !cacheDir.canWrite()) {
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": getCachedBitmap: Cache not available");
+			return null;
+		}
+		String fileName = "Dilbert-" + cDay.toString() + ".png";
+		File file = new File(cacheDir, fileName);
+		if (!file.exists()) {
+			// Clear the cache as any file is stale
+			clearCache();
+			return null;
+		}
+		// Read the bitmap or null on failure
+		Bitmap bitmap = BitmapFactory.decodeFile(file.getPath());
+		if (bitmap == null) {
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": getCachedBitmap: Cached bitmap is null");
+		} else {
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": getCachedBitmap: Got " + fileName);
+		}
+		return bitmap;
+	}
+
+	/**
+	 * Deletes all the files in the external files directory.
+	 */
+	private void clearCache() {
+		File cacheDir = getExternalFilesDir(null);
+		if (cacheDir == null) {
+			return;
+		}
+		String[] files = cacheDir.list();
+		int len = files.length;
+		if (files == null || len == 0) {
+			return;
+		}
+		File file;
+		for (String fileName : files) {
+			file = new File(cacheDir, fileName);
+			if (file.isFile()) {
+				file.delete();
+			}
+		}
+		Log.d(TAG, this.getClass().getSimpleName() + ": clearCache: Deleted "
+				+ len + " file(s)");
 	}
 
 	/**
