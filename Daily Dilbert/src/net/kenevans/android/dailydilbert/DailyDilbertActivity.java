@@ -23,10 +23,14 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.GestureDetector;
+import android.view.GestureDetector.SimpleOnGestureListener;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.Window;
 import android.widget.DatePicker;
@@ -51,6 +55,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 */
 	private static int CACHE_MAX_FILES = 5;
 
+	private GestureDetector gestureDetector;
 	private CalendarDay cDay = CalendarDay.invalid();
 	private Bitmap bitmap;
 	private ImagePanel mPanel;
@@ -60,6 +65,19 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate: cDay=" + cDay);
+		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate: screen="
+				+ getResources().getDisplayMetrics().widthPixels + ","
+				+ getResources().getDisplayMetrics().heightPixels);
+		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate: dpi="
+				+ getResources().getDisplayMetrics().xdpi + ","
+				+ getResources().getDisplayMetrics().ydpi);
+		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate: density="
+				+ getResources().getDisplayMetrics().density);
+		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate: densityDpi="
+				+ getResources().getDisplayMetrics().densityDpi + " (LOW="
+				+ DisplayMetrics.DENSITY_LOW + " MEDIUM="
+				+ DisplayMetrics.DENSITY_MEDIUM + " HIGH="
+				+ DisplayMetrics.DENSITY_HIGH);
 		super.onCreate(savedInstanceState);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -88,6 +106,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			}
 		});
 
+		// Set up gestures
+		gestureDetector = new GestureDetector(new MyGestureDetector());
+		
 		// Debug
 		// RelativeLayout layout = (RelativeLayout) findViewById(R.id.layout);
 		// int childCount = layout.getChildCount();
@@ -156,6 +177,14 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		getStrip(cDay);
 	}
 
+	@Override
+	public boolean onTouchEvent(MotionEvent event) {
+		if (gestureDetector.onTouchEvent(event))
+			return true;
+		else
+			return false;
+	}
+
 	/**
 	 * Gets the strip corresponding to the given calendar day.
 	 * 
@@ -178,7 +207,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			bitmap = getBitmapFromURL(imageURL);
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": getStrip: Got bitmap from URL for " + this.cDay);
-			mInfo.setTextColor(Color.RED);
+			mInfo.setTextColor(Color.CYAN);
 		}
 		if (bitmap == null) {
 			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
@@ -638,6 +667,42 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			return new CalendarDay(-1, -1, -1);
 		}
 
+	}
+
+	/**
+	 * Gesture detector. Based on an example at<br>
+	 * <br>
+	 * http://www.codeshogun.com/blog/2009
+	 * /04/16/how-to-implement-swipe-action-in-android/
+	 */
+	class MyGestureDetector extends SimpleOnGestureListener {
+		private static final int SWIPE_MIN_DISTANCE = 120;
+		private static final int SWIPE_MAX_OFF_PATH = 250;
+		private static final int SWIPE_THRESHOLD_VELOCITY = 200;
+
+		@Override
+		public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX,
+				float velocityY) {
+			try {
+				// Check if it is a horizontal swipe
+				if (Math.abs(e1.getY() - e2.getY()) > SWIPE_MAX_OFF_PATH) {
+					return false;
+				}
+				// Branch on direction
+				if (e1.getX() - e2.getX() > SWIPE_MIN_DISTANCE
+						&& Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+					// To left
+					getStrip(cDay.incrementDay(-1));
+				} else if (e2.getX() - e1.getX() > SWIPE_MIN_DISTANCE
+						&& Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+					// To right
+					getStrip(cDay.incrementDay(1));
+				}
+			} catch (Exception ex) {
+				// Do nothing
+			}
+			return false;
+		}
 	}
 
 }

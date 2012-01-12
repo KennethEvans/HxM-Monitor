@@ -17,7 +17,6 @@
 			android:src="@drawable/arrowleft"
 			android:layout_width="wrap_content"
 			android:layout_height="wrap_content"
-		    android:layout_marginLeft="25dip"
 		    android:background="#ff000000"
 		    android:layout_alignParentLeft="true"
 		/>
@@ -26,7 +25,6 @@
 		    android:src="@drawable/arrowright"
 		    android:layout_width="wrap_content"
 		    android:layout_height="wrap_content"
-		    android:layout_marginRight="25dip"
 		    android:background="#ff000000"
 		    android:layout_alignParentRight="true"
 		/>
