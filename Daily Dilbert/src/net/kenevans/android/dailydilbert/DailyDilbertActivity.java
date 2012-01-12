@@ -8,8 +8,13 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,6 +23,7 @@ import android.app.DatePickerDialog;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -44,8 +50,11 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final CalendarDay cDayFirst = new CalendarDay(1989, 3, 16);
 	/** Directory on the SD card where strips are saved */
 	private static final String SD_CARD_DILBERT_DIRECTORY = "Dilbert";
-	/** Filename of the cached current image. */
-	private static final String CACHE_FILENAME = "Current.png";
+	/**
+	 * Number of files to keep in the cache when trimming. The cache should
+	 * never contain more than CACHE_MAX_FILES + 1 at any time.
+	 */
+	private static int CACHE_MAX_FILES = 5;
 
 	private CalendarDay cDay = CalendarDay.invalid();
 	private Bitmap bitmap;
@@ -117,7 +126,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			getStrip(cDayFirst);
 			return true;
 		case R.id.today:
-			getStrip(CalendarDay.invalid());
+			getStrip(CalendarDay.now());
 			return true;
 		case R.id.date:
 			getDate();
@@ -133,14 +142,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	protected void onPause() {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onPause: cDay=" + cDay);
 		super.onPause();
-		// Retain the state
-		SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
-		editor.putInt("year", cDay.year);
-		editor.putInt("month", cDay.month);
-		editor.putInt("day", cDay.day);
-		editor.commit();
-		// Cache the bitmap
-		cacheBitmap();
+		// No need to save the state as it is saved when the image is set
 	}
 
 	@Override
@@ -156,15 +158,32 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		cDay.set(year, month, day);
 		Log.d(TAG, this.getClass().getSimpleName() + ": onResume(2): cDay="
 				+ cDay);
-		String imageURL = getImageUrl(cDay);
-		if (imageURL == null) {
-			return;
-		}
-		Bitmap cachedBitmap = getCachedBitmap();
-		if (cachedBitmap != null) {
-			bitmap = cachedBitmap;
+		getStrip(cDay);
+	}
+
+	/**
+	 * Gets the strip corresponding to the given calendar day.
+	 * 
+	 * @param cDay
+	 */
+	private void getStrip(CalendarDay cDay) {
+		// See if it is in the cache
+		Bitmap newBitmap = getCachedBitmap(cDay);
+		if (newBitmap != null) {
+			this.cDay = cDay;
+			bitmap = newBitmap;
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": getStrip: Got bitmap from cache for " + cDay);
+			mInfo.setTextColor(Color.WHITE);
 		} else {
+			String imageURL = getImageUrl(cDay);
+			if (imageURL == null) {
+				return;
+			}
 			bitmap = getBitmapFromURL(imageURL);
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": getStrip: Got bitmap from URL for " + this.cDay);
+			mInfo.setTextColor(Color.RED);
 		}
 		if (bitmap == null) {
 			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
@@ -180,6 +199,14 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		setInfo(cDay.toString());
 		mPanel.setBitmap(bitmap);
 		mPanel.invalidate();
+		// Retain the state
+		SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
+		editor.putInt("year", cDay.year);
+		editor.putInt("month", cDay.month);
+		editor.putInt("day", cDay.day);
+		editor.commit();
+		// Cache the bitmap
+		cacheBitmap();
 	}
 
 	/**
@@ -189,24 +216,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 */
 	public void setInfo(String info) {
 		mInfo.setText(info);
-	}
-
-	/**
-	 * Gets the strip corresponding to the given calendar day.
-	 * 
-	 * @param cDay
-	 */
-	private void getStrip(CalendarDay cDay) {
-		String imageURL = getImageUrl(cDay);
-		if (imageURL == null) {
-			return;
-		}
-		bitmap = getBitmapFromURL(imageURL);
-		if (bitmap == null) {
-			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-		} else {
-			setNewImage();
-		}
 	}
 
 	/**
@@ -233,7 +242,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Gets the URL for the image by parsing the page at dilbert.com.
+	 * Gets the URL for the image by parsing the page at dilbert.com. This
+	 * method contains the logic for dealing with the Dilbert site.
 	 */
 	public String getImageUrl(CalendarDay cDay) {
 		String imageUrlString = null;
@@ -280,8 +290,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				Matcher matcher = pattern.matcher(line);
 				if (matcher.find()) {
 					imageUrlString = urlPrefix + matcher.group();
-					// System.out.println(matcher.group());
-					// System.out.println(retVal);
 				}
 			}
 			if (br != null) {
@@ -298,8 +306,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					Matcher matcher = pattern.matcher(line);
 					if (matcher.find()) {
 						imageUrlString = urlPrefix + matcher.group();
-						// System.out.println(matcher.group());
-						// System.out.println(retVal);
 					}
 				}
 				if (br != null) {
@@ -324,17 +330,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			@Override
 			public void onDateSet(DatePicker view, int year, int month, int day) {
 				cDay.set(year, month, day);
-				String imageURL = getImageUrl(cDay);
-				if (imageURL == null) {
-					return;
-				}
-				bitmap = getBitmapFromURL(imageURL);
-				if (bitmap == null) {
-					Utils.errMsg(DailyDilbertActivity.this,
-							"Failed to get image");
-				} else {
-					setNewImage();
-				}
+				getStrip(cDay);
 			}
 		};
 		DatePickerDialog dlg = new DatePickerDialog(this, dateSetListener,
@@ -402,9 +398,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					+ ": cacheBitmap: Cache not available");
 			return;
 		}
-		// Clear the cache
-		clearCache();
-
 		if (cDay.isInvalid() || bitmap == null) {
 			return;
 		}
@@ -416,6 +409,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": cacheBitmap: Cached file=" + file.getPath());
+			// Trim the cache
+			trimCache();
 		} catch (Exception ex) {
 			// Do nothing
 		} finally {
@@ -432,7 +427,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * 
 	 * @return The Bitmap or null on failure.
 	 */
-	private Bitmap getCachedBitmap() {
+	private Bitmap getCachedBitmap(CalendarDay cDay) {
 		File cacheDir = getExternalFilesDir(null);
 		if (cacheDir == null || !cacheDir.canWrite()) {
 			Log.d(TAG, this.getClass().getSimpleName()
@@ -442,8 +437,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		String fileName = "Dilbert-" + cDay.toString() + ".png";
 		File file = new File(cacheDir, fileName);
 		if (!file.exists()) {
-			// Clear the cache as any file is stale
-			clearCache();
 			return null;
 		}
 		// Read the bitmap or null on failure
@@ -459,27 +452,46 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Deletes all the files in the external files directory.
+	 * Trims the number of files in the cache to CACHE_MAX_FILES.
 	 */
-	private void clearCache() {
+	private void trimCache() {
 		File cacheDir = getExternalFilesDir(null);
 		if (cacheDir == null) {
 			return;
 		}
-		String[] files = cacheDir.list();
+		File[] files = cacheDir.listFiles();
 		int len = files.length;
-		if (files == null || len == 0) {
+		Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: files: "
+				+ len);
+		File file1;
+		for (int i = 0; i < len; i++) {
+			file1 = files[i];
+			Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: file: "
+					+ file1.getPath() + " " + file1.lastModified());
+		}
+		if (files == null || len <= CACHE_MAX_FILES) {
 			return;
 		}
+		Arrays.sort(files, new Comparator<File>() {
+			public int compare(File f1, File f2) {
+				return Long.valueOf(f2.lastModified()).compareTo(
+						f1.lastModified());
+			}
+		});
+		int kept = 0;
 		File file;
-		for (String fileName : files) {
-			file = new File(cacheDir, fileName);
+		for (int i = 0; i < len; i++) {
+			file = files[i];
 			if (file.isFile()) {
+				if (kept < CACHE_MAX_FILES) {
+					kept++;
+					continue;
+				}
 				file.delete();
 			}
 		}
-		Log.d(TAG, this.getClass().getSimpleName() + ": clearCache: Deleted "
-				+ len + " file(s)");
+		Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: Kept "
+				+ kept + "/" + len + " file(s)");
 	}
 
 	/**
