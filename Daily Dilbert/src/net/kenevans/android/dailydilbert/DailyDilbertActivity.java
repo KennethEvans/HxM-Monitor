@@ -43,8 +43,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final String urlPrefix = "http://www.dilbert.com";
 	/** Where the image URL is found for archive strips. Append yyyy-mm-dd. */
 	private static final String dateUrlPrefix = "http://www.dilbert.com/strips/comic/";
-	/** The first available strip is on April 16, 1989. */
-	private static final CalendarDay cDayFirst = new CalendarDay(1989, 3, 16);
 	/** Directory on the SD card where strips are saved */
 	private static final String SD_CARD_DILBERT_DIRECTORY = "Dilbert";
 	/**
@@ -120,7 +118,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			getStrip(cDay.incrementDay(-1));
 			return true;
 		case R.id.first:
-			getStrip(cDayFirst);
+			getStrip(CalendarDay.first());
 			return true;
 		case R.id.today:
 			getStrip(CalendarDay.now());
@@ -265,7 +263,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					return null;
 				}
 				// Check it isn't before the first one
-				if (cal.before(cDayFirst)) {
+				if (cal.compareTo(CalendarDay.first().getCalendar()) == -1) {
 					Utils.errMsg(this, dateString
 							+ " is before the first available strip");
 					return null;
@@ -618,6 +616,16 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			int month = cal.get(Calendar.MONTH);
 			int day = cal.get(Calendar.DAY_OF_MONTH);
 			return new CalendarDay(year, month, day);
+		}
+
+		/**
+		 * Returns a CalendarDay representing the first strip, which was on on
+		 * April 16, 1989.
+		 * 
+		 * @return
+		 */
+		public static CalendarDay first() {
+			return new CalendarDay(1989, 3, 16);
 		}
 
 		/**
