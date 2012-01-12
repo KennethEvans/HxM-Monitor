@@ -25,7 +25,6 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.provider.MediaStore.Images.Media;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -281,24 +280,33 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			URL url = null;
 			String dateString = null;
 			// Get it from the Dilbert site
+			CalendarDay cDayFirst = CalendarDay.first();
 			CalendarDay cDayNow = CalendarDay.now();
 			if (cDay.isInvalid()) {
 				this.cDay = cDayNow;
 				dateString = cDay.toString();
 				url = new URL(urlPrefix);
-				// statusBar.setText("Today " + dateString);
 			} else {
 				dateString = cDay.toString();
+				// The order of these is critical to allow for small differences
+				// in ms
+				long first = cDayFirst.getCalendar().getTimeInMillis();
+				long request = cDay.getCalendar().getTimeInMillis();
+				long now = cDayNow.getCalendar().getTimeInMillis();
+				// Log.d(TAG, this.getClass().getSimpleName()
+				// + ": getImageUrl: request=" + request);
+				// Log.d(TAG, this.getClass().getSimpleName()
+				// + ": getImageUrl: first=" + first);
+				// Log.d(TAG, this.getClass().getSimpleName()
+				// + ": getImageUrl: now=" + now);
 				// Check it is not in the future as the site doesn't give a
 				// sensible result in this case
-				Calendar cal = cDay.getCalendar();
-				Calendar now = cDayNow.getCalendar();
-				if (cal.after(now)) {
+				if (request > now) {
 					Utils.errMsg(this, dateString + " is in the future");
 					return null;
 				}
 				// Check it isn't before the first one
-				if (cal.compareTo(CalendarDay.first().getCalendar()) == -1) {
+				if (request < first) {
 					Utils.errMsg(this, dateString
 							+ " is before the first available strip");
 					return null;
@@ -307,7 +315,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				this.cDay = cDay;
 
 				url = new URL(dateUrlPrefix + dateString);
-				// statusBar.setText(dateString);
 			}
 
 			// Look for /dyn/str_strip/xxx.strip.gif
@@ -671,7 +678,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		 */
 		public Calendar getCalendar() {
 			Calendar cal = Calendar.getInstance();
-			cal.set(year, month, day);
+			cal.set(year, month, day, 0, 0, 0);
 			return cal;
 		}
 
