@@ -17,12 +17,15 @@ import java.util.regex.Pattern;
 
 import android.app.Activity;
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.MediaStore.Images.Media;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.GestureDetector;
@@ -108,7 +111,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 		// Set up gestures
 		gestureDetector = new GestureDetector(new MyGestureDetector());
-		
+
 		// Debug
 		// RelativeLayout layout = (RelativeLayout) findViewById(R.id.layout);
 		// int childCount = layout.getChildCount();
@@ -149,6 +152,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			return true;
 		case R.id.save:
 			save();
+			return true;
+		case R.id.share:
+			share();
 			return true;
 		}
 		return false;
@@ -412,6 +418,91 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		}
 	}
 
+	// /**
+	// * Shares the current image file.
+	// */
+	// private void share1() {
+	// File cacheDir = getExternalFilesDir(null);
+	// if (cacheDir == null || !cacheDir.canWrite()) {
+	// Utils.errMsg(this, "Image cache is not available");
+	// return;
+	// }
+	// String fileName = "Dilbert-" + cDay.toString() + ".png";
+	// File file = new File(cacheDir, fileName);
+	// if (!file.exists()) {
+	// Utils.errMsg(this, "Image file is not in cache");
+	// return;
+	// }
+	// // Uri uri = Uri.parse(file.getPath());
+	//
+	// String url = null;
+	// try {
+	// url = Media.insertImage(this.getContentResolver(),
+	// file.getAbsolutePath(), file.getName(), file.getName());
+	// } catch(Exception ex) {
+	// Utils.excMsg(this, "Failed to insert image", ex);
+	// }
+	// if(url == null) {
+	// Utils.errMsg(this, "Could not insert image");
+	// }
+	// Uri uri = Uri.parse(url);
+	//
+	//
+	// // Start the intent
+	// Intent intent = new Intent(Intent.ACTION_SEND);
+	// intent.setType("image/png");
+	// intent.putExtra(Intent.EXTRA_STREAM, uri);
+	// startActivity(Intent.createChooser(intent, "Share image using"));
+	// }
+
+	/**
+	 * Shares the current image file.
+	 */
+	private void share() {
+		// Was not able to send the file from the cache.
+		// Using Media.insertImage() worked, but unsure of the consequences.
+		// Using openFileOutput works. Not sure how to clean it up.
+		if (cDay.isInvalid() || bitmap == null) {
+			Utils.errMsg(this, "Image is invalid");
+			return;
+		}
+		// Use the same name each time to avoid accumulating storage.
+		String fileName = "Dilbert.png";
+		FileOutputStream out = null;
+		try {
+			out = openFileOutput(fileName, MODE_WORLD_READABLE);
+			bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
+			out.close();
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error saving to SD card", ex);
+		} finally {
+			try {
+				out.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+
+		File file = getFileStreamPath(fileName);
+		if (file == null) {
+			Utils.errMsg(this, "Could not retrieve the image file");
+			return;
+		}
+		Uri uri = Uri.fromFile(file);
+		if (uri == null) {
+			Utils.errMsg(this, "Could not retrieve the image file URI");
+			return;
+		}
+
+		// Start the intent
+		Intent intent = new Intent(Intent.ACTION_SEND);
+		intent.setType("image/png");
+		intent.putExtra(Intent.EXTRA_STREAM, uri);
+		// This does the same as just using intent, but changes the string on
+		// the chooser
+		startActivity(Intent.createChooser(intent, "Share image using"));
+	}
+
 	/**
 	 * Caches the current bitmap to the SD card.
 	 */
@@ -419,7 +510,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		File cacheDir = getExternalFilesDir(null);
 		if (cacheDir == null || !cacheDir.canWrite()) {
 			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": cacheBitmap: Cache not available");
+					+ ": cacheBitmap: Cache is not available");
 			return;
 		}
 		if (cDay.isInvalid() || bitmap == null) {
