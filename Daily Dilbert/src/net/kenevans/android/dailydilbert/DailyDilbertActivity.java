@@ -612,7 +612,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * 
 	 * @see java.util.Calendar
 	 */
-	static class CalendarDay implements Comparable {
+	static class CalendarDay implements Comparable<Object> {
 		public int year;
 		public int month;
 		public int day;
