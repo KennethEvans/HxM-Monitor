@@ -274,7 +274,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * Gets the URL for the image by parsing the page at dilbert.com. This
 	 * method contains the logic for dealing with the Dilbert site.
 	 */
-	public String getImageUrl(CalendarDay cDay) {
+	private String getImageUrl(CalendarDay cDay) {
 		String imageUrlString = null;
 		try {
 			URL url = null;
@@ -757,6 +757,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 		@Override
 		public int compareTo(Object obj) {
+			// This can lead to problems
 			if (!(obj instanceof CalendarDay)) {
 				return 0;
 			}
