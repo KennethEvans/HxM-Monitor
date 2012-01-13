@@ -288,25 +288,14 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				url = new URL(urlPrefix);
 			} else {
 				dateString = cDay.toString();
-				// The order of these is critical to allow for small differences
-				// in ms
-				long first = cDayFirst.getCalendar().getTimeInMillis();
-				long request = cDay.getCalendar().getTimeInMillis();
-				long now = cDayNow.getCalendar().getTimeInMillis();
-				// Log.d(TAG, this.getClass().getSimpleName()
-				// + ": getImageUrl: request=" + request);
-				// Log.d(TAG, this.getClass().getSimpleName()
-				// + ": getImageUrl: first=" + first);
-				// Log.d(TAG, this.getClass().getSimpleName()
-				// + ": getImageUrl: now=" + now);
 				// Check it is not in the future as the site doesn't give a
 				// sensible result in this case
-				if (request > now) {
+				if (cDay.compareTo(cDayNow) == 1) {
 					Utils.errMsg(this, dateString + " is in the future");
 					return null;
 				}
 				// Check it isn't before the first one
-				if (request < first) {
+				if (cDay.compareTo(cDayFirst) == -1) {
 					Utils.errMsg(this, dateString
 							+ " is before the first available strip");
 					return null;
@@ -623,7 +612,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * 
 	 * @see java.util.Calendar
 	 */
-	static class CalendarDay {
+	static class CalendarDay implements Comparable {
 		public int year;
 		public int month;
 		public int day;
@@ -701,9 +690,10 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		 * @param day
 		 */
 		public void set(int year, int month, int day) {
-			this.year = year;
-			this.month = month;
-			this.day = day;
+			// Use the Calendar to recalculate the fields
+			Calendar cal = Calendar.getInstance();
+			cal.set(year, month, day, 0, 0, 0);
+			set(cal);
 		}
 
 		/**
@@ -763,6 +753,36 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		 */
 		public static CalendarDay invalid() {
 			return new CalendarDay(-1, -1, -1);
+		}
+
+		@Override
+		public int compareTo(Object obj) {
+			if (!(obj instanceof CalendarDay)) {
+				return 0;
+			}
+			// Assumes the two CalendarDays are normalized correctly.
+			CalendarDay cDay = (CalendarDay) obj;
+			if (year < cDay.year) {
+				return -1;
+			}
+			if (year > cDay.year) {
+				return 1;
+			}
+			// Years are the same
+			if (month < cDay.month) {
+				return -1;
+			}
+			if (month > cDay.month) {
+				return 1;
+			}
+			// Months are the same
+			if (day < cDay.day) {
+				return -1;
+			}
+			if (day > cDay.day) {
+				return 1;
+			}
+			return 0;
 		}
 
 	}
