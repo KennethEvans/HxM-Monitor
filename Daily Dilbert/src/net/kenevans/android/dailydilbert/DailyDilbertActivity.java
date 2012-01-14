@@ -49,6 +49,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final String urlPrefix = "http://www.dilbert.com";
 	/** Where the image URL is found for archive strips. Append yyyy-mm-dd. */
 	private static final String dateUrlPrefix = "http://www.dilbert.com/strips/comic/";
+	/** Name of the file used for sharing. */
+	private static final String SHARE_FILENAME = "Dilbert.png";
 	/** Directory on the SD card where strips are saved */
 	private static final String SD_CARD_DILBERT_DIRECTORY = "Dilbert";
 	/**
@@ -58,7 +60,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static int CACHE_MAX_FILES = 5;
 
 	private GestureDetector gestureDetector;
-	private CalendarDay cDay = CalendarDay.invalid();
+	private CalendarDay cDay = CalendarDay.now();
 	private Bitmap bitmap;
 	private ImagePanel mPanel;
 	private TextView mInfo;
@@ -176,7 +178,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		int year = prefs.getInt("year", -1);
 		int month = prefs.getInt("month", -1);
 		int day = prefs.getInt("day", -1);
-		cDay.set(year, month, day);
+		if (year != -1 && month != -1 && day != -1) {
+			cDay.set(year, month, day);
+		}
 		Log.d(TAG, this.getClass().getSimpleName() + ": onResume(2): cDay="
 				+ cDay);
 		getStrip(cDay);
@@ -188,6 +192,18 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			return true;
 		else
 			return false;
+	}
+
+	@Override
+	protected void onDestroy() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onDestroy: ");
+		// Delete the file used for sharing
+		String fileName = SHARE_FILENAME;
+		// Returns true if there and deleted, false if not there
+		boolean deleted = deleteFile(fileName);
+		Log.d(TAG, this.getClass().getSimpleName() + ": onDestroy: " + fileName
+				+ " deleted=" + deleted);
+		super.onDestroy();
 	}
 
 	/**
@@ -282,29 +298,23 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			// Get it from the Dilbert site
 			CalendarDay cDayFirst = CalendarDay.first();
 			CalendarDay cDayNow = CalendarDay.now();
-			if (cDay.isInvalid()) {
-				this.cDay = cDayNow;
-				dateString = cDay.toString();
-				url = new URL(urlPrefix);
-			} else {
-				dateString = cDay.toString();
-				// Check it is not in the future as the site doesn't give a
-				// sensible result in this case
-				if (cDay.compareTo(cDayNow) == 1) {
-					Utils.errMsg(this, dateString + " is in the future");
-					return null;
-				}
-				// Check it isn't before the first one
-				if (cDay.compareTo(cDayFirst) == -1) {
-					Utils.errMsg(this, dateString
-							+ " is before the first available strip");
-					return null;
-				}
-				// Store it
-				this.cDay = cDay;
-
-				url = new URL(dateUrlPrefix + dateString);
+			dateString = cDay.toString();
+			// Check it is not in the future as the site doesn't give a
+			// sensible result in this case
+			if (cDay.compareTo(cDayNow) == 1) {
+				Utils.errMsg(this, dateString + " is in the future");
+				return null;
 			}
+			// Check it isn't before the first one
+			if (cDay.compareTo(cDayFirst) == -1) {
+				Utils.errMsg(this, dateString
+						+ " is before the first available strip");
+				return null;
+			}
+			// Store it
+			this.cDay = cDay;
+
+			url = new URL(dateUrlPrefix + dateString);
 
 			// Look for /dyn/str_strip/xxx.strip.gif
 			String regex = "(/dyn/str_strip/.*\\.strip\\.gif)";
@@ -368,10 +378,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * Saves the current bitmap to the SD card.
 	 */
 	private void save() {
-		if (cDay.isInvalid() || bitmap == null) {
-			Utils.errMsg(this, "Image is invalid");
-			return;
-		}
 		FileOutputStream out = null;
 		String fileName = "Dilbert-" + cDay.toString() + ".png";
 		try {
@@ -414,43 +420,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		}
 	}
 
-	// /**
-	// * Shares the current image file.
-	// */
-	// private void share1() {
-	// File cacheDir = getExternalFilesDir(null);
-	// if (cacheDir == null || !cacheDir.canWrite()) {
-	// Utils.errMsg(this, "Image cache is not available");
-	// return;
-	// }
-	// String fileName = "Dilbert-" + cDay.toString() + ".png";
-	// File file = new File(cacheDir, fileName);
-	// if (!file.exists()) {
-	// Utils.errMsg(this, "Image file is not in cache");
-	// return;
-	// }
-	// // Uri uri = Uri.parse(file.getPath());
-	//
-	// String url = null;
-	// try {
-	// url = Media.insertImage(this.getContentResolver(),
-	// file.getAbsolutePath(), file.getName(), file.getName());
-	// } catch(Exception ex) {
-	// Utils.excMsg(this, "Failed to insert image", ex);
-	// }
-	// if(url == null) {
-	// Utils.errMsg(this, "Could not insert image");
-	// }
-	// Uri uri = Uri.parse(url);
-	//
-	//
-	// // Start the intent
-	// Intent intent = new Intent(Intent.ACTION_SEND);
-	// intent.setType("image/png");
-	// intent.putExtra(Intent.EXTRA_STREAM, uri);
-	// startActivity(Intent.createChooser(intent, "Share image using"));
-	// }
-
 	/**
 	 * Shares the current image file.
 	 */
@@ -458,12 +427,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		// Was not able to send the file from the cache.
 		// Using Media.insertImage() worked, but unsure of the consequences.
 		// Using openFileOutput works. Not sure how to clean it up.
-		if (cDay.isInvalid() || bitmap == null) {
-			Utils.errMsg(this, "Image is invalid");
-			return;
-		}
 		// Use the same name each time to avoid accumulating storage.
-		String fileName = "Dilbert.png";
+		String fileName = SHARE_FILENAME;
 		FileOutputStream out = null;
 		try {
 			out = openFileOutput(fileName, MODE_WORLD_READABLE);
@@ -509,7 +474,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					+ ": cacheBitmap: Cache is not available");
 			return;
 		}
-		if (cDay.isInvalid() || bitmap == null) {
+		if (bitmap == null) {
 			return;
 		}
 		FileOutputStream out = null;
@@ -693,17 +658,13 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			// Use the Calendar to recalculate the fields
 			Calendar cal = Calendar.getInstance();
 			cal.set(year, month, day, 0, 0, 0);
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": calendarDay.set(1): " + this.year + " " + this.month
+					+ " " + this.day + " " + this);
 			set(cal);
-		}
-
-		/**
-		 * Returns if this instance represents an invalid calendar day. An
-		 * invalid calendar day has the year, month, and day equal to -1.
-		 * 
-		 * @return
-		 */
-		public boolean isInvalid() {
-			return (year == -1 && month == -1 && day == -1);
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": calendarDay.set(2): " + this.year + " " + this.month
+					+ " " + this.day + " " + this);
 		}
 
 		/**
@@ -745,24 +706,11 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			return new CalendarDay(1989, 3, 16);
 		}
 
-		/**
-		 * Returns a CalendarDay representing an invalid calendar day. An
-		 * invalid calendar day has the year, month, and day equal to -1.
-		 * 
-		 * @return
-		 */
-		public static CalendarDay invalid() {
-			return new CalendarDay(-1, -1, -1);
-		}
-
 		@Override
 		public int compareTo(Object obj) {
-			// This can lead to problems
-			if (!(obj instanceof CalendarDay)) {
-				return 0;
-			}
-			// Assumes the two CalendarDays are normalized correctly.
+			// Should throw an exception if obj is not a CalendarDay
 			CalendarDay cDay = (CalendarDay) obj;
+			// Assumes the two CalendarDays are normalized correctly.
 			if (year < cDay.year) {
 				return -1;
 			}
