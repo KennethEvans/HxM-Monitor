@@ -15,12 +15,16 @@ import java.util.regex.Pattern;
 
 import android.app.Activity;
 import android.app.DatePickerDialog;
+import android.app.ProgressDialog;
+import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.DisplayMetrics;
@@ -58,6 +62,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static int CACHE_MAX_FILES = 5;
 
 	private GestureDetector gestureDetector;
+	private GetStripFromWebTask updateTask;
 	private CalendarDay cDay = CalendarDay.now();
 	private Bitmap bitmap;
 	private ImagePanel mPanel;
@@ -155,6 +160,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		case R.id.share:
 			share();
 			return true;
+		case R.id.help:
+			showHelp();
+			return true;
 		}
 		return false;
 	}
@@ -183,6 +191,17 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				+ cDay);
 		getStrip(cDay);
 	}
+
+	// @Override
+	// public void onBackPressed() {
+	// Log.d(TAG, this.getClass().getSimpleName()
+	// + ": onBackPressed: updateTask=" + updateTask);
+	// if (updateTask != null) {
+	// updateTask.cancel(true);
+	// }
+	// updateTask = null;
+	// super.onBackPressed();
+	// }
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
@@ -218,20 +237,26 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": getStrip: Got bitmap from cache for " + cDay);
 			mInfo.setTextColor(Color.WHITE);
+			if (bitmap == null) {
+				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
+			} else {
+				setNewImage();
+			}
 		} else {
 			String imageURL = getImageUrl(cDay);
 			if (imageURL == null) {
 				return;
 			}
-			bitmap = getBitmapFromURL(imageURL);
-			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": getStrip: Got bitmap from URL for " + this.cDay);
-			mInfo.setTextColor(Color.CYAN);
-		}
-		if (bitmap == null) {
-			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-		} else {
-			setNewImage();
+			// Get it directly
+			// bitmap = getBitmapFromURL(imageURL);
+			if (updateTask != null) {
+				Log.d(TAG, this.getClass().getSimpleName()
+						+ ": getStrip: updateTask is not null for " + cDay);
+				return;
+			}
+			// Run it in an AsyncTask to see progress and make it cancel-able
+			updateTask = new GetStripFromWebTask(cDay);
+			updateTask.execute(imageURL);
 		}
 	}
 
@@ -239,6 +264,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * Sets a new image in the canvas and writes the info message
 	 */
 	private void setNewImage() {
+		if (mInfo == null || mPanel == null) {
+			return;
+		}
 		setInfo(cDay.toString());
 		mPanel.setBitmap(bitmap);
 		mPanel.invalidate();
@@ -258,7 +286,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * @param info
 	 */
 	public void setInfo(String info) {
-		mInfo.setText(info);
+		if (mInfo != null) {
+			mInfo.setText(info);
+		}
 	}
 
 	/**
@@ -363,8 +393,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		DatePickerDialog.OnDateSetListener dateSetListener = new DatePickerDialog.OnDateSetListener() {
 			@Override
 			public void onDateSet(DatePicker view, int year, int month, int day) {
-				cDay.set(year, month, day);
-				getStrip(cDay);
+				getStrip(new CalendarDay(year, month, day));
 			}
 		};
 		DatePickerDialog dlg = new DatePickerDialog(this, dateSetListener,
@@ -482,7 +511,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			out = new FileOutputStream(file);
 			bitmap.compress(Bitmap.CompressFormat.PNG, 100, out);
 			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": cacheBitmap: Cached file=" + file.getPath());
+					+ ": cacheBitmap: Cached " + file.getPath());
 			// Trim the cache
 			trimCache();
 		} catch (Exception ex) {
@@ -535,13 +564,14 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		}
 		File[] files = cacheDir.listFiles();
 		int len = files.length;
-		Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: files: "
-				+ len);
+		// Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: files: "
+		// + len);
 		File file1;
 		for (int i = 0; i < len; i++) {
 			file1 = files[i];
-			Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: file: "
-					+ file1.getPath() + " " + file1.lastModified());
+			// Log.d(TAG, this.getClass().getSimpleName() +
+			// ": trimCache: file: "
+			// + file1.getPath() + " " + file1.lastModified());
 		}
 		if (files == null || len <= CACHE_MAX_FILES) {
 			return;
@@ -564,8 +594,26 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				file.delete();
 			}
 		}
-		Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: Kept "
-				+ kept + "/" + len + " file(s)");
+		// Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: Kept "
+		// + kept + "/" + len + " file(s)");
+	}
+
+	/**
+	 * Show the help.
+	 */
+	private void showHelp() {
+		try {
+			// Start theInfoActivity
+			Intent intent = new Intent();
+			intent.setClass(this, InfoActivity.class);
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+					| Intent.FLAG_ACTIVITY_SINGLE_TOP);
+			intent.putExtra(INFO_URL,
+					"file:///android_asset/dailydilbert.html");
+			startActivity(intent);
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error showing Help", ex);
+		}
 	}
 
 	/**
@@ -601,6 +649,103 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				// Do nothing
 			}
 			return false;
+		}
+	}
+
+	/**
+	 * Class to handle getting the bitmap from the web using a progress bar that
+	 * can be cancelled.<br>
+	 * <br>
+	 * Call with <b>Bitmap bitmap = new MyUpdateTask().execute(String)<b>
+	 */
+	private class GetStripFromWebTask extends AsyncTask<String, Void, Boolean> {
+		private ProgressDialog dialog;
+		private CalendarDay cDay;
+		private Bitmap newBitmap;
+
+		public GetStripFromWebTask(CalendarDay cDay) {
+			super();
+			this.cDay = cDay;
+		}
+
+		@Override
+		protected void onPreExecute() {
+			dialog = new ProgressDialog(DailyDilbertActivity.this);
+			dialog.setMessage("Getting " + cDay + " from dilbert.com");
+			dialog.setCancelable(true);
+			dialog.setIndeterminate(true);
+			dialog.setOnCancelListener(new OnCancelListener() {
+				public void onCancel(DialogInterface dialog) {
+					Log.d(TAG, GetStripFromWebTask.this.getClass()
+							.getSimpleName()
+							+ ": ProgressDialog.onCancel: Cancelled");
+					if (updateTask != null) {
+						updateTask.cancel(true);
+						updateTask = null;
+					}
+				}
+			});
+			dialog.show();
+		}
+
+		@Override
+		protected Boolean doInBackground(String... urls) {
+			String imageURL = urls[0];
+			// try {
+			// Thread.sleep(10000);
+			// } catch (InterruptedException ex) {
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": doInBackground: InterruptedException");
+			// return false;
+			// }
+			Bitmap bitmap = getBitmapFromURL(imageURL);
+			if (isCancelled()) {
+				Log.d(TAG, this.getClass().getSimpleName()
+						+ ": doInBackground (end): isCancelled");
+			}
+			newBitmap = bitmap;
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": doInBackground (end): result=" + true);
+			return true;
+		}
+
+		// @Override
+		// protected void onCancelled() {
+		// super.onCancelled();
+		// Log.d(TAG, this.getClass().getSimpleName()
+		// + ": onCancelled: ");
+		// if (dialog != null) {
+		// dialog.dismiss();
+		// }
+		// updateTask = null;
+		// }
+
+		@Override
+		protected void onPostExecute(Boolean result) {
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": onPostExecute: result=" + result);
+			if (dialog != null) {
+				dialog.dismiss();
+			}
+			// // Should not be called if it is cancelled
+			// if (isCancelled()) {
+			// updateTask = null;
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": onPostExecute: isCancelled");
+			// return;
+			// }
+			updateTask = null;
+			if (newBitmap == null) {
+				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
+				return;
+			}
+			bitmap = newBitmap;
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": onPostExecute: Got bitmap from URL for " + this.cDay);
+			if (mInfo != null) {
+				mInfo.setTextColor(Color.CYAN);
+			}
+			setNewImage();
 		}
 	}
 

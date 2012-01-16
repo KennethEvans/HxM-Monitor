@@ -77,21 +77,21 @@ class ImagePanel extends View implements IConstants {
 		canvas.drawBitmap(newBitmap, x0, y0, null);
 
 		// Debug
-		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: bitmap=("
-				+ bitmap.getWidth() + "," + bitmap.getHeight() + ")");
-		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: newBitmap=("
-				+ bWidth + "," + bHeight + ")");
-		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: scale=("
-				+ scaleWidth + "," + scaleHeight + ")");
-		Log.d(TAG, this.getClass().getSimpleName()
-				+ ": onDraw: bitmap offset: " + y0 + "," + x0);
-		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: canvas: "
-				+ canvas.getWidth() + "," + canvas.getHeight());
-		Log.d(TAG,
-				this.getClass().getSimpleName() + ": onDraw: this: "
-						+ this.getLeft() + "," + this.getRight() + ","
-						+ this.getTop() + "," + this.getBottom() + " : "
-						+ this.getWidth() + "," + this.getHeight());
+//		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: bitmap=("
+//				+ bitmap.getWidth() + "," + bitmap.getHeight() + ")");
+//		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: newBitmap=("
+//				+ bWidth + "," + bHeight + ")");
+//		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: scale=("
+//				+ scaleWidth + "," + scaleHeight + ")");
+//		Log.d(TAG, this.getClass().getSimpleName()
+//				+ ": onDraw: bitmap offset: " + y0 + "," + x0);
+//		Log.d(TAG, this.getClass().getSimpleName() + ": onDraw: canvas: "
+//				+ canvas.getWidth() + "," + canvas.getHeight());
+//		Log.d(TAG,
+//				this.getClass().getSimpleName() + ": onDraw: this: "
+//						+ this.getLeft() + "," + this.getRight() + ","
+//						+ this.getTop() + "," + this.getBottom() + " : "
+//						+ this.getWidth() + "," + this.getHeight());
 	}
 
 	public Bitmap getBitmap() {

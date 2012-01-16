@@ -1,4 +1,5 @@
 package net.kenevans.android.dailydilbert;
+
 //Copyright (c) 2011 Kenneth Evans
 //
 //Permission is hereby granted, free of charge, to any person obtaining
@@ -28,4 +29,7 @@ public interface IConstants {
 	/** Tag to associate with log messages. */
 	public static final String TAG = "DailyDilbert";
 
+	// Information
+	/** Key for information URL sent to InfoActivity. */
+	public static final String INFO_URL = "InformationURL";
 }
