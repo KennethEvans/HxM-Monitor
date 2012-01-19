@@ -64,6 +64,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private GestureDetector gestureDetector;
 	private GetStripFromWebTask updateTask;
 	private CalendarDay cDay = CalendarDay.now();
+	private CalendarDay cDayLastPicked = null;
 	private Bitmap bitmap;
 	private ImagePanel mPanel;
 	private TextView mInfo;
@@ -205,10 +206,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		if (gestureDetector.onTouchEvent(event))
-			return true;
-		else
-			return false;
+		return gestureDetector.onTouchEvent(event);
 	}
 
 	@Override
@@ -232,19 +230,16 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		// See if it is in the cache
 		Bitmap newBitmap = getCachedBitmap(cDay);
 		if (newBitmap != null) {
-			this.cDay = cDay;
 			bitmap = newBitmap;
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": getStrip: Got bitmap from cache for " + cDay);
 			mInfo.setTextColor(Color.WHITE);
-			if (bitmap == null) {
-				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-			} else {
-				setNewImage();
-			}
+			setNewImage(cDay);
 		} else {
 			String imageURL = getImageUrl(cDay);
 			if (imageURL == null) {
+				Log.e(TAG, this.getClass().getSimpleName()
+						+ ": getStrip: imageUrl = null");
 				return;
 			}
 			// Get it directly
@@ -261,12 +256,14 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Sets a new image in the canvas and writes the info message
+	 * Sets the cDay field, writes the info message, and sets a new image in the
+	 * canvas.
 	 */
-	private void setNewImage() {
+	private void setNewImage(CalendarDay cDay) {
 		if (mInfo == null || mPanel == null) {
 			return;
 		}
+		this.cDay = cDay;
 		setInfo(cDay.toString());
 		mPanel.setBitmap(bitmap);
 		mPanel.invalidate();
@@ -316,7 +313,12 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 	/**
 	 * Gets the URL for the image by parsing the page at dilbert.com. This
-	 * method contains the logic for dealing with the Dilbert site.
+	 * method contains the logic for dealing with the Dilbert site. This method
+	 * does not change the cDay field.
+	 * 
+	 * @param cDay
+	 *            The day for which to get the image.
+	 * @return The URL.
 	 */
 	private String getImageUrl(CalendarDay cDay) {
 		String imageUrlString = null;
@@ -339,9 +341,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 						+ " is before the first available strip");
 				return null;
 			}
-			// Store it
-			this.cDay = cDay;
-
 			url = new URL(dateUrlPrefix + dateString);
 
 			// Look for /dyn/str_strip/xxx.strip.gif
@@ -393,11 +392,17 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		DatePickerDialog.OnDateSetListener dateSetListener = new DatePickerDialog.OnDateSetListener() {
 			@Override
 			public void onDateSet(DatePicker view, int year, int month, int day) {
+				cDayLastPicked = new CalendarDay(year, month, day);
 				getStrip(new CalendarDay(year, month, day));
 			}
 		};
+		// Initialize the dialog with the last value the user choose or cDay if
+		// none
+		if (cDayLastPicked == null) {
+			cDayLastPicked = new CalendarDay(cDay.year, cDay.month, cDay.day);
+		}
 		DatePickerDialog dlg = new DatePickerDialog(this, dateSetListener,
-				cDay.year, cDay.month, cDay.day);
+				cDayLastPicked.year, cDayLastPicked.month, cDayLastPicked.day);
 		dlg.show();
 	}
 
@@ -608,8 +613,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			intent.setClass(this, InfoActivity.class);
 			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
 					| Intent.FLAG_ACTIVITY_SINGLE_TOP);
-			intent.putExtra(INFO_URL,
-					"file:///android_asset/dailydilbert.html");
+			intent.putExtra(INFO_URL, "file:///android_asset/dailydilbert.html");
 			startActivity(intent);
 		} catch (Exception ex) {
 			Utils.excMsg(this, "Error showing Help", ex);
@@ -633,21 +637,33 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			try {
 				// Check if it is a horizontal swipe
 				if (Math.abs(e1.getY() - e2.getY()) > SWIPE_MAX_OFF_PATH) {
+					Log.d(TAG, this.getClass().getSimpleName()
+							+ ": onFling: Not horizontal " + cDay);
 					return false;
 				}
 				// Branch on direction
 				if (e1.getX() - e2.getX() > SWIPE_MIN_DISTANCE
 						&& Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
+					Log.d(TAG, this.getClass().getSimpleName()
+							+ ": onFling: To left (increment) " + cDay);
 					// To left
-					getStrip(cDay.incrementDay(-1));
+					getStrip(cDay.incrementDay(+1));
+					return true;
 				} else if (e2.getX() - e1.getX() > SWIPE_MIN_DISTANCE
 						&& Math.abs(velocityX) > SWIPE_THRESHOLD_VELOCITY) {
 					// To right
-					getStrip(cDay.incrementDay(1));
+					Log.d(TAG, this.getClass().getSimpleName()
+							+ ": onFling: To right (decrement) " + cDay);
+					getStrip(cDay.incrementDay(-1));
+					return true;
 				}
 			} catch (Exception ex) {
 				// Do nothing
+				Log.d(TAG, this.getClass().getSimpleName() + ": onFling: "
+						+ cDay + " Exception: " + ex.getMessage());
 			}
+			Log.d(TAG, this.getClass().getSimpleName() + ": onFling: Nothing "
+					+ cDay);
 			return false;
 		}
 	}
@@ -745,7 +761,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			if (mInfo != null) {
 				mInfo.setTextColor(Color.CYAN);
 			}
-			setNewImage();
+			setNewImage(cDay);
 		}
 	}
 

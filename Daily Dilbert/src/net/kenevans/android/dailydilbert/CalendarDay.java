@@ -125,14 +125,11 @@ class CalendarDay implements Comparable<Object> {
 	 *            The amount by which to increment.
 	 */
 	public CalendarDay incrementDay(int number) {
-		Calendar cal = getCalendar();
-		cal.add(Calendar.DAY_OF_MONTH, number);
-		return new CalendarDay(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH),
-				cal.get(Calendar.DAY_OF_MONTH));
+		return new CalendarDay(year, month, day+ number);
 	}
 
 	/**
-	 * Returns a CalendarDay representing the current time.
+	 * Returns a CalendarDay representing the current day.
 	 * 
 	 * @return
 	 */
