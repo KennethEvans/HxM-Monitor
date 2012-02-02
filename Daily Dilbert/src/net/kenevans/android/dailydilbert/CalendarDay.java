@@ -31,7 +31,7 @@ import java.util.Date;
  * 
  * @see java.util.Calendar
  */
-class CalendarDay implements Comparable<Object> {
+class CalendarDay implements Comparable<CalendarDay> {
 	public int year;
 	public int month;
 	public int day;
@@ -86,6 +86,7 @@ class CalendarDay implements Comparable<Object> {
 	 */
 	public Calendar getCalendar() {
 		Calendar cal = Calendar.getInstance();
+		cal.set(Calendar.MILLISECOND, 0);
 		cal.set(year, month, day, 0, 0, 0);
 		return cal;
 	}
@@ -102,7 +103,7 @@ class CalendarDay implements Comparable<Object> {
 	}
 
 	/**
-	 * Sets the values for this instance.
+	 * Sets the values for this instance. The MILLISECOND field is set to 0.
 	 * 
 	 * @param year
 	 * @param month
@@ -111,6 +112,7 @@ class CalendarDay implements Comparable<Object> {
 	public void set(int year, int month, int day) {
 		// Use the Calendar to recalculate the fields
 		Calendar cal = Calendar.getInstance();
+		cal.set(Calendar.MILLISECOND, 0);
 		cal.set(year, month, day, 0, 0, 0);
 		set(cal);
 	}
@@ -125,7 +127,7 @@ class CalendarDay implements Comparable<Object> {
 	 *            The amount by which to increment.
 	 */
 	public CalendarDay incrementDay(int number) {
-		return new CalendarDay(year, month, day+ number);
+		return new CalendarDay(year, month, day + number);
 	}
 
 	/**
@@ -152,10 +154,10 @@ class CalendarDay implements Comparable<Object> {
 	}
 
 	@Override
-	public int compareTo(Object obj) {
-		// Should throw an exception if obj is not a CalendarDay
-		CalendarDay cDay = (CalendarDay) obj;
-		// Assumes the two CalendarDays are normalized correctly
+	public int compareTo(CalendarDay cDay) {
+		// Note that we could probably use Calendar.before() here,
+		// provided the hour, min, sec, and MILLISECONDS are zeroed.
+		// This way assumes the two CalendarDays are normalized correctly.
 		if (year < cDay.year) {
 			return -1;
 		}
