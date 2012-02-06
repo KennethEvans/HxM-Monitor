@@ -16,6 +16,7 @@ import java.util.regex.Pattern;
 import android.app.Activity;
 import android.app.DatePickerDialog;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
@@ -47,14 +48,6 @@ import android.widget.Toast;
  * 
  */
 public class DailyDilbertActivity extends Activity implements IConstants {
-	/** Where the image URL is found for todays strip. */
-	private static final String urlPrefix = "http://www.dilbert.com";
-	/** Where the image URL is found for archive strips. Append yyyy-mm-dd. */
-	private static final String dateUrlPrefix = "http://www.dilbert.com/strips/comic/";
-	/** Name of the file used for sharing. */
-	private static final String SHARE_FILENAME = "Dilbert.png";
-	/** Directory on the SD card where strips are saved */
-	private static final String SD_CARD_DILBERT_DIRECTORY = "Dilbert";
 	/**
 	 * Number of files to keep in the cache when trimming. The cache should
 	 * never contain more than CACHE_MAX_FILES + 1 at any time.
@@ -66,7 +59,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private CalendarDay cDay = CalendarDay.now();
 	private CalendarDay cDayLastPicked = null;
 	private Bitmap bitmap;
-	private ImagePanel mPanel;
+	private FittedImageView mPanel;
 	private TextView mInfo;
 
 	/** Called when the activity is first created. */
@@ -92,7 +85,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		try {
 			setContentView(R.layout.main);
 			mInfo = (TextView) findViewById(R.id.info);
-			mPanel = (ImagePanel) findViewById(R.id.panel);
+			mPanel = (FittedImageView) findViewById(R.id.panel);
 		} catch (Exception ex) {
 			Utils.excMsg(this, "Error getting resources", ex);
 		}
@@ -113,9 +106,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				getStrip(cDay.incrementDay(-1));
 			}
 		});
-
-		// Set up gestures
-		gestureDetector = new GestureDetector(new MyGestureDetector());
 
 		// Debug
 		// RelativeLayout layout = (RelativeLayout) findViewById(R.id.layout);
@@ -173,6 +163,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onPause: cDay=" + cDay);
 		super.onPause();
 		// No need to save the state as it is saved when the image is set
+		
+		// Cancel the gesture detector to avoid extra callbacks
+		gestureDetector = null;
 	}
 
 	@Override
@@ -180,6 +173,10 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onResume(1): cDay="
 				+ cDay);
 		super.onResume();
+		
+		// Restore the gesture detector
+		gestureDetector = new GestureDetector(new MyGestureDetector());
+
 		// Restore the state
 		SharedPreferences prefs = getPreferences(MODE_PRIVATE);
 		int year = prefs.getInt("year", -1);
@@ -206,6 +203,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
+		if(gestureDetector == null) {
+			return super.onTouchEvent(event);
+		}
 		return gestureDetector.onTouchEvent(event);
 	}
 
@@ -533,12 +533,26 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	/**
 	 * Get a Bitmap from a file in the cache.
 	 * 
+	 * @param cDay
 	 * @return The Bitmap or null on failure.
 	 */
 	private Bitmap getCachedBitmap(CalendarDay cDay) {
-		File cacheDir = getExternalFilesDir(null);
+		return getCachedBitmap(this, cDay);
+	}
+
+	/**
+	 * Get a Bitmap from a file in the cache. Static version that can be called
+	 * by other Activities.
+	 * 
+	 * @param context
+	 *            The context to use.
+	 * @param cDay
+	 * @return The Bitmap or null on failure.
+	 */
+	public static Bitmap getCachedBitmap(Context context, CalendarDay cDay) {
+		File cacheDir = context.getExternalFilesDir(null);
 		if (cacheDir == null || !cacheDir.canWrite()) {
-			Log.d(TAG, this.getClass().getSimpleName()
+			Log.d(TAG, context.getClass().getSimpleName()
 					+ ": getCachedBitmap: Cache not available");
 			return null;
 		}
@@ -550,10 +564,10 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		// Read the bitmap or null on failure
 		Bitmap bitmap = BitmapFactory.decodeFile(file.getPath());
 		if (bitmap == null) {
-			Log.d(TAG, this.getClass().getSimpleName()
+			Log.d(TAG, context.getClass().getSimpleName()
 					+ ": getCachedBitmap: Cached bitmap is null");
 		} else {
-			Log.d(TAG, this.getClass().getSimpleName()
+			Log.d(TAG, context.getClass().getSimpleName()
 					+ ": getCachedBitmap: Got " + fileName);
 		}
 		return bitmap;
@@ -571,13 +585,13 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		int len = files.length;
 		// Log.d(TAG, this.getClass().getSimpleName() + ": trimCache: files: "
 		// + len);
-		File file1;
-		for (int i = 0; i < len; i++) {
-			file1 = files[i];
-			// Log.d(TAG, this.getClass().getSimpleName() +
-			// ": trimCache: file: "
-			// + file1.getPath() + " " + file1.lastModified());
-		}
+		// File file1;
+		// for (int i = 0; i < len; i++) {
+		// file1 = files[i];
+		// // Log.d(TAG, this.getClass().getSimpleName() +
+		// // ": trimCache: file: "
+		// // + file1.getPath() + " " + file1.lastModified());
+		// }
 		if (files == null || len <= CACHE_MAX_FILES) {
 			return;
 		}
@@ -608,7 +622,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 */
 	private void showHelp() {
 		try {
-			// Start theInfoActivity
+			// Start the InfoActivity
 			Intent intent = new Intent();
 			intent.setClass(this, InfoActivity.class);
 			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
@@ -617,6 +631,25 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			startActivity(intent);
 		} catch (Exception ex) {
 			Utils.excMsg(this, "Error showing Help", ex);
+		}
+	}
+
+	/**
+	 * Call ZoomActivity.
+	 */
+	private void doZoom() {
+		try {
+			// Start the ZoomActivity
+			Intent intent = new Intent();
+			intent.setClass(this, ZoomActivity.class);
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+					| Intent.FLAG_ACTIVITY_SINGLE_TOP);
+			intent.putExtra(YEAR, cDay.year);
+			intent.putExtra(MONTH, cDay.month);
+			intent.putExtra(DAY, cDay.day);
+			startActivity(intent);
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error showing Zoom", ex);
 		}
 	}
 
@@ -665,6 +698,27 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			Log.d(TAG, this.getClass().getSimpleName() + ": onFling: Nothing "
 					+ cDay);
 			return false;
+		}
+
+		@Override
+		public boolean onSingleTapConfirmed(MotionEvent e) {
+			if (mPanel == null) {
+				return false;
+			}
+			int vWidth = mPanel.getWidth();
+			if (e.getX() < vWidth / 2) {
+				getStrip(cDay.incrementDay(-1));
+			} else {
+				getStrip(cDay.incrementDay(1));
+			}
+			return true;
+		}
+
+		@Override
+		public boolean onDoubleTapEvent(MotionEvent e) {
+			Log.d(TAG, this.getClass().getSimpleName() + ": onDoubleTapEvent:");
+			doZoom();
+			return true;
 		}
 	}
 

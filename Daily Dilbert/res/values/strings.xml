@@ -10,6 +10,7 @@
     <string name="save_item">Save</string>
     <string name="share_item">Share</string>
     <string name="today_item">Today</string>
+	<string name="zoom_title">Zoom</string>
 
 	<!-- Utils -->
 	<string name="error">Error</string>

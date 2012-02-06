@@ -40,7 +40,7 @@
     		android:layout_toLeftOf="@id/nextbutton"
 		/>
 	</RelativeLayout>
-	<net.kenevans.android.dailydilbert.ImagePanel
+	<net.kenevans.android.dailydilbert.FittedImageView
 		android:id="@+id/panel"
 		android:layout_width="fill_parent"
 		android:layout_height="wrap_content"

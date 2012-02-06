@@ -5,22 +5,26 @@ import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.View;
 
 /**
  * A custom View to display the strip resized and centered.
  * 
  */
-class ImagePanel extends View implements IConstants {
-	Bitmap bitmap;
+class FittedImageView extends View implements IConstants {
+	/** The current bitmap. */
+	private Bitmap bitmap;
+	/** The width of the current bitmap. */
+	int bWidth = 0;
+	/** The height of the current bitmap. */
+	int bHeight = 0;
 
 	/**
 	 * Use this constructor when calling from code.
 	 * 
 	 * @param context
 	 */
-	public ImagePanel(Context context) {
+	public FittedImageView(Context context) {
 		super(context);
 	}
 
@@ -30,7 +34,7 @@ class ImagePanel extends View implements IConstants {
 	 * @see android.view.View#View(android.content.Context,
 	 *      android.util.AttributeSet)
 	 */
-	public ImagePanel(Context context, AttributeSet attrs) {
+	public FittedImageView(Context context, AttributeSet attrs) {
 		super(context, attrs);
 	}
 
@@ -43,9 +47,6 @@ class ImagePanel extends View implements IConstants {
 		// Center it
 		int vHeight = this.getHeight();
 		int vWidth = this.getWidth();
-
-		int bHeight = bitmap.getHeight();
-		int bWidth = bitmap.getWidth();
 
 		// Calculate the scale to make it fit
 		float scaleWidth = ((float) vWidth) / bWidth;
@@ -60,7 +61,7 @@ class ImagePanel extends View implements IConstants {
 
 		// Create a matrix for the scaling
 		Matrix matrix = new Matrix();
-		// resize the bit map
+		// Resize the bit map
 		matrix.postScale(scaleWidth, scaleHeight);
 		// rotate the Bitmap
 		// matrix.postRotate(45);
@@ -100,6 +101,8 @@ class ImagePanel extends View implements IConstants {
 
 	public void setBitmap(Bitmap bitmap) {
 		this.bitmap = bitmap;
+		bHeight = bitmap.getHeight();
+		bWidth = bitmap.getWidth();
 	}
 
 }
