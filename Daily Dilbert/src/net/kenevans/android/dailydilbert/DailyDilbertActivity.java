@@ -234,10 +234,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		// DEBUG Time
 		Log.d(TAG, this.getClass().getSimpleName()
 				+ ": getStrip: delta(start)=" + getDeltaTime());
-		// Update the information area
-		mInfo.setTextColor(Color.YELLOW);
-		setInfo("Getting Strip");
-
 		// See if it is in the cache
 		Bitmap newBitmap = getCachedBitmap(cDay);
 		// DEBUG Time
@@ -253,21 +249,17 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": getStrip: delta(got from cache)=" + getDeltaTime());
 		} else {
-			String imageURL = getImageUrl(cDay);
-			if (imageURL == null) {
-				Log.e(TAG, this.getClass().getSimpleName()
-						+ ": getStrip: imageUrl = null");
+			if (updateTask != null) {
+				Log.d(TAG, this.getClass().getSimpleName()
+						+ ": getStrip: updateTask is not null for " + cDay);
 				return;
 			}
-			bitmap = getBitmapFromURL(imageURL);
+			// Run it in an AsyncTask to see progress and make it cancel-able
+			updateTask = new GetStripFromWebTask(cDay);
+			updateTask.execute();
+			// DEBUG Time
 			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": getStrip: Got bitmap from URL for " + this.cDay);
-			mInfo.setTextColor(Color.CYAN);
-		}
-		if (bitmap == null) {
-			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
-		} else {
-			setNewImage(cDay);
+					+ ": getStrip: delta(update executed)=" + getDeltaTime());
 		}
 	}
 
@@ -304,8 +296,6 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	public void setInfo(String info) {
 		if (mInfo != null) {
 			mInfo.setText(info);
-			// Probably shouldn't be necessary
-			mInfo.invalidate();
 		}
 	}
 
@@ -827,7 +817,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * <br>
 	 * Call with <b>Bitmap bitmap = new MyUpdateTask().execute(String)<b>
 	 */
-	private class GetStripFromWebTask extends AsyncTask<String, Void, Boolean> {
+	private class GetStripFromWebTask extends AsyncTask<Void, Void, Boolean> {
 		private ProgressDialog dialog;
 		private CalendarDay cDay;
 		private Bitmap newBitmap;
@@ -864,8 +854,19 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		}
 
 		@Override
-		protected Boolean doInBackground(String... urls) {
-			String imageURL = urls[0];
+		protected Boolean doInBackground(Void... dummy) {
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": doInBackground: delta=" + getDeltaTime());
+			// Up the priority
+			Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+
+			String imageURL = getImageUrl(cDay);
+			if (imageURL == null) {
+				Log.e(TAG, this.getClass().getSimpleName()
+						+ ": getStrip: imageUrl = null");
+				newBitmap = null;
+				return true;
+			}
 			// try {
 			// Thread.sleep(10000);
 			// } catch (InterruptedException ex) {
