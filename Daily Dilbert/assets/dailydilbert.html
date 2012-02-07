@@ -9,7 +9,28 @@
 <p align="left">This application displays Dilbert comic strips from <a href="http://dilbert.com">dilbert.com</a>. It is a specialized browser in that respect.  It is for your personal use only. It may stop working if the way the strips are stored at dilbert.com changes. The images are subject to the rights and restrictions that may be found at that site. </p>
 <p align="left">The application caches the last 5 strips on the SD card if there is one. Otherwise no strips are saved, and each new one must loaded from the web. If a strip has come from the cache, then its title is white. If it came from the web, then its title is blue. There is  a progress bar when getting strips from the web. It can be cancelled with the back button, but you will probably have to be fast to do so.</p>
 <p align="left"> You can view different strips via the Next, Prev, First, and Today menu items. In addition, there are arrow buttons to go to the next and previous ones. Swiping to the left or right will also go to the next or previous strip, respectively.</p>
-<p align="left">Clicking anywhere on the left half will go to the previous strip, and clicking anywhere on the right half will go to the next strip. Double clicking will zoom to fit the screen vertically and allow panning horizontally. Use the back button to exit this mode. </p>
+<p align="left">Tapping has the following effects depending on where you tap:</p>
+<table border="1" cellpadding="5" align="center">
+  <tr>
+    <th scope="col"><div align="center"></div></th>
+    <th scope="col"><div align="center">Left</div></th>
+    <th scope="col"><div align="center">Center</div></th>
+    <th scope="col"><div align="center">Right</div></th>
+  </tr>
+  <tr>
+    <th scope="row"><div align="center">Single Tap</div></th>
+    <td><div align="center">Previous</div></td>
+    <td><div align="center">Zoom</div></td>
+    <td><div align="center">Next</div></td>
+  </tr>
+  <tr>
+    <th scope="row"><div align="center">Double Tap</div></th>
+    <td><div align="center">First</div></td>
+    <td><div align="center">Full Zoom </div></td>
+    <td><div align="center">Today</div></td>
+  </tr>
+</table>
+<p align="left">Zoom will fit the screen vertically and allow panning horizontally. It is useful for reading the comic in a larger size, especially when the device is vertical. Full Zoom starts with the original image size and allows manual zooming with two fingers and panning in both directions. It allows more flexibility. Use the back button to exit either of these modes. </p>
 <h3 align="left">Menu Items </h3>
 <h4>Next, Prev, First, Today </h4>
 <p>Get the next, previous, first, or today's strip. The first strip corresponds to May 16, 1989. </p>
