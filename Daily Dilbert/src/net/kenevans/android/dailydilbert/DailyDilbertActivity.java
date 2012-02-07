@@ -10,6 +10,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -59,8 +60,11 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private CalendarDay cDay = CalendarDay.now();
 	private CalendarDay cDayLastPicked = null;
 	private Bitmap bitmap;
-	private FittedImageView mPanel;
+	private FittedImageView mImageView;
 	private TextView mInfo;
+
+	// DEBUG TIME
+	private Date start;
 
 	/** Called when the activity is first created. */
 	@Override
@@ -85,7 +89,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		try {
 			setContentView(R.layout.main);
 			mInfo = (TextView) findViewById(R.id.info);
-			mPanel = (FittedImageView) findViewById(R.id.panel);
+			mImageView = (FittedImageView) findViewById(R.id.panel);
 		} catch (Exception ex) {
 			Utils.excMsg(this, "Error getting resources", ex);
 		}
@@ -163,7 +167,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onPause: cDay=" + cDay);
 		super.onPause();
 		// No need to save the state as it is saved when the image is set
-		
+
 		// Cancel the gesture detector to avoid extra callbacks
 		gestureDetector = null;
 	}
@@ -173,7 +177,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onResume(1): cDay="
 				+ cDay);
 		super.onResume();
-		
+
 		// Restore the gesture detector
 		gestureDetector = new GestureDetector(new MyGestureDetector());
 
@@ -203,7 +207,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 	@Override
 	public boolean onTouchEvent(MotionEvent event) {
-		if(gestureDetector == null) {
+		if (gestureDetector == null) {
 			return super.onTouchEvent(event);
 		}
 		return gestureDetector.onTouchEvent(event);
@@ -227,14 +231,27 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * @param cDay
 	 */
 	private void getStrip(CalendarDay cDay) {
+		// DEBUG Time
+		Log.d(TAG, this.getClass().getSimpleName()
+				+ ": getStrip: delta(start)=" + getDeltaTime());
+		// Update the information area
+		mInfo.setTextColor(Color.YELLOW);
+		setInfo("Getting Strip");
+
 		// See if it is in the cache
 		Bitmap newBitmap = getCachedBitmap(cDay);
+		// DEBUG Time
+		Log.d(TAG, this.getClass().getSimpleName()
+				+ ": getStrip: delta(cache checked)=" + getDeltaTime());
 		if (newBitmap != null) {
 			bitmap = newBitmap;
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": getStrip: Got bitmap from cache for " + cDay);
 			mInfo.setTextColor(Color.WHITE);
 			setNewImage(cDay);
+			// DEBUG Time
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": getStrip: delta(got from cache)=" + getDeltaTime());
 		} else {
 			String imageURL = getImageUrl(cDay);
 			if (imageURL == null) {
@@ -252,6 +269,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			// Run it in an AsyncTask to see progress and make it cancel-able
 			updateTask = new GetStripFromWebTask(cDay);
 			updateTask.execute(imageURL);
+			// DEBUG Time
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": getStrip: delta(update executed)=" + getDeltaTime());
 		}
 	}
 
@@ -260,13 +280,16 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * canvas.
 	 */
 	private void setNewImage(CalendarDay cDay) {
-		if (mInfo == null || mPanel == null) {
+		// DEBUG Time
+		Log.d(TAG, this.getClass().getSimpleName()
+				+ ": setNewImage: delta=" + getDeltaTime());
+		if (mInfo == null || mImageView == null) {
 			return;
 		}
 		this.cDay = cDay;
 		setInfo(cDay.toString());
-		mPanel.setBitmap(bitmap);
-		mPanel.invalidate();
+		mImageView.setBitmap(bitmap);
+		mImageView.invalidate();
 		// Retain the state
 		SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
 		editor.putInt("year", cDay.year);
@@ -654,6 +677,47 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Call FullZoomActivity.
+	 */
+	private void doFullZoom() {
+		try {
+			// Start the ZoomActivity
+			Intent intent = new Intent();
+			intent.setClass(this, FullZoomActivity.class);
+			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+					| Intent.FLAG_ACTIVITY_SINGLE_TOP);
+			intent.putExtra(YEAR, cDay.year);
+			intent.putExtra(MONTH, cDay.month);
+			intent.putExtra(DAY, cDay.day);
+			startActivity(intent);
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error showing Full Zoom", ex);
+		}
+	}
+
+	/**
+	 * Debugging routine to get elapsed time from when start was set.
+	 * 
+	 * @return
+	 */
+	private long getDeltaTime() {
+		if (start == null) {
+			return -1;
+		}
+		Date now = new Date();
+		long delta = now.getTime() - start.getTime();
+		start = now;
+		return delta;
+	}
+
+	/**
+	 * Debugging routine to set start time.
+	 */
+	private void startTimer() {
+		start = new Date();
+	}
+
+	/**
 	 * Gesture detector. Based on an example at<br>
 	 * <br>
 	 * http://www.codeshogun.com/blog/2009
@@ -702,14 +766,30 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 		@Override
 		public boolean onSingleTapConfirmed(MotionEvent e) {
-			if (mPanel == null) {
-				return false;
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": onSingleTapConfirmed:");
+			// DEBUG Time
+			startTimer();
+			if (updateTask != null) {
+				// Don't do anything if we are updating
+				Log.d(TAG, this.getClass().getSimpleName()
+						+ ": onSingleTapConfirmed: updateTask is not null for "
+						+ cDay);
+				return true;
 			}
-			int vWidth = mPanel.getWidth();
-			if (e.getX() < vWidth / 2) {
+			if (mImageView == null) {
+				Log.d(TAG, this.getClass().getSimpleName()
+						+ ": onSingleTapConfirmed: mImageView is null for "
+						+ cDay);
+				return true;
+			}
+			int vWidth = mImageView.getWidth();
+			if (e.getX() < vWidth / 3) {
 				getStrip(cDay.incrementDay(-1));
-			} else {
+			} else if (e.getX() > 2 * vWidth / 3) {
 				getStrip(cDay.incrementDay(1));
+			} else {
+				doZoom();
 			}
 			return true;
 		}
@@ -717,7 +797,28 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		@Override
 		public boolean onDoubleTapEvent(MotionEvent e) {
 			Log.d(TAG, this.getClass().getSimpleName() + ": onDoubleTapEvent:");
-			doZoom();
+			// DEBUG TIME
+			startTimer();
+			if (updateTask != null) {
+				// Don't do anything if we are updating
+				Log.d(TAG, this.getClass().getSimpleName()
+						+ ": onDoubleTapEvent: updateTask is not null for "
+						+ cDay);
+				return true;
+			}
+			if (mImageView == null) {
+				Log.d(TAG, this.getClass().getSimpleName()
+						+ ": onDoubleTapEvent: mImageView is null for " + cDay);
+				return true;
+			}
+			int vWidth = mImageView.getWidth();
+			if (e.getX() < vWidth / 3) {
+				getStrip(CalendarDay.first());
+			} else if (e.getX() > 2 * vWidth / 3) {
+				getStrip(CalendarDay.now());
+			} else {
+				doFullZoom();
+			}
 			return true;
 		}
 	}
@@ -740,6 +841,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 		@Override
 		protected void onPreExecute() {
+			// DEBUG Time
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": onPreExecute: delta(1)=" + getDeltaTime());
 			dialog = new ProgressDialog(DailyDilbertActivity.this);
 			dialog.setMessage("Getting " + cDay + " from dilbert.com");
 			dialog.setCancelable(true);
@@ -756,6 +860,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				}
 			});
 			dialog.show();
+			// DEBUG Time
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": onPreExecute: delta(2)=" + getDeltaTime());
 		}
 
 		@Override

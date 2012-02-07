@@ -4,7 +4,7 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     >
-    <net.kenevans.android.dailydilbert.ScrollImageView
+    <net.kenevans.android.dailydilbert.TouchImageView
         android:id="@+id/imageview"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent"

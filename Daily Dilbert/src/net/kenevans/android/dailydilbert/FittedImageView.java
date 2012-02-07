@@ -69,12 +69,12 @@ class FittedImageView extends View implements IConstants {
 		// Recreate the bitmap
 		Bitmap newBitmap = Bitmap.createBitmap(bitmap, 0, 0, bWidth, bHeight,
 				matrix, true);
-		bHeight = newBitmap.getHeight();
-		bWidth = newBitmap.getWidth();
+		int newWidth = newBitmap.getWidth();
+		int newHeight = newBitmap.getHeight();
 
 		// Center it
-		int x0 = (vWidth - bWidth) / 2;
-		int y0 = (vHeight - bHeight) / 2;
+		int x0 = (vWidth - newWidth) / 2;
+		int y0 = (vHeight - newHeight) / 2;
 		canvas.drawBitmap(newBitmap, x0, y0, null);
 
 		// Debug
