@@ -259,19 +259,15 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 						+ ": getStrip: imageUrl = null");
 				return;
 			}
-			// Get it directly
-			// bitmap = getBitmapFromURL(imageURL);
-			if (updateTask != null) {
-				Log.d(TAG, this.getClass().getSimpleName()
-						+ ": getStrip: updateTask is not null for " + cDay);
-				return;
-			}
-			// Run it in an AsyncTask to see progress and make it cancel-able
-			updateTask = new GetStripFromWebTask(cDay);
-			updateTask.execute(imageURL);
-			// DEBUG Time
+			bitmap = getBitmapFromURL(imageURL);
 			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": getStrip: delta(update executed)=" + getDeltaTime());
+					+ ": getStrip: Got bitmap from URL for " + this.cDay);
+			mInfo.setTextColor(Color.CYAN);
+		}
+		if (bitmap == null) {
+			Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
+		} else {
+			setNewImage(cDay);
 		}
 	}
 
@@ -281,8 +277,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 */
 	private void setNewImage(CalendarDay cDay) {
 		// DEBUG Time
-		Log.d(TAG, this.getClass().getSimpleName()
-				+ ": setNewImage: delta=" + getDeltaTime());
+		Log.d(TAG, this.getClass().getSimpleName() + ": setNewImage: delta="
+				+ getDeltaTime());
 		if (mInfo == null || mImageView == null) {
 			return;
 		}
@@ -308,6 +304,8 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	public void setInfo(String info) {
 		if (mInfo != null) {
 			mInfo.setText(info);
+			// Probably shouldn't be necessary
+			mInfo.invalidate();
 		}
 	}
 
