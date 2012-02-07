@@ -41,16 +41,23 @@ import android.widget.ImageView;
  * 
  */
 public class TouchImageView extends ImageView implements IConstants {
-
 	// These matrices will be used to move and zoom image
 	Matrix matrix = new Matrix();
 	Matrix savedMatrix = new Matrix();
 
+	/** Flag to indicating no fitting or centering. */
+	public static final int IMAGEUNMODIFIED = 0x00;
+	/** Flag to indicating centering the image. */
+	public static final int IMAGECENTERED = 0x01;
+	/** Flag to fitting the image. */
+	public static final int IMAGEFITTED = 0x10;
+
 	/**
-	 * Determines if the image is to be fit to the view when onMeasure is next
-	 * called. Will be set to false after the fit isdone.
+	 * Determines how the image is to be modified to the view when onMeasure is
+	 * next called. Value is one of (IMAGEUNMODIFIED, IMAGECENTERED,
+	 * IMAGEFITTED). It only takes place when onMeasure is called.
 	 */
-	boolean fitImage = false;
+	int fitImageMode = IMAGEUNMODIFIED;
 
 	// We can be in one of these 3 states
 	static final int NONE = 0;
@@ -153,29 +160,30 @@ public class TouchImageView extends ImageView implements IConstants {
 
 	@Override
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		Log.d(TAG, this.getClass().getSimpleName() + ": onMeasure: fitImage="
-				+ fitImage);
+		Log.d(TAG, this.getClass().getSimpleName()
+				+ ": onMeasure: fitImageMode=" + fitImageMode);
 		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-		// Fit the image if specified only if the sizes are determined
-		if (fitImage) {
-			fitImage = false;
+		// Fit the image if specified
+		if (fitImageMode != 0) {
 			fitImage();
+			fitImageMode = IMAGEUNMODIFIED;
 		}
 	}
 
 	/**
-	 * Sets the image to fit inside the view and centers it. super.onMeasure
-	 * must have been called first.
+	 * Sets the image to fit inside the view and centers it, depending on the
+	 * value of fitImageMode. super.onMeasure must have been called first.
 	 */
 	public void fitImage() {
+		Log.d(TAG, this.getClass().getSimpleName()
+				+ ": fitImage: fitImageMode=" + fitImageMode);
 		Drawable drawable = getDrawable();
-		Log.d(TAG, this.getClass().getSimpleName() + ": fitImage:");
 		if (drawable == null) {
 			return;
 		}
 		int dWidth = drawable.getIntrinsicWidth();
 		int dHeight = drawable.getIntrinsicHeight();
-		// These should have been defined, but getWidth and getheight may not
+		// These should have been defined, but getWidth and getHeight may not
 		// have been
 		int vWidth = getMeasuredWidth();
 		int vHeight = getMeasuredHeight();
@@ -186,29 +194,33 @@ public class TouchImageView extends ImageView implements IConstants {
 		}
 
 		// Fit to view
-		float scale;
-		if ((vHeight / dHeight) >= (vWidth / dWidth)) {
-			scale = (float) vWidth / (float) dWidth;
-		} else {
-			scale = (float) vHeight / (float) dHeight;
+		float scale = 1;
+		if ((fitImageMode & IMAGEFITTED) > 0) {
+			if ((vHeight / dHeight) >= (vWidth / dWidth)) {
+				scale = (float) vWidth / (float) dWidth;
+			} else {
+				scale = (float) vHeight / (float) dHeight;
+			}
+
+			savedMatrix.set(matrix);
+			matrix.set(savedMatrix);
+			matrix.postScale(scale, scale, 0, 0);
+			setImageMatrix(matrix);
 		}
 
-		savedMatrix.set(matrix);
-		matrix.set(savedMatrix);
-		matrix.postScale(scale, scale, mid.x, mid.y);
-		setImageMatrix(matrix);
-
 		// Center the image
-		float redundantYSpace = (float) vHeight - (scale * (float) dHeight);
-		float redundantXSpace = (float) vWidth - (scale * (float) dWidth);
+		if ((fitImageMode & IMAGECENTERED) > 0) {
+			float redundantYSpace = (float) vHeight - (scale * (float) dHeight);
+			float redundantXSpace = (float) vWidth - (scale * (float) dWidth);
 
-		redundantYSpace /= (float) 2;
-		redundantXSpace /= (float) 2;
+			redundantYSpace /= (float) 2;
+			redundantXSpace /= (float) 2;
 
-		savedMatrix.set(matrix);
-		matrix.set(savedMatrix);
-		matrix.postTranslate(redundantXSpace, redundantYSpace);
-		setImageMatrix(matrix);
+			savedMatrix.set(matrix);
+			matrix.set(savedMatrix);
+			matrix.postTranslate(redundantXSpace, redundantYSpace);
+			setImageMatrix(matrix);
+		}
 	}
 
 	// // TODO This doesn't seem to work as the width and height may not have
@@ -266,7 +278,7 @@ public class TouchImageView extends ImageView implements IConstants {
 	 * 
 	 * @param event
 	 */
-	public static void dumpEvent(WrapMotionEvent event) {
+	public static void dumpEvent(MotionEvent event) {
 		String names[] = { "DOWN", "UP", "MOVE", "CANCEL", "OUTSIDE",
 				"POINTER_DOWN", "POINTER_UP", "7?", "8?", "9?" };
 		StringBuilder sb = new StringBuilder();
@@ -294,131 +306,24 @@ public class TouchImageView extends ImageView implements IConstants {
 	}
 
 	/**
-	 * Gets the value of fitImage.
+	 * Gets the value of fitImageMode.
 	 * 
-	 * @see #fitImage
-	 * @return The value of fitImage
+	 * @see #fitImageMode
+	 * @return The value of fitImageMode.
 	 */
-	public boolean getFitImage() {
-		return fitImage;
+	public int getFitImageMode() {
+		return fitImageMode;
 	}
 
 	/**
-	 * Sets the value of fitImage. The value will be reset to false after
-	 * onMeasure is next called.
+	 * Sets the value of fitImageMode. The value will be reset to
+	 * IMAGEUNMODIFIED after onMeasure is next called.
 	 * 
-	 * @param fitImage
-	 * @see #fitImage
+	 * @param fitImageMode
+	 * @see #fitImageMode
 	 */
-	public void setFitImage(boolean fitImage) {
-		Log.d(TAG, this.getClass().getSimpleName() + ": setFitImage: fitImage="
-				+ fitImage);
-		this.fitImage = fitImage;
-	}
-
-	/**
-	 * Wrapper class to get around different Android versions (Donut/Cupcake).
-	 * 
-	 * <ul>
-	 * <li>4.0.x Ice Cream Sandwich 14-16</li>
-	 * <li>3.x.x Honeycomb 11-13</li>
-	 * <li>2.3.x Gingerbread 9-10</li>
-	 * <li>2.2 Froyo 8</li>
-	 * <li>2.0, 2.1 Eclair 7</li>
-	 * <li>1.6 Donut 4</li>
-	 * <li>1.5 Cupcake</li>
-	 * </ul>
-	 */
-	public static class WrapMotionEvent {
-		protected MotionEvent event;
-
-		protected WrapMotionEvent(MotionEvent event) {
-			this.event = event;
-		}
-
-		static public WrapMotionEvent wrap(MotionEvent event) {
-			try {
-				return new EclairMotionEvent(event);
-			} catch (VerifyError e) {
-				return new WrapMotionEvent(event);
-			}
-		}
-
-		public int getAction() {
-			return event.getAction();
-		}
-
-		public float getX() {
-			return event.getX();
-		}
-
-		public float getX(int pointerIndex) {
-			verifyPointerIndex(pointerIndex);
-			return getX();
-		}
-
-		public float getY() {
-			return event.getY();
-		}
-
-		public float getY(int pointerIndex) {
-			verifyPointerIndex(pointerIndex);
-			return getY();
-		}
-
-		public int getPointerCount() {
-			return 1;
-		}
-
-		public int getPointerId(int pointerIndex) {
-			verifyPointerIndex(pointerIndex);
-			return 0;
-		}
-
-		private void verifyPointerIndex(int pointerIndex) {
-			if (pointerIndex > 0) {
-				throw new IllegalArgumentException(
-						"Invalid pointer index for Donut/Cupcake");
-			}
-		}
-
-	}
-
-	/**
-	 * Wrapper class to get around different Android versions (Donut/Cupcake).
-	 * 
-	 * <ul>
-	 * <li>4.0.x Ice Cream Sandwich 14-16</li>
-	 * <li>3.x.x Honeycomb 11-13</li>
-	 * <li>2.3.x Gingerbread 9-10</li>
-	 * <li>2.2 Froyo 8</li>
-	 * <li>2.0, 2.1 Eclair 7</li>
-	 * <li>1.6 Donut 4</li>
-	 * <li>1.5 Cupcake</li>
-	 * </ul>
-	 */
-	public static class EclairMotionEvent extends WrapMotionEvent {
-
-		protected EclairMotionEvent(MotionEvent event) {
-			super(event);
-		}
-
-		public float getX(int pointerIndex) {
-			return event.getX(pointerIndex);
-		}
-
-		public float getY(int pointerIndex) {
-			return event.getY(pointerIndex);
-		}
-
-		public int getPointerCount() {
-			return event.getPointerCount();
-		}
-
-		public int getPointerId(int pointerIndex) {
-			return event.getPointerId(pointerIndex);
-		}
-
+	public void setFitImageMode(int fitImageMode) {
+		this.fitImageMode = fitImageMode;
 	}
 
 }
