@@ -63,6 +63,13 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private FittedImageView mImageView;
 	private TextView mInfo;
 
+	/** Last error message from getImageUrl. */
+	private String lastError;
+	/**
+	 * Return value from getImageUrl indicating an error occurred.
+	 */
+	private static final String ERROR = "Error";
+
 	// DEBUG TIME
 	private Date start;
 
@@ -336,6 +343,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		try {
 			URL url = null;
 			String dateString = null;
+			lastError = "";
 			// Get it from the Dilbert site
 			CalendarDay cDayFirst = CalendarDay.first();
 			CalendarDay cDayNow = CalendarDay.now();
@@ -343,14 +351,14 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			// Check it is not in the future as the site doesn't give a
 			// sensible result in this case
 			if (cDay.compareTo(cDayNow) == 1) {
-				Utils.errMsg(this, dateString + " is in the future");
-				return null;
+				lastError = cDay.toString() + " is in the future";
+				return ERROR;
 			}
 			// Check it isn't before the first one
 			if (cDay.compareTo(cDayFirst) == -1) {
-				Utils.errMsg(this, dateString
-						+ " is before the first available strip");
-				return null;
+				lastError = cDay.toString()
+						+ " is before the first available strip";
+				return ERROR;
 			}
 			url = new URL(dateUrlPrefix + dateString);
 
@@ -386,12 +394,13 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					br.close();
 				}
 			}
-			if (imageUrlString == null) {
-				Utils.errMsg(DailyDilbertActivity.this,
-						"Failed to find image URL");
-			}
 		} catch (Exception ex) {
-			Utils.excMsg(this, "Getting image URL failed:", ex);
+			String msg = "Getting image URL failed:";
+			lastError = msg += "\n"
+					+ this.getText(R.string.exception).toString() + ": " + ex
+					+ "\n" + ex.getMessage();
+
+			return ERROR;
 		}
 		return imageUrlString;
 	}
@@ -865,7 +874,13 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				Log.e(TAG, this.getClass().getSimpleName()
 						+ ": getStrip: imageUrl = null");
 				newBitmap = null;
+				lastError = "Failed to get image";
 				return true;
+			}
+			if (imageURL.equals(ERROR)) {
+				newBitmap = null;
+				return true;
+
 			}
 			// try {
 			// Thread.sleep(10000);
@@ -912,7 +927,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			// }
 			updateTask = null;
 			if (newBitmap == null) {
-				Utils.errMsg(DailyDilbertActivity.this, "Failed to get image");
+				Utils.errMsg(DailyDilbertActivity.this, lastError);
 				return;
 			}
 			bitmap = newBitmap;
