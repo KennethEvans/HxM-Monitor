@@ -101,7 +101,9 @@ public class TouchImageView extends ImageView implements IConstants {
 	 * Does the additional setup in the constructor.
 	 */
 	private void init() {
-		matrix.setTranslate(1f, 1f);
+		// KE: I don't think this is desirable
+		// Without it, it is the identity matrix.
+		// matrix.setTranslate(1f, 1f);
 		setImageMatrix(matrix);
 		setScaleType(ScaleType.MATRIX);
 
