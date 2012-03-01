@@ -4,14 +4,12 @@
     <string name="date_item">Pick Date</string>
     <string name="first_item">First</string>
 	<string name="help_item">Help</string>
-	<string name="fullzoom_title">Full Zoom</string>
 	<string name="info_title">Help</string>
     <string name="next_item">Next</string>
     <string name="prev_item">Prev</string>
     <string name="save_item">Save</string>
     <string name="share_item">Share</string>
     <string name="today_item">Today</string>
-	<string name="zoom_title">Zoom</string>
 
 	<!-- Utils -->
 	<string name="error">Error</string>

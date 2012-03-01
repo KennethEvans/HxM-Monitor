@@ -57,7 +57,7 @@ public class DilbertImageView extends ImageView implements IConstants {
 	static final int ZOOM = 2;
 	int mode = NONE;
 
-	// We can be in one of 3 levels 0-2
+	// We can be in one of 3 levels 1 - 3
 	public static final int UNDEFINED_LEVEL = -Integer.MAX_VALUE;
 	int level = UNDEFINED_LEVEL;
 
@@ -139,17 +139,17 @@ public class DilbertImageView extends ImageView implements IConstants {
 				case MotionEvent.ACTION_MOVE:
 					if (mode == DRAG) {
 						matrix.set(savedMatrix);
-						if (level == 1) {
+						if (level == 2) {
 							// Allow drag in x only
 							matrix.postTranslate(ev.getX() - start.x, 0);
-						} else if (level == 2) {
+						} else if (level == 3) {
 							// Allow drag in both directions
 							matrix.postTranslate(ev.getX() - start.x, ev.getY()
 									- start.y);
 						}
 					} else if (mode == ZOOM) {
 						// Allow scale only in level 2
-						if (level == 2) {
+						if (level == 3) {
 							float newDist = spacing(ev);
 							Log.d(TAG, "newDist=" + newDist);
 							if (newDist > 10f) {
@@ -189,13 +189,13 @@ public class DilbertImageView extends ImageView implements IConstants {
 				+ this.level + " request level=" + level);
 		// If the level has not been set, default to 0
 		if (level == UNDEFINED_LEVEL) {
-			level = 0;
+			level = 1;
 		} else {
 			// Wrap the level
-			if (level > 2) {
-				level = 0;
-			} else if (level < 0) {
-				level = 2;
+			if (level > 3) {
+				level = 1;
+			} else if (level < 1) {
+				level = 3;
 			}
 		}
 		// // Do nothing if the level has not changed
@@ -204,14 +204,14 @@ public class DilbertImageView extends ImageView implements IConstants {
 		// }
 		this.level = level;
 		switch (level) {
-		case 0:
-			initializeLevel0();
-			break;
 		case 1:
 			initializeLevel1();
 			break;
 		case 2:
 			initializeLevel2();
+			break;
+		case 3:
+			initializeLevel3();
 			break;
 		}
 		Log.d(TAG, this.getClass().getSimpleName() + ": resetLevel: new level="
@@ -219,10 +219,10 @@ public class DilbertImageView extends ImageView implements IConstants {
 	}
 
 	/**
-	 * Do the initialization necessary for level 0.
+	 * Do the initialization necessary for level 1.
 	 */
-	private void initializeLevel0() {
-		Log.d(TAG, this.getClass().getSimpleName() + ": initializeLevel0:");
+	private void initializeLevel1() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": initializeLevel1:");
 		Drawable drawable = getDrawable();
 		if (drawable == null) {
 			return;
@@ -234,7 +234,7 @@ public class DilbertImageView extends ImageView implements IConstants {
 		int vWidth = getWidth();
 		int vHeight = getHeight();
 		Log.d(TAG, this.getClass().getSimpleName()
-				+ ": initializeLevel0: drawable: " + dWidth + "," + dHeight
+				+ ": initializeLevel1: drawable: " + dWidth + "," + dHeight
 				+ " view: " + vWidth + "," + vHeight);
 		if (vHeight == 0 || vWidth == 0) {
 			return;
@@ -264,14 +264,14 @@ public class DilbertImageView extends ImageView implements IConstants {
 		matrix.postTranslate(redundantXSpace, redundantYSpace);
 		setImageMatrix(matrix);
 
-//		Toast.makeText(context, "No Pan or Zoom", Toast.LENGTH_SHORT).show();
+		// Toast.makeText(context, "No Pan or Zoom", Toast.LENGTH_SHORT).show();
 	}
 
 	/**
-	 * Do the initialization necessary for level 1.
+	 * Do the initialization necessary for level 2.
 	 */
-	private void initializeLevel1() {
-		Log.d(TAG, this.getClass().getSimpleName() + ": initializeLevel1:");
+	private void initializeLevel2() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": initializeLevel2:");
 		Drawable drawable = getDrawable();
 		if (drawable == null) {
 			return;
@@ -283,7 +283,7 @@ public class DilbertImageView extends ImageView implements IConstants {
 		int vWidth = getWidth();
 		int vHeight = getHeight();
 		Log.d(TAG, this.getClass().getSimpleName()
-				+ ": initializeLevel1: drawable: " + dWidth + "," + dHeight
+				+ ": initializeLevel2: drawable: " + dWidth + "," + dHeight
 				+ " view: " + vWidth + "," + vHeight);
 		if (vHeight == 0 || vWidth == 0) {
 			return;
@@ -314,15 +314,15 @@ public class DilbertImageView extends ImageView implements IConstants {
 		matrix.postTranslate(0, redundantYSpace);
 		setImageMatrix(matrix);
 
-//		Toast.makeText(context, "Horizontal Pan", Toast.LENGTH_SHORT).show();
+		// Toast.makeText(context, "Horizontal Pan", Toast.LENGTH_SHORT).show();
 	}
 
 	/**
-	 * Do the initialization necessary for level 2.
+	 * Do the initialization necessary for level 3.
 	 */
-	private void initializeLevel2() {
-		Log.d(TAG, this.getClass().getSimpleName() + ": initializeLevel2:");
-		
+	private void initializeLevel3() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": initializeLevel3:");
+
 		// If it is the identity matrix, then center it
 		Drawable drawable = getDrawable();
 		if (matrix.isIdentity() && drawable != null) {
@@ -333,8 +333,10 @@ public class DilbertImageView extends ImageView implements IConstants {
 				int vWidth = getWidth();
 				int vHeight = getHeight();
 				float scale = 1.f;
-				float redundantYSpace = (float) vHeight - (scale * (float) dHeight);
-				float redundantXSpace = (float) vWidth - (scale * (float) dWidth);
+				float redundantYSpace = (float) vHeight
+						- (scale * (float) dHeight);
+				float redundantXSpace = (float) vWidth
+						- (scale * (float) dWidth);
 
 				redundantYSpace /= (float) 2;
 				redundantXSpace /= (float) 2;
@@ -448,8 +450,8 @@ public class DilbertImageView extends ImageView implements IConstants {
 		public boolean onFling(MotionEvent ev1, MotionEvent ev2,
 				float velocityX, float velocityY) {
 			Log.d(TAG, this.getClass().getSimpleName() + ": onFling:");
-			// Only do this in level 0
-			if (level != 0) {
+			// Only do this in level 1
+			if (level != 1) {
 				return false;
 			}
 			if (activity == null) {
@@ -507,15 +509,19 @@ public class DilbertImageView extends ImageView implements IConstants {
 				Log.d(TAG, this.getClass().getSimpleName()
 						+ ": onSingleTapConfirmed: cDay is null");
 			}
-			// DEBUG Time
-			activity.startTimer();
+			// DEBUG TIME
+			// activity.startTimer();
 			int vWidth = getWidth();
-			if (ev.getX() < vWidth / 3) {
-				activity.getStrip(cDay.incrementDay(-1));
-			} else if (ev.getX() > 2 * vWidth / 3) {
-				activity.getStrip(cDay.incrementDay(1));
-			} else {
-				resetLevel(level + 1);
+			int vHeight = getHeight();
+			// Don't use taps at the top or bottom
+			if (ev.getY() > vHeight / 3 && ev.getY() < 2 * vHeight / 3) {
+				if (ev.getX() < vWidth / 3) {
+					activity.getStrip(cDay.incrementDay(-1));
+				} else if (ev.getX() > 2 * vWidth / 3) {
+					activity.getStrip(cDay.incrementDay(1));
+				} else {
+					resetLevel(level + 1);
+				}
 			}
 			return true;
 		}
@@ -538,14 +544,18 @@ public class DilbertImageView extends ImageView implements IConstants {
 						+ ": onDoubleTapEvent: cDay is null");
 			}
 			// DEBUG TIME
-			activity.startTimer();
+			// activity.startTimer();
 			int vWidth = getWidth();
-			if (ev.getX() < vWidth / 3) {
-				activity.getStrip(CalendarDay.first());
-			} else if (ev.getX() > 2 * vWidth / 3) {
-				activity.getStrip(CalendarDay.now());
-			} else {
-				resetLevel(level - 1);
+			int vHeight = getHeight();
+			// Don't use taps at the top or bottom
+			if (ev.getY() > vHeight / 3 && ev.getY() < 2 * vHeight / 3) {
+				if (ev.getX() < vWidth / 3) {
+					activity.getStrip(CalendarDay.first());
+				} else if (ev.getX() > 2 * vWidth / 3) {
+					activity.getStrip(CalendarDay.now());
+				} else {
+					resetLevel(level - 1);
+				}
 			}
 			return true;
 		}

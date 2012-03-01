@@ -10,7 +10,6 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -35,6 +34,7 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.Window;
 import android.widget.DatePicker;
+import android.widget.TextView;
 import android.widget.Toast;
 
 /**
@@ -53,7 +53,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private CalendarDay cDayLastPicked = null;
 	private Bitmap bitmap;
 	private DilbertImageView mImageView;
-	// private TextView mInfo;
+	private TextView mInfo;
 
 	/** Last error message from getImageUrl. */
 	private String lastError;
@@ -61,7 +61,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	private static final String ERROR = "Error";
 
 	// DEBUG TIME
-	private Date start;
+	// private Date start;
 
 	/** Called when the activity is first created. */
 	@Override
@@ -85,7 +85,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 		try {
 			setContentView(R.layout.main);
-			// mInfo = (TextView) findViewById(R.id.info);
+			mInfo = (TextView) findViewById(R.id.info);
 			mImageView = (DilbertImageView) findViewById(R.id.imageview);
 		} catch (Exception ex) {
 			Utils.excMsg(this, "Error getting resources", ex);
@@ -202,30 +202,30 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 					+ ": getStrip: updateTask is not null for " + cDay);
 			return;
 		}
-		// DEBUG Time
-		Log.d(TAG, this.getClass().getSimpleName()
-				+ ": getStrip: delta(start)=" + getDeltaTime());
+		// DEBUG TIME
+		// Log.d(TAG, this.getClass().getSimpleName()
+		// + ": getStrip: delta(start)=" + getDeltaTime());
 		// See if it is in the cache
 		Bitmap newBitmap = getCachedBitmap(cDay);
-		// DEBUG Time
-		Log.d(TAG, this.getClass().getSimpleName()
-				+ ": getStrip: delta(cache checked)=" + getDeltaTime());
+		// DEBUG TIME
+		// Log.d(TAG, this.getClass().getSimpleName()
+		// + ": getStrip: delta(cache checked)=" + getDeltaTime());
 		if (newBitmap != null) {
 			bitmap = newBitmap;
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": getStrip: Got bitmap from cache for " + cDay);
 			// mInfo.setTextColor(Color.WHITE);
 			setNewImage(cDay);
-			// DEBUG Time
-			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": getStrip: delta(got from cache)=" + getDeltaTime());
+			// DEBUG TIME
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": getStrip: delta(got from cache)=" + getDeltaTime());
 		} else {
 			// Run it in an AsyncTask to see progress and make it cancel-able
 			updateTask = new GetStripFromWebTask(cDay);
 			updateTask.execute();
-			// DEBUG Time
-			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": getStrip: delta(update executed)=" + getDeltaTime());
+			// DEBUG TIME
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": getStrip: delta(update executed)=" + getDeltaTime());
 		}
 	}
 
@@ -234,9 +234,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * canvas.
 	 */
 	private void setNewImage(CalendarDay cDay) {
-		// DEBUG Time
-		Log.d(TAG, this.getClass().getSimpleName() + ": setNewImage: delta="
-				+ getDeltaTime());
+		// DEBUG TIME
+		// Log.d(TAG, this.getClass().getSimpleName() + ": setNewImage: delta="
+		// + getDeltaTime());
 		// if (mInfo == null || mImageView == null) {
 		// return;
 		// }
@@ -263,9 +263,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 * @param info
 	 */
 	public void setInfo(String info) {
-		// if (mInfo != null) {
-		// mInfo.setText(info);
-		// }
+		if (mInfo != null) {
+			mInfo.setText(info);
+		}
 	}
 
 	/**
@@ -616,27 +616,27 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 		}
 	}
 
-	/**
-	 * Debugging routine to get elapsed time from when start was set.
-	 * 
-	 * @return
-	 */
-	private long getDeltaTime() {
-		if (start == null) {
-			return -1;
-		}
-		Date now = new Date();
-		long delta = now.getTime() - start.getTime();
-		start = now;
-		return delta;
-	}
-
-	/**
-	 * Debugging routine to set start time.
-	 */
-	public void startTimer() {
-		start = new Date();
-	}
+	// /**
+	// * Debugging routine to get elapsed time from when start was set.
+	// *
+	// * @return
+	// */
+	// private long getDeltaTime() {
+	// if (start == null) {
+	// return -1;
+	// }
+	// Date now = new Date();
+	// long delta = now.getTime() - start.getTime();
+	// start = now;
+	// return delta;
+	// }
+	//
+	// /**
+	// * Debugging routine to set start time.
+	// */
+	// public void startTimer() {
+	// start = new Date();
+	// }
 
 	/**
 	 * Gets the current value of cDay.
@@ -665,9 +665,9 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 
 		@Override
 		protected void onPreExecute() {
-			// DEBUG Time
-			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": onPreExecute: delta(1)=" + getDeltaTime());
+			// DEBUG TIME
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": onPreExecute: delta(1)=" + getDeltaTime());
 			dialog = new ProgressDialog(DailyDilbertActivity.this);
 			dialog.setMessage("Getting " + cDay + " from dilbert.com");
 			dialog.setCancelable(true);
@@ -684,15 +684,17 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				}
 			});
 			dialog.show();
-			// DEBUG Time
-			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": onPreExecute: delta(2)=" + getDeltaTime());
+			// DEBUG TIME
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": onPreExecute: delta(2)=" + getDeltaTime());
 		}
 
 		@Override
 		protected Boolean doInBackground(Void... dummy) {
-			Log.d(TAG, this.getClass().getSimpleName()
-					+ ": doInBackground: delta=" + getDeltaTime());
+			// DEBUG TIME
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": doInBackground: delta=" + getDeltaTime());
+			
 			// Up the priority
 			Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
 
