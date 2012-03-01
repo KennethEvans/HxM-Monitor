@@ -161,6 +161,8 @@ public class TouchImageView extends ImageView implements IConstants {
 	}
 
 	@Override
+	// KE: This mechanism should be replaced using onLayout.
+	// See the DalilyDilbert implementation.
 	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 		Log.d(TAG, this.getClass().getSimpleName()
 				+ ": onMeasure: fitImageMode=" + fitImageMode);
