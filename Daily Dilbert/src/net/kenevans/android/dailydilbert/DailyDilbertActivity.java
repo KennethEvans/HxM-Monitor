@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -275,7 +276,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 	 *            The String URL.
 	 * @return The Bitmap.
 	 */
-	public static Bitmap getBitmapFromURL(String src) {
+	public Bitmap getBitmapFromURL(String src) {
 		try {
 			URL url = new URL(src);
 			HttpURLConnection connection = (HttpURLConnection) url
@@ -283,10 +284,51 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			connection.setDoInput(true);
 			connection.connect();
 			InputStream input = connection.getInputStream();
+
+			// DEBUG Use this to look at the bytes.
+			// If decodeStream is returning null, it probably is a web page, not
+			// an image. The image should start with GIF89a.
+			// ByteArrayOutputStream bos = new ByteArrayOutputStream();
+			// int next = input.read();
+			// while (next > -1) {
+			// bos.write(next);
+			// next = input.read();
+			// }
+			// bos.flush();
+			// byte[] result = bos.toByteArray();
+			//
+			// Log.d(TAG, this.getClass().getSimpleName()
+			// + ": getBitmapFromURL: length=" + result.length);
+			//
+			// String info = "";
+			// for (int i = 0; i < 10; i++) {
+			// info += String.format(" %02x", result[i]);
+			// }
+			// Log.d(TAG, this.getClass().getSimpleName() +
+			// ": getBitmapFromURL: "
+			// + info);
+			//
+			// // info = new String(result);
+			// // Log.d(TAG, this.getClass().getSimpleName() +
+			// // ": getBitmapFromURL: "
+			// // + info);
+			// Bitmap myBitmap = BitmapFactory.decodeByteArray(result, 0,
+			// result.length);
+
 			Bitmap myBitmap = BitmapFactory.decodeStream(input);
+			if (myBitmap == null) {
+				lastError = "Failed to decode bitmap\n"
+						+ "Suggest trying again";
+			}
 			return myBitmap;
-		} catch (IOException e) {
-			e.printStackTrace();
+		} catch (SocketTimeoutException ex) {
+			lastError = "Timed out";
+			return null;
+		} catch (IOException ex) {
+			String msg = "Getting image failed: ";
+			lastError = msg + "\n"
+					+ this.getText(R.string.exception).toString() + ": " + ex
+					+ "\n" + ex.getMessage();
 			return null;
 		}
 	}
@@ -324,8 +366,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			}
 			url = new URL(dateUrlPrefix + dateString);
 
-			// Look for /dyn/str_strip/xxx.strip.gif
-			String regex = "(/dyn/str_strip/.*\\.strip\\.gif)";
+			String regex = "(/dyn/str_strip/[^.]*\\.strip\\.gif)";
 			Pattern pattern = Pattern.compile(regex);
 			BufferedReader br = new BufferedReader(new InputStreamReader(
 					url.openStream()));
@@ -334,6 +375,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 				Matcher matcher = pattern.matcher(line);
 				if (matcher.find()) {
 					imageUrlString = urlPrefix + matcher.group();
+					break;
 				}
 			}
 			if (br != null) {
@@ -343,13 +385,14 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			// May 2011: Seems to have the Sunday strip at strip.sunday.gif
 			// Try this if the above fails
 			if (imageUrlString == null) {
-				regex = "(/dyn/str_strip/.*\\.strip\\.sunday\\.gif)";
+				regex = "(/dyn/str_strip/[^.]*\\.strip\\.sunday\\.gif)";
 				pattern = Pattern.compile(regex);
 				br = new BufferedReader(new InputStreamReader(url.openStream()));
 				while ((line = br.readLine()) != null) {
 					Matcher matcher = pattern.matcher(line);
 					if (matcher.find()) {
 						imageUrlString = urlPrefix + matcher.group();
+						break;
 					}
 				}
 				if (br != null) {
@@ -358,7 +401,7 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			}
 		} catch (Exception ex) {
 			String msg = "Getting image URL failed:";
-			lastError = msg += "\n"
+			lastError = msg + "\n"
 					+ this.getText(R.string.exception).toString() + ": " + ex
 					+ "\n" + ex.getMessage();
 
@@ -694,23 +737,29 @@ public class DailyDilbertActivity extends Activity implements IConstants {
 			// DEBUG TIME
 			// Log.d(TAG, this.getClass().getSimpleName()
 			// + ": doInBackground: delta=" + getDeltaTime());
-			
+
 			// Up the priority
 			Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
 
 			String imageURL = getImageUrl(cDay);
 			if (imageURL == null) {
 				Log.e(TAG, this.getClass().getSimpleName()
-						+ ": getStrip: imageUrl = null");
+						+ ": doInBackground: imageUrl = null");
 				newBitmap = null;
-				lastError = "Failed to get image";
+				lastError = "Failed to determine image URL";
 				return true;
 			}
 			if (imageURL.equals(ERROR)) {
+				Log.e(TAG, this.getClass().getSimpleName()
+						+ ": doInBackground: imageUrl: Error");
+				// lastError should have been set
 				newBitmap = null;
 				return true;
-
 			}
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": doInBackground: imageURL(" + imageURL.length() + ")="
+					+ imageURL);
+
 			// try {
 			// Thread.sleep(10000);
 			// } catch (InterruptedException ex) {
