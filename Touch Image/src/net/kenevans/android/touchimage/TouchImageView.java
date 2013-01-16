@@ -26,7 +26,6 @@ import android.graphics.Matrix;
 import android.graphics.PointF;
 import android.graphics.drawable.Drawable;
 import android.util.AttributeSet;
-import android.util.FloatMath;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
@@ -101,9 +100,6 @@ public class TouchImageView extends ImageView implements IConstants {
 	 * Does the additional setup in the constructor.
 	 */
 	private void init() {
-		// KE: I don't think this is desirable
-		// Without it, it is the identity matrix.
-		// matrix.setTranslate(1f, 1f);
 		setImageMatrix(matrix);
 		setScaleType(ScaleType.MATRIX);
 
@@ -160,13 +156,26 @@ public class TouchImageView extends ImageView implements IConstants {
 		});
 	}
 
+	// @Override
+	// // KE: This mechanism should be replaced using onLayout.
+	// // See the DalilyDilbert implementation.
+	// protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+	// Log.d(TAG, this.getClass().getSimpleName()
+	// + ": onMeasure: fitImageMode=" + fitImageMode);
+	// super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+	// // Fit the image if specified
+	// if (fitImageMode != 0) {
+	// fitImage();
+	// fitImageMode = IMAGEUNMODIFIED;
+	// }
+	// }
+
 	@Override
-	// KE: This mechanism should be replaced using onLayout.
-	// See the DalilyDilbert implementation.
-	protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-		Log.d(TAG, this.getClass().getSimpleName()
-				+ ": onMeasure: fitImageMode=" + fitImageMode);
-		super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+	protected void onLayout(boolean changed, int left, int top, int right,
+			int bottom) {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onLayout:");
+		super.onLayout(changed, left, top, right, bottom);
+		// Layout should be done
 		// Fit the image if specified
 		if (fitImageMode != 0) {
 			fitImage();
@@ -185,6 +194,7 @@ public class TouchImageView extends ImageView implements IConstants {
 		if (drawable == null) {
 			return;
 		}
+		matrix.reset();
 		int dWidth = drawable.getIntrinsicWidth();
 		int dHeight = drawable.getIntrinsicHeight();
 		// These should have been defined, but getWidth and getHeight may not
@@ -266,7 +276,8 @@ public class TouchImageView extends ImageView implements IConstants {
 		// ...
 		float x = event.getX(0) - event.getX(1);
 		float y = event.getY(0) - event.getY(1);
-		return FloatMath.sqrt(x * x + y * y);
+		// Formerly used FloatMath
+		return (float) Math.sqrt(x * x + y * y);
 	}
 
 	/** Calculates the mid point of the first two fingers */

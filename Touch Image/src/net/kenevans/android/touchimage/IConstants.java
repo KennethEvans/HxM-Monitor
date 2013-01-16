@@ -28,4 +28,10 @@ public interface IConstants {
 	/** Tag to associate with log messages. */
 	public static final String TAG = "TouchImage";
 
+	public static final String DEBUG_DIRNAME = "Dilbert";
+	public static final String DEBUG_FILENAME = "Dilbert-1989-04-16.png";
+	
+	
+	public static final String PREF_FILENAME = "fileName";
+
 }
