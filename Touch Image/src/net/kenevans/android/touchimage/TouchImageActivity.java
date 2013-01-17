@@ -98,6 +98,7 @@ public class TouchImageActivity extends Activity implements IConstants {
 			if (bitmap == null) {
 				Log.d(TAG, context.getClass().getSimpleName()
 						+ ": getBitmap: Bitmap is null");
+				Utils.errMsg(context, "Error reading image. Bitmap is null.");
 			} else {
 				Log.d(TAG, context.getClass().getSimpleName()
 						+ ": getBitmap: Got " + file.getPath());
@@ -105,7 +106,7 @@ public class TouchImageActivity extends Activity implements IConstants {
 		} catch (Exception ex) {
 			Log.d(TAG, context.getClass().getSimpleName()
 					+ ": Error reading image", ex);
-			// Utils.excMsg(this, "Error saving to SD card", ex);
+			Utils.excMsg(context, "Error reading image", ex);
 		}
 		return bitmap;
 	}
@@ -135,6 +136,7 @@ public class TouchImageActivity extends Activity implements IConstants {
 		if (!file.exists()) {
 			Log.d(TAG, this.getClass().getSimpleName()
 					+ ": File does not exist " + file.getPath());
+			Utils.errMsg(this, "File does not exist " + file.getPath());
 			return;
 		}
 		Bitmap bitmap = getBitmap(this, file);
@@ -151,34 +153,5 @@ public class TouchImageActivity extends Activity implements IConstants {
 			mImageView.forceLayout();
 		}
 	}
-
-	// /**
-	// * Sets a new image.
-	// */
-	// private void setNewRawImage() {
-	// if (mImageView == null) {
-	// return;
-	// }
-	// File sdCardRoot = Environment.getExternalStorageDirectory();
-	// File dir = new File(sdCardRoot, DEBUG_DIRNAME);
-	// File file = new File(dir, DEBUG_FILENAME);
-	// if (!file.exists()) {
-	// Log.d(TAG, this.getClass().getSimpleName()
-	// + ": File does not exist " + file.getPath());
-	// return;
-	// }
-	// Bitmap bitmap = getBitmap(this, file);
-	// if (bitmap != null) {
-	// // Save the value here
-	// SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
-	// editor.putString(PREF_FILENAME, file.getPath());
-	// editor.commit();
-	// mImageView.setImageBitmap(bitmap);
-	// mImageView.fitImage();
-	// mImageView.setFitImageMode(TouchImageView.IMAGEFITTED
-	// | TouchImageView.IMAGECENTERED);
-	// mImageView.forceLayout();
-	// }
-	// }
 
 }
