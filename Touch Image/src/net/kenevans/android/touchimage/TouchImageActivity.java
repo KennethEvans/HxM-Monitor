@@ -61,7 +61,7 @@ public class TouchImageActivity extends Activity implements IConstants {
 	protected void onResume() {
 		super.onResume();
 		Log.d(TAG, this.getClass().getSimpleName() + ": onResume:");
-		
+
 		// Restore the state
 		SharedPreferences prefs = getPreferences(MODE_PRIVATE);
 		String fileName = prefs.getString(PREF_FILENAME, null);
@@ -109,7 +109,7 @@ public class TouchImageActivity extends Activity implements IConstants {
 		}
 		return bitmap;
 	}
-	
+
 	/**
 	 * Resets to using the default image.
 	 */
@@ -140,7 +140,8 @@ public class TouchImageActivity extends Activity implements IConstants {
 		Bitmap bitmap = getBitmap(this, file);
 		if (bitmap != null) {
 			// Save the value here
-			SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
+			SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE)
+					.edit();
 			editor.putString(PREF_FILENAME, file.getPath());
 			editor.commit();
 			mImageView.setImageBitmap(bitmap);
@@ -150,5 +151,34 @@ public class TouchImageActivity extends Activity implements IConstants {
 			mImageView.forceLayout();
 		}
 	}
+
+	// /**
+	// * Sets a new image.
+	// */
+	// private void setNewRawImage() {
+	// if (mImageView == null) {
+	// return;
+	// }
+	// File sdCardRoot = Environment.getExternalStorageDirectory();
+	// File dir = new File(sdCardRoot, DEBUG_DIRNAME);
+	// File file = new File(dir, DEBUG_FILENAME);
+	// if (!file.exists()) {
+	// Log.d(TAG, this.getClass().getSimpleName()
+	// + ": File does not exist " + file.getPath());
+	// return;
+	// }
+	// Bitmap bitmap = getBitmap(this, file);
+	// if (bitmap != null) {
+	// // Save the value here
+	// SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE).edit();
+	// editor.putString(PREF_FILENAME, file.getPath());
+	// editor.commit();
+	// mImageView.setImageBitmap(bitmap);
+	// mImageView.fitImage();
+	// mImageView.setFitImageMode(TouchImageView.IMAGEFITTED
+	// | TouchImageView.IMAGECENTERED);
+	// mImageView.forceLayout();
+	// }
+	// }
 
 }
