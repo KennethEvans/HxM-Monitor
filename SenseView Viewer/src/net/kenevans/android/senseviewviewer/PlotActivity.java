@@ -24,8 +24,8 @@ import org.afree.chart.renderer.xy.XYItemRenderer;
 import org.afree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.afree.chart.title.LegendTitle;
 import org.afree.chart.title.TextTitle;
+import org.afree.data.time.FixedMillisecond;
 import org.afree.data.time.Month;
-import org.afree.data.time.Second;
 import org.afree.data.time.TimeSeries;
 import org.afree.data.time.TimeSeriesCollection;
 import org.afree.data.xy.XYDataset;
@@ -59,6 +59,23 @@ public class PlotActivity extends Activity implements IConstants {
 	private static HashMap<String, String> mDataTypes = new HashMap<String, String>();
 	private static final DateFormat dateFormatter = new SimpleDateFormat(
 			"yyyy-MM-dd hh:mm:ss", Locale.US);
+
+	/** Ways of handling duplicates */
+	private enum OVERWRITE_MODE {
+		MAX("Max"), MIN("Min"), AVG("Average"), FIRST("First"), LAST("Last");
+		private String name;
+
+		OVERWRITE_MODE(String name) {
+			this.name = name;
+		}
+
+		public String getName() {
+			return name;
+		}
+	}
+
+	/** Current ay of handling duplicates */
+	private OVERWRITE_MODE overwriteMode = OVERWRITE_MODE.AVG;
 
 	static {
 		mDataTypes.put("LEHHRMHR", "Heart Rate");
@@ -331,7 +348,6 @@ public class PlotActivity extends Activity implements IConstants {
 		String dateFull = dateStr + " " + timeStr;
 		String[] dateTokens = dateFull.split("\\.");
 		date = (Date) dateFormatter.parse(dateTokens[0]);
-		String test1 = date.toString();
 		long millis = Math.round(Double.parseDouble(dateTokens[1]));
 		// TODO check the length of dateTokens[1] to be sure it is 3
 		date = new Date(date.getTime() + millis);
@@ -367,6 +383,13 @@ public class PlotActivity extends Activity implements IConstants {
 		Date date;
 		double max = -Double.MAX_VALUE;
 		double min = Double.MAX_VALUE;
+		long prevDate = -1;
+		long dateVal;
+		int nPrev = 0;
+		double prevVal = Double.MAX_VALUE;
+		double sumPrev = 0;
+		double maxPrev = -Double.MAX_VALUE;
+		double minPrev = Double.MAX_VALUE;
 		try {
 			in = new BufferedReader(new FileReader(file));
 			String line;
@@ -382,8 +405,59 @@ public class PlotActivity extends Activity implements IConstants {
 				if (value < min) {
 					min = value;
 				}
-				s1.addOrUpdate(new Second(date), value);
-				// Log.d(TAG, test2);
+				dateVal = date.getTime();
+				if (dateVal == prevDate) {
+					nPrev++;
+					switch (overwriteMode) {
+					case MAX:
+						if (nPrev == 1) {
+							if (prevVal > maxPrev) {
+								maxPrev = prevVal;
+							}
+						}
+						if (value > maxPrev) {
+							maxPrev = value;
+						}
+						s1.addOrUpdate(new FixedMillisecond(date), maxPrev);
+						break;
+					case MIN:
+						if (nPrev == 1) {
+							if (prevVal < minPrev) {
+								minPrev = prevVal;
+							}
+						}
+						if (value < minPrev) {
+							minPrev = value;
+						}
+						s1.addOrUpdate(new FixedMillisecond(date), minPrev);
+						break;
+					case AVG:
+						if (nPrev == 1) {
+							sumPrev = prevVal + value;
+						} else {
+							sumPrev += value;
+						}
+						s1.addOrUpdate(new FixedMillisecond(date), sumPrev
+								/ (nPrev + 1));
+						break;
+					case FIRST:
+						// Do nothing
+						break;
+					case LAST:
+					default:
+						s1.addOrUpdate(new FixedMillisecond(date), value);
+						break;
+					}
+
+				} else {
+					nPrev = 0;
+					sumPrev = 0;
+					maxPrev = -Double.MAX_VALUE;
+					minPrev = Double.MAX_VALUE;
+					s1.addOrUpdate(new FixedMillisecond(date), value);
+				}
+				prevDate = date.getTime();
+				prevVal = value;
 			}
 		} catch (Exception ex) {
 			String msg = getClass().getSimpleName() + ".createDataset: "
