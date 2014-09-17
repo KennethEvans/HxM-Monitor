@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
@@ -29,15 +30,19 @@ import org.afree.data.time.TimeSeries;
 import org.afree.data.time.TimeSeriesCollection;
 import org.afree.data.xy.XYDataset;
 import org.afree.graphics.SolidColor;
+import org.afree.graphics.geom.Dimension;
 import org.afree.graphics.geom.Font;
+import org.afree.graphics.geom.RectShape;
 import org.afree.ui.RectangleInsets;
 
 import android.app.Activity;
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Point;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.Window;
@@ -49,8 +54,11 @@ import android.view.Window;
 public class PlotActivity extends Activity implements IConstants {
 	private String mFilePath;
 	private AFreeChartView mView;
+	private AFreeChart mChart;
 	/** Translation from file names to What is stored */
 	private static HashMap<String, String> mDataTypes = new HashMap<String, String>();
+	private static final DateFormat dateFormatter = new SimpleDateFormat(
+			"yyyy-MM-dd hh:mm:ss", Locale.US);
 
 	static {
 		mDataTypes.put("LEHHRMHR", "Heart Rate");
@@ -83,8 +91,8 @@ public class PlotActivity extends Activity implements IConstants {
 		// lastTimeOffset = prefs.getInt("timeOffset", lastTimeOffset);
 		// dryRun = prefs.getBoolean("dryrun", dryRun);
 		if (mView != null) {
-			final AFreeChart chart = createChart(createDataset(getName(mFilePath)));
-			mView.setChart(chart);
+			mChart = createChart(createDataset(getName(mFilePath)));
+			mView.setChart(mChart);
 		} else {
 			Log.d(TAG, getClass().getSimpleName() + ".onResume: mView null");
 			returnResult(RESULT_ERROR, "mView is null");
@@ -104,7 +112,11 @@ public class PlotActivity extends Activity implements IConstants {
 		// automatically handle clicks on the Home/Up button, so long
 		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
-		if (id == R.id.action_settings) {
+		switch (id) {
+		case R.id.action_settings:
+			return true;
+		case R.id.get_view_info:
+			Utils.infoMsg(this, getViewInfo());
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -211,6 +223,46 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Gets info about the view.
+	 */
+	private String getViewInfo() {
+		String info = "";
+		if (mView == null) {
+			info += "View is null";
+			return info;
+		}
+		Dimension size = mView.getSize();
+		RectangleInsets insets = mView.getInsets();
+		RectShape available = new RectShape(insets.getLeft(), insets.getTop(),
+				size.getWidth() - insets.getLeft() - insets.getRight(),
+				size.getHeight() - insets.getTop() - insets.getBottom());
+
+		info += "Size=(" + size.getWidth() + "," + size.getHeight() + ")\n";
+		info += "Available=(" + available.getWidth() + ","
+				+ available.getHeight() + ") @ (" + available.getCenterX()
+				+ "," + available.getCenterY() + ")\n";
+		int minimumDrawWidth = mView.getMinimumDrawWidth();
+		int maximumDrawWidth = mView.getMaximumDrawWidth();
+		int minimumDrawHeight = mView.getMinimumDrawHeight();
+		int maximumDrawHeight = mView.getMaximumDrawHeight();
+		info += "minimumDrawWidth=" + minimumDrawWidth + " maximumDrawWidth="
+				+ maximumDrawWidth + "\n";
+		info += "minimumDrawHeight=" + minimumDrawHeight
+				+ " maximumDrawHeight=" + maximumDrawHeight + "\n";
+		double chartScaleX = mView.getChartScaleX();
+		double chartScaleY = mView.getChartScaleY();
+		info += "chartScaleX=" + chartScaleX + " chartScaleY=" + chartScaleY
+				+ "\n";
+		Display display = getWindowManager().getDefaultDisplay();
+		Point displaySize = new Point();
+		display.getSize(displaySize);
+		info += "displayWidth=" + displaySize.x + " displayHeight="
+				+ displaySize.y + "\n";
+
+		return info;
+	}
+
+	/**
 	 * Creates a demo dataset, consisting of two series of monthly data.
 	 *
 	 * @return The dataset.
@@ -264,6 +316,31 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Gets a Date from the two Strings in SEnseView output.
+	 * 
+	 * @param dateStr
+	 *            The date.
+	 * @param timeStr
+	 *            The time.
+	 * @return
+	 * @throws ParseException
+	 */
+	private Date getTimeFromStrings(String dateStr, String timeStr)
+			throws ParseException {
+		Date date = null;
+		String dateFull = dateStr + " " + timeStr;
+		String[] dateTokens = dateFull.split("\\.");
+		date = (Date) dateFormatter.parse(dateTokens[0]);
+		String test1 = date.toString();
+		long millis = Math.round(Double.parseDouble(dateTokens[1]));
+		// TODO check the length of dateTokens[1] to be sure it is 3
+		date = new Date(date.getTime() + millis);
+		// Log.d(TAG, dateFull + "\n" + date);
+
+		return date;
+	}
+
+	/**
 	 * Creates the dataset, consisting of two series of monthly data.
 	 *
 	 * @return The dataset.
@@ -285,14 +362,9 @@ public class PlotActivity extends Activity implements IConstants {
 		TimeSeries s1 = new TimeSeries(name);
 		BufferedReader in = null;
 		String[] tokens;
-		String[] dateTokens;
 		int lineNum = 0;
-		String dateFull;
 		double value;
-		DateFormat formatter = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss",
-				Locale.US);
 		Date date;
-		long millis;
 		double max = -Double.MAX_VALUE;
 		double min = Double.MAX_VALUE;
 		try {
@@ -302,13 +374,7 @@ public class PlotActivity extends Activity implements IConstants {
 				lineNum++;
 				// Log.d(TAG, line);
 				tokens = line.trim().split(",");
-				dateFull = tokens[0] + " " + tokens[1];
-				dateTokens = dateFull.split("\\.");
-				date = (Date) formatter.parse(dateTokens[0]);
-				String test1 = date.toString();
-				millis = Math.round(Double.parseDouble(dateTokens[1]));
-				// TODO check the length of dateTokens[1] to be sure it is 3
-				date = new Date(date.getTime() + millis);
+				date = getTimeFromStrings(tokens[0], tokens[1]);
 				value = Double.parseDouble(tokens[2]);
 				if (value > max) {
 					max = value;
@@ -316,7 +382,6 @@ public class PlotActivity extends Activity implements IConstants {
 				if (value < min) {
 					min = value;
 				}
-				String test2 = date.toString();
 				s1.addOrUpdate(new Second(date), value);
 				// Log.d(TAG, test2);
 			}

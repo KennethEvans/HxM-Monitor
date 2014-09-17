@@ -103,9 +103,9 @@ public class AFreeChartView extends View implements ChartChangeListener,
 		this.maximumDrawWidth = DEFAULT_MAXIMUM_DRAW_WIDTH;
 		this.maximumDrawHeight = DEFAULT_MAXIMUM_DRAW_HEIGHT;
 		this.moveTriggerDistance = DEFAULT_MOVE_TRIGGER_DISTANCE;
-//		new SolidColor(Color.BLUE);
-//		new SolidColor(Color.argb(0, 0, 255, 63));
-//		new java.util.ArrayList();
+		// new SolidColor(Color.BLUE);
+		// new SolidColor(Color.argb(0, 0, 255, 63));
+		// new java.util.ArrayList();
 	}
 
 	/**
@@ -216,6 +216,9 @@ public class AFreeChartView extends View implements ChartChangeListener,
 
 	private long mPrevTimeMillis = 0;
 	private long mNowTimeMillis = System.currentTimeMillis();
+
+	private boolean mFillSpaceX = true;
+	private boolean mFillSpaceY = true;
 
 	/**
 	 * touch event
@@ -480,7 +483,7 @@ public class AFreeChartView extends View implements ChartChangeListener,
 		this.size = new Dimension(w, h);
 	}
 
-	private RectangleInsets getInsets() {
+	public RectangleInsets getInsets() {
 		return this.insets;
 	}
 
@@ -653,6 +656,54 @@ public class AFreeChartView extends View implements ChartChangeListener,
 	}
 
 	/**
+	 * Get the value of mFillSpaceX.
+	 * <p>
+	 * If this is true the plot will fill the width of the view, otherwise it
+	 * will conform to maxDrawWidth.
+	 * 
+	 * @return
+	 */
+	public boolean getFillSpaceX() {
+		return mFillSpaceX;
+	}
+
+	/**
+	 * set the value of mFillSpaceX.
+	 * <p>
+	 * If this is true the plot will fill the width of the view, otherwise it
+	 * will conform to maxDrawWWidth.
+	 * 
+	 * @param mFillSpaceX
+	 */
+	public void setFillSpaceX(boolean mFillSpaceX) {
+		this.mFillSpaceX = mFillSpaceX;
+	}
+
+	/**
+	 * Get the value of mFillSpaceY.
+	 * <p>
+	 * If this is true the plot will fill the height of the view, otherwise it
+	 * will conform to maxDrawHeight.
+	 * 
+	 * @return
+	 */
+	public boolean getFillSpaceY() {
+		return mFillSpaceY;
+	}
+
+	/**
+	 * set the value of mFillSpaceY.
+	 * <p>
+	 * If this is true the plot will fill the height of the view, otherwise it
+	 * will conform to maxDrawWHeight.
+	 * 
+	 * @param mFillSpaceY
+	 */
+	public void setFillSpaceY(boolean mFillSpaceY) {
+		this.mFillSpaceY = mFillSpaceY;
+	}
+
+	/**
 	 * Returns the chart rendering info from the most recent chart redraw.
 	 *
 	 * @return The chart rendering info.
@@ -697,20 +748,23 @@ public class AFreeChartView extends View implements ChartChangeListener,
 		this.scaleX = 1.0;
 		this.scaleY = 1.0;
 
-		if (drawWidth < this.minimumDrawWidth) {
-			this.scaleX = drawWidth / this.minimumDrawWidth;
-			drawWidth = this.minimumDrawWidth;
-		} else if (drawWidth > this.maximumDrawWidth) {
-			this.scaleX = drawWidth / this.maximumDrawWidth;
-			drawWidth = this.maximumDrawWidth;
+		if (!mFillSpaceX) {
+			if (drawWidth < this.minimumDrawWidth) {
+				this.scaleX = drawWidth / this.minimumDrawWidth;
+				drawWidth = this.minimumDrawWidth;
+			} else if (drawWidth > this.maximumDrawWidth) {
+				this.scaleX = drawWidth / this.maximumDrawWidth;
+				drawWidth = this.maximumDrawWidth;
+			}
 		}
-
-		if (drawHeight < this.minimumDrawHeight) {
-			this.scaleY = drawHeight / this.minimumDrawHeight;
-			drawHeight = this.minimumDrawHeight;
-		} else if (drawHeight > this.maximumDrawHeight) {
-			this.scaleY = drawHeight / this.maximumDrawHeight;
-			drawHeight = this.maximumDrawHeight;
+		if (!mFillSpaceY) {
+			if (drawHeight < this.minimumDrawHeight) {
+				this.scaleY = drawHeight / this.minimumDrawHeight;
+				drawHeight = this.minimumDrawHeight;
+			} else if (drawHeight > this.maximumDrawHeight) {
+				this.scaleY = drawHeight / this.maximumDrawHeight;
+				drawHeight = this.maximumDrawHeight;
+			}
 		}
 
 		RectShape chartArea = new RectShape(0.0, 0.0, drawWidth, drawHeight);
