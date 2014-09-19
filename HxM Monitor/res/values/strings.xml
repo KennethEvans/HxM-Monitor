@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">HxM Monitor</string>
+    <string name="hello_world">Hello world!</string>
+    <string name="action_settings">Settings</string>
+
+	<!-- Utils -->
+	<string name="error">Error</string>
+	<string name="exception">Exception</string>
+	<string name="info">Info</string>
+	<string name="ok">OK</string>
+	<string name="warning">Warning</string>
+</resources>
