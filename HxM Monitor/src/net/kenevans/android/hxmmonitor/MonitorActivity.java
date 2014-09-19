@@ -4,6 +4,7 @@ import java.io.File;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
 import android.view.Menu;
@@ -58,24 +59,21 @@ public class MonitorActivity extends Activity implements IConstants {
 		// automatically handle clicks on the Home/Up button, so long
 		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
+		Intent intent;
 		switch (id) {
 		case R.id.action_settings:
 			Utils.infoMsg(this, "Not supported yet");
 			return true;
 		case R.id.menu_select_device:
-			startScan();
+			intent = new Intent(this, DeviceScanActivity.class);
+			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
+			return true;
+		case R.id.menu_test:
+			intent = new Intent(this, DeviceControlActivity.class);
+			startActivityForResult(intent, REQUEST_TEST);
 			return true;
 		}
-		return true;
-	}
-
-	/**
-	 * Call and Activity to scan for devices.
-	 */
-	void startScan() {
-//		Utils.infoMsg(this, "startScan");
-		Intent intent = new Intent(this, DeviceScanActivity.class);
-		startActivityForResult(intent, REQUEST_SELECT_DEVICE);
+		return false;
 	}
 
 	@Override
@@ -83,7 +81,13 @@ public class MonitorActivity extends Activity implements IConstants {
 		// User chose not to enable Bluetooth.
 		if (requestCode == REQUEST_SELECT_DEVICE) {
 			if (resultCode == Activity.RESULT_OK) {
-				// TODO
+				String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
+				String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
+				SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE)
+						.edit();
+				editor.putString(DEVICE_NAME_CODE, deviceName);
+				editor.putString(DEVICE_ADDRESS_CODE, deviceAddress);
+				editor.commit();
 			}
 		}
 		super.onActivityResult(requestCode, resultCode, data);

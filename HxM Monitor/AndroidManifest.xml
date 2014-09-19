@@ -28,10 +28,14 @@
             </intent-filter>
         </activity>
         <activity android:name=".DeviceScanActivity"
+                  android:label="@string/menu_test"
+                  android:theme="@android:style/Theme.Holo" >
+         </activity>
+        <activity android:name=".DeviceControlActivity"
                   android:label="@string/device_scan_name"
                   android:theme="@android:style/Theme.Holo" >
          </activity>
-         <service android:name="net.kenevans.android.hxmmonitor.BluetoothLeService" android:enabled="true"/>
+        <service android:name="net.kenevans.android.hxmmonitor.BluetoothLeService" android:enabled="true"/>
     </application>
 
 </manifest>

@@ -47,7 +47,7 @@ public interface IConstants {
 	public static final int DB_VERSION = 1;
 
 	// Preferences
-	public static final String PREF_DATA_DIRECTORY = "dataDirectory";
+	public static final String PREF_ = "dataDirectory";
 
 	// Information
 	/** Key for information URL sent to InfoActivity. */
@@ -82,6 +82,8 @@ public interface IConstants {
 	public static final int REQUEST_SELECT_DEVICE = 0;
 	/** Request code for enabling Bluetooth. */
 	public static final int REQUEST_ENABLE_BT = 1;
+	/** Request code for test. */
+	public static final int REQUEST_TEST = 2;
 
 	/** Request code for displaying a message. */
 	public static final int DISPLAY_MESSAGE = 0;
