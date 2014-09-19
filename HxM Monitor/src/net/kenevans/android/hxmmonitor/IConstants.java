@@ -45,7 +45,7 @@ public interface IConstants {
 	public static final String DB_TABLE = "data";
 	/** The database version */
 	public static final int DB_VERSION = 1;
-	
+
 	// Preferences
 	public static final String PREF_DATA_DIRECTORY = "dataDirectory";
 
@@ -74,11 +74,14 @@ public interface IConstants {
 	/** SQL sort command for date ascending */
 	public static final String SORT_ASCENDING = COL_DATE + " ASC";
 
+	/** Default scan period for device scan. */
+	public static final long SCAN_PERIOD = 10000;
+
 	// Messages
-	/** Request code for creating new data. */
-	public static final int ACTIVITY_CREATE = 0;
-	/** Request code for editing data. */
-	public static final int ACTIVITY_EDIT = 1;
+	/** Request code for selecting a device. */
+	public static final int REQUEST_SELECT_DEVICE = 0;
+	/** Request code for enabling Bluetooth. */
+	public static final int REQUEST_ENABLE_BT = 1;
 
 	/** Request code for displaying a message. */
 	public static final int DISPLAY_MESSAGE = 0;
@@ -90,6 +93,11 @@ public interface IConstants {
 	 * Result code for ACTIVITY_DISPLAY_MESSAGE indicating the next message.
 	 */
 	public static final int RESULT_NEXT = 1001;
+
+	/** The intent code for device name. */
+	public static final String DEVICE_NAME_CODE = "DEVICE_NAME";
+	/** The intent code for device address. */
+	public static final String DEVICE_ADDRESS_CODE = "DEVICE_ADDRESS";
 
 	/** The static format string to use for formatting dates. */
 	// public static final String longFormat = "MMM dd, yyyy HH:mm:ss Z";
