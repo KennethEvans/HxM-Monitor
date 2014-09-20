@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
@@ -83,7 +84,8 @@ public class MonitorActivity extends Activity implements IConstants {
 			if (resultCode == Activity.RESULT_OK) {
 				String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
 				String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
-				SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE)
+				// Use this instead of getPreferences to be application-wide
+				SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this)
 						.edit();
 				editor.putString(DEVICE_NAME_CODE, deviceName);
 				editor.putString(DEVICE_ADDRESS_CODE, deviceAddress);

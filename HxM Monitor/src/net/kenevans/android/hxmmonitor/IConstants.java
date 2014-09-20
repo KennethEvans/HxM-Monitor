@@ -23,14 +23,38 @@ package net.kenevans.android.hxmmonitor;
 
 import java.text.SimpleDateFormat;
 import java.util.Locale;
+import java.util.UUID;
 
 /**
  * Holds constant values used by several classes in the application.
  */
 public interface IConstants {
-	// Log tag
 	/** Tag to associate with log messages. */
 	public static final String TAG = "HxM Monitor";
+	/** Name of the package for this application. */
+	public static final String PACKAGE_NAME = "net.kenevans.android.hxmmonitor";
+
+	// Services
+	public static final UUID UUID_BATTERY_SERVICE = UUID
+			.fromString("0000180f-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_DEVICE_INFORMATION_SERVICE = UUID
+			.fromString("0000180a-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_HEART_RATE_SERVICE = UUID
+			.fromString("0000180d-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_HXM_CUSTOM_DATA_SERVICE = UUID
+			.fromString("befdff10-c979-11e1-9b21-0800200c9a66");
+
+	// Characteristics
+	public static final UUID UUID_BATTERY_LEVEL = UUID
+			.fromString("00002a19-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_CUSTOM_MEASUREMENT = UUID
+			.fromString("befdff11-c979-11e1-9b21-0800200c9a66");
+	public static final UUID UUID_DEVICE_NAME = UUID
+			.fromString("00002a00-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_HEART_RATE_MEASUREMENT = UUID
+			.fromString("00002a37-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_TEST_MODE = UUID
+			.fromString("befdffb1-c979-11e1-9b21-0800200c9a66");
 
 	/** Directory on the SD card where the database is stored */
 	public static final String SD_CARD_DB_DIRECTORY = "HxM Monitor";
@@ -79,11 +103,11 @@ public interface IConstants {
 
 	// Messages
 	/** Request code for selecting a device. */
-	public static final int REQUEST_SELECT_DEVICE = 0;
+	public static final int REQUEST_SELECT_DEVICE = 10;
 	/** Request code for enabling Bluetooth. */
-	public static final int REQUEST_ENABLE_BT = 1;
+	public static final int REQUEST_ENABLE_BT = 11;
 	/** Request code for test. */
-	public static final int REQUEST_TEST = 2;
+	public static final int REQUEST_TEST = 12;
 
 	/** Request code for displaying a message. */
 	public static final int DISPLAY_MESSAGE = 0;
@@ -97,9 +121,14 @@ public interface IConstants {
 	public static final int RESULT_NEXT = 1001;
 
 	/** The intent code for device name. */
-	public static final String DEVICE_NAME_CODE = "DEVICE_NAME";
+	public static final String DEVICE_NAME_CODE = PACKAGE_NAME + "deviceName";
 	/** The intent code for device address. */
-	public static final String DEVICE_ADDRESS_CODE = "DEVICE_ADDRESS";
+	public static final String DEVICE_ADDRESS_CODE = PACKAGE_NAME
+			+ "deviceAddress";
+	/** The intent code for extra data. */
+	public final static String EXTRA_DATA = PACKAGE_NAME + ".extraData";
+	/** The intent code for UUID. */
+	public final static String EXTRA_UUID = PACKAGE_NAME + ".extraUuid";
 
 	/** The static format string to use for formatting dates. */
 	// public static final String longFormat = "MMM dd, yyyy HH:mm:ss Z";

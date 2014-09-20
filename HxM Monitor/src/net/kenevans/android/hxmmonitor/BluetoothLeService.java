@@ -39,7 +39,7 @@ import android.util.Log;
  * Service for managing connection and data communication with a GATT server
  * hosted on a given Bluetooth LE device.
  */
-public class BluetoothLeService extends Service {
+public class BluetoothLeService extends Service implements IConstants {
 	private final static String TAG = BluetoothLeService.class.getSimpleName();
 	private static final boolean DEBUG_DATA = false;
 
@@ -53,20 +53,14 @@ public class BluetoothLeService extends Service {
 	// private static final int STATE_CONNECTING = 1;
 	// private static final int STATE_CONNECTED = 2;
 
-	public final static String ACTION_GATT_CONNECTED = "net.kenevans.android.hxmbleexplorer.ACTION_GATT_CONNECTED";
-	public final static String ACTION_GATT_DISCONNECTED = "net.kenevans.android.hxmbleexplorer.ACTION_GATT_DISCONNECTED";
-	public final static String ACTION_GATT_SERVICES_DISCOVERED = "net.kenevans.android.hxmbleexplorer.ACTION_GATT_SERVICES_DISCOVERED";
-	public final static String ACTION_DATA_AVAILABLE = "net.kenevans.android.hxmbleexplorer.ACTION_DATA_AVAILABLE";
-	public final static String EXTRA_DATA = "net.kenevans.android.hxmbleexplorer.EXTRA_DATA";
-
-	public final static UUID UUID_HEART_RATE_MEASUREMENT = UUID
-			.fromString(GattAttributes.HEART_RATE_MEASUREMENT);
-	public final static UUID UUID_BATTERY_LEVEL = UUID
-			.fromString(GattAttributes.BATTERY_LEVEL);
-	public final static UUID UUID_CUSTOM_MEASUREMENT = UUID
-			.fromString(GattAttributes.CUSTOM_MEASUREMENT);
-	public final static UUID UUID_TEST_MODE = UUID
-			.fromString(GattAttributes.TEST_MODE);
+	public final static String ACTION_GATT_CONNECTED = PACKAGE_NAME
+			+ ".ACTION_GATT_CONNECTED";
+	public final static String ACTION_GATT_DISCONNECTED = PACKAGE_NAME
+			+ ".ACTION_GATT_DISCONNECTED";
+	public final static String ACTION_GATT_SERVICES_DISCOVERED = PACKAGE_NAME
+			+ ".ACTION_GATT_SERVICES_DISCOVERED";
+	public final static String ACTION_DATA_AVAILABLE = PACKAGE_NAME
+			+ ".ACTION_DATA_AVAILABLE";
 
 	// Implements callback methods for GATT events that the app cares about. For
 	// example, connection change and services discovered.
@@ -124,11 +118,12 @@ public class BluetoothLeService extends Service {
 	private void broadcastUpdate(final String action,
 			final BluetoothGattCharacteristic characteristic) {
 		final Intent intent = new Intent(action);
+		intent.putExtra(EXTRA_UUID, characteristic.getUuid().toString());
 
-		// This is special handling for the Heart Rate Measurement profile. Data
-		// parsing is
-		// carried out as per profile specifications:
-		// http://developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
+		// This is special handling for the Heart Rate Measurement profile.
+		// parsing is carried out as per profile specifications:
+		// http: //
+		// developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
 		if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
 			String string = "";
 			int flag = characteristic.getProperties();

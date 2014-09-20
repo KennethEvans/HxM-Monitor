@@ -101,7 +101,6 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 	@Override
 	protected void onResume() {
 		super.onResume();
-
 		// Ensures Bluetooth is enabled on the device. If Bluetooth is not
 		// currently enabled,
 		// fire an intent to display a dialog asking the user to grant
