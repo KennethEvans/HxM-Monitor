@@ -4,8 +4,10 @@ import java.util.List;
 import java.util.UUID;
 
 import android.app.Activity;
+import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
+import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -13,6 +15,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
@@ -20,6 +23,7 @@ import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /**
  * For a given BLE device, this Activity provides the user interface to connect,
@@ -44,6 +48,31 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_device_monitor);
+
+		// Use this check to determine whether BLE is supported on the device.
+		// Then you can
+		// selectively disable BLE-related features.
+		if (!getPackageManager().hasSystemFeature(
+				PackageManager.FEATURE_BLUETOOTH_LE)) {
+			String msg = "Bluetooth LE is not supported on this device";
+			Utils.errMsg(this, msg);
+			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+			finish();
+		}
+
+		// Initializes a Bluetooth adapter. For API level 18 and above, get a
+		// reference to BluetoothAdapter through BluetoothManager.
+		final BluetoothManager bluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+		BluetoothAdapter adapter = bluetoothManager.getAdapter();
+
+		// Checks if Bluetooth is supported on the device
+		if (adapter == null) {
+			String msg = "Bluetooth is not supported on this device";
+			Utils.errMsg(this, msg);
+			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+			finish();
+			return;
+		}
 
 		// Get the preferences here before refresh()
 		// Use this instead of getPreferences to be application-wide
@@ -122,6 +151,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			onBackPressed();
 			return true;
 		case R.id.menu_select_device:
+			// Scan doesn't find current device if it is connected
+			mBluetoothLeService.disconnect();
 			Intent intent = new Intent(this, DeviceScanActivity.class);
 			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
 			return true;

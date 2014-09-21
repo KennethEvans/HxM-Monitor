@@ -13,6 +13,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -109,10 +110,8 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 			Intent enableBtIntent = new Intent(
 					BluetoothAdapter.ACTION_REQUEST_ENABLE);
 			startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-		}
-
-		// Initializes list view adapter.
-		if (mBluetoothAdapter.isEnabled()) {
+		} else {
+			// Initialize the list view adapter
 			mLeDeviceListAdapter = new LeDeviceListAdapter();
 			setListAdapter(mLeDeviceListAdapter);
 			scanLeDevice(true);
@@ -170,8 +169,14 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 				}
 			}, SCAN_PERIOD);
 
-			mScanning = true;
-			mBluetoothAdapter.startLeScan(mLeScanCallback);
+			boolean res = mBluetoothAdapter.startLeScan(mLeScanCallback);
+			Log.d(TAG, "scanLeDevice: startLeScan result=" + res);
+			if (!res) {
+				mScanning = false;
+				Utils.errMsg(this, "Failed to start scan");
+			} else {
+				mScanning = true;
+			}
 		} else {
 			mScanning = false;
 			mBluetoothAdapter.stopLeScan(mLeScanCallback);
