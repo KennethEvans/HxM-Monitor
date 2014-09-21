@@ -65,125 +65,6 @@ public class DeviceControlActivity extends Activity {
 	private final String LIST_NAME = "NAME";
 	private final String LIST_UUID = "UUID";
 
-	// Code to manage Service lifecycle.
-	private final ServiceConnection mServiceConnection = new ServiceConnection() {
-		@Override
-		public void onServiceConnected(ComponentName componentName,
-				IBinder service) {
-			mBluetoothLeService = ((BluetoothLeService.LocalBinder) service)
-					.getService();
-			if (!mBluetoothLeService.initialize()) {
-				Log.e(TAG, "Unable to initialize Bluetooth");
-				finish();
-			}
-			// Automatically connects to the device upon successful start-up
-			// initialization.
-			mBluetoothLeService.connect(mDeviceAddress);
-		}
-
-		@Override
-		public void onServiceDisconnected(ComponentName componentName) {
-			mBluetoothLeService = null;
-		}
-	};
-
-	// Handles various events fired by the Service.
-	// ACTION_GATT_CONNECTED: connected to a GATT server.
-	// ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
-	// ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
-	// ACTION_DATA_AVAILABLE: received data from the device. This can be a
-	// result of read
-	// or notification operations.
-	private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			final String action = intent.getAction();
-			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-				mConnected = true;
-				updateConnectionState(R.string.connected);
-				invalidateOptionsMenu();
-			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
-					.equals(action)) {
-				mConnected = false;
-				updateConnectionState(R.string.disconnected);
-				invalidateOptionsMenu();
-				clearUI();
-			} else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
-					.equals(action)) {
-				// Show all the supported services and characteristics on the
-				// user interface.
-				displayGattServices(mBluetoothLeService
-						.getSupportedGattServices());
-			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-				displayData(intent
-						.getStringExtra(BluetoothLeService.EXTRA_DATA));
-			}
-		}
-	};
-
-	// If a given GATT characteristic is selected, check for supported features.
-	// This sample
-	// demonstrates 'Read' and 'Notify' features. See
-	// http://d.android.com/reference/android/bluetooth/BluetoothGatt.html for
-	// the complete
-	// list of supported characteristic features.
-	private final ExpandableListView.OnChildClickListener servicesListChildClickListner = new ExpandableListView.OnChildClickListener() {
-		@Override
-		public boolean onChildClick(ExpandableListView parent, View v,
-				int groupPosition, int childPosition, long id) {
-			if (mGattCharacteristics != null) {
-				// mDataField.setVisibility(View.VISIBLE);
-				final BluetoothGattCharacteristic characteristic = mGattCharacteristics
-						.get(groupPosition).get(childPosition);
-				// Set the data field to pending
-				mDataField.setText(GattAttributes.lookup(
-						characteristic.getUuid().toString(),
-						getResources().getString(
-								R.string.unknown_characteristic))
-						+ "\n" + "Pending");
-				// If there is an active notification on a characteristic,
-				// clear it first so it doesn't update the data field on the
-				// user interface
-				if (mNotifyCharacteristic != null) {
-					mBluetoothLeService.setCharacteristicNotification(
-							mNotifyCharacteristic, false);
-					mNotifyCharacteristic = null;
-				}
-				// First try to read it
-				final int charaProp = characteristic.getProperties();
-				if ((charaProp | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
-					mBluetoothLeService.readCharacteristic(characteristic);
-				} else {
-					mDataField.setText(GattAttributes.lookup(
-							characteristic.getUuid().toString(),
-							getResources().getString(
-									R.string.unknown_characteristic))
-							+ "\n" + "Not readable");
-				}
-				// Then set up a notification if possible
-				if ((charaProp | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-					mNotifyCharacteristic = characteristic;
-					mBluetoothLeService.setCharacteristicNotification(
-							characteristic, true);
-				} else {
-					mDataField.setText(GattAttributes.lookup(
-							characteristic.getUuid().toString(),
-							getResources().getString(
-									R.string.unknown_characteristic))
-							+ "\n" + "Notification NA");
-				}
-				return true;
-			}
-			return false;
-		}
-	};
-
-	private void clearUI() {
-		mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
-		mDataField.setText("");
-		// mDataField.setVisibility(View.GONE);
-	}
-
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -361,4 +242,124 @@ public class DeviceControlActivity extends Activity {
 		intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
 		return intentFilter;
 	}
+	
+	// Code to manage Service lifecycle.
+	private final ServiceConnection mServiceConnection = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName componentName,
+				IBinder service) {
+			mBluetoothLeService = ((BluetoothLeService.LocalBinder) service)
+					.getService();
+			if (!mBluetoothLeService.initialize()) {
+				Log.e(TAG, "Unable to initialize Bluetooth");
+				finish();
+			}
+			// Automatically connects to the device upon successful start-up
+			// initialization.
+			mBluetoothLeService.connect(mDeviceAddress);
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName componentName) {
+			mBluetoothLeService = null;
+		}
+	};
+
+	// Handles various events fired by the Service.
+	// ACTION_GATT_CONNECTED: connected to a GATT server.
+	// ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
+	// ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
+	// ACTION_DATA_AVAILABLE: received data from the device. This can be a
+	// result of read
+	// or notification operations.
+	private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			final String action = intent.getAction();
+			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+				mConnected = true;
+				updateConnectionState(R.string.connected);
+				invalidateOptionsMenu();
+			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+					.equals(action)) {
+				mConnected = false;
+				updateConnectionState(R.string.disconnected);
+				invalidateOptionsMenu();
+				clearUI();
+			} else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
+					.equals(action)) {
+				// Show all the supported services and characteristics on the
+				// user interface.
+				displayGattServices(mBluetoothLeService
+						.getSupportedGattServices());
+			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+				displayData(intent
+						.getStringExtra(BluetoothLeService.EXTRA_DATA));
+			}
+		}
+	};
+
+	// If a given GATT characteristic is selected, check for supported features.
+	// This sample
+	// demonstrates 'Read' and 'Notify' features. See
+	// http://d.android.com/reference/android/bluetooth/BluetoothGatt.html for
+	// the complete
+	// list of supported characteristic features.
+	private final ExpandableListView.OnChildClickListener servicesListChildClickListner = new ExpandableListView.OnChildClickListener() {
+		@Override
+		public boolean onChildClick(ExpandableListView parent, View v,
+				int groupPosition, int childPosition, long id) {
+			if (mGattCharacteristics != null) {
+				// mDataField.setVisibility(View.VISIBLE);
+				final BluetoothGattCharacteristic characteristic = mGattCharacteristics
+						.get(groupPosition).get(childPosition);
+				// Set the data field to pending
+				mDataField.setText(GattAttributes.lookup(
+						characteristic.getUuid().toString(),
+						getResources().getString(
+								R.string.unknown_characteristic))
+						+ "\n" + "Pending");
+				// If there is an active notification on a characteristic,
+				// clear it first so it doesn't update the data field on the
+				// user interface
+				if (mNotifyCharacteristic != null) {
+					mBluetoothLeService.setCharacteristicNotification(
+							mNotifyCharacteristic, false);
+					mNotifyCharacteristic = null;
+				}
+				// First try to read it
+				final int charaProp = characteristic.getProperties();
+				if ((charaProp | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
+					mBluetoothLeService.readCharacteristic(characteristic);
+				} else {
+					mDataField.setText(GattAttributes.lookup(
+							characteristic.getUuid().toString(),
+							getResources().getString(
+									R.string.unknown_characteristic))
+							+ "\n" + "Not readable");
+				}
+				// Then set up a notification if possible
+				if ((charaProp | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+					mNotifyCharacteristic = characteristic;
+					mBluetoothLeService.setCharacteristicNotification(
+							characteristic, true);
+				} else {
+					mDataField.setText(GattAttributes.lookup(
+							characteristic.getUuid().toString(),
+							getResources().getString(
+									R.string.unknown_characteristic))
+							+ "\n" + "Notification NA");
+				}
+				return true;
+			}
+			return false;
+		}
+	};
+
+	private void clearUI() {
+		mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
+		mDataField.setText("");
+		// mDataField.setVisibility(View.GONE);
+	}
+
 }
