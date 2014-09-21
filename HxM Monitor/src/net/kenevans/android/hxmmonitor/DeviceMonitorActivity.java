@@ -74,14 +74,13 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			return;
 		}
 
-		// Get the preferences here before refresh()
 		// Use this instead of getPreferences to be application-wide
 		SharedPreferences prefs = PreferenceManager
 				.getDefaultSharedPreferences(this);
 		mDeviceName = prefs.getString(DEVICE_NAME_CODE, null);
 		mDeviceAddress = prefs.getString(DEVICE_ADDRESS_CODE, null);
-		Log.d(TAG, this.getClass().getName() + ": onCreate: " + mDeviceName
-				+ " " + mDeviceAddress);
+		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate: "
+				+ mDeviceName + " " + mDeviceAddress);
 
 		((TextView) findViewById(R.id.device_name)).setText(mDeviceName);
 		((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
@@ -101,19 +100,40 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 
 	@Override
 	protected void onResume() {
-		Log.d(TAG, this.getClass().getName() + ": onResume");
-		Log.d(TAG, this.getClass().getName() + ": mBluetoothLeService");
+		Log.d(TAG, this.getClass().getSimpleName() + ": onResume: mConnected="
+				+ mConnected + " mBluetoothLeService="
+				+ (mBluetoothLeService == null ? "null" : "not null"));
 		super.onResume();
-		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+		Log.d(TAG, "Starting registerReceiver");
+		Intent intent = registerReceiver(mGattUpdateReceiver,
+				makeGattUpdateIntentFilter());
+		if (intent == null) {
+			Log.d(TAG, "After registerReceiver: intent is null");
+		} else {
+			Log.d(TAG, "After registerReceiver: intent is not null");
+			final String action = intent.getAction();
+			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+				Log.d(TAG, "  intent.getAction: ACTION_GATT_CONNECTED");
+			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+					.equals(action)) {
+				Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
+			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+					.equals(action)) {
+				Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
+			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+				Log.d(TAG, "  intent.getAction: ACTION_DATA_AVAILABLE");
+			}
+		}
 		if (mBluetoothLeService != null) {
+			Log.d(TAG, "Starting mBluetoothLeService.connect");
 			final boolean res = mBluetoothLeService.connect(mDeviceAddress);
-			Log.d(TAG, "onResume: Connect mBluetoothLeService result=" + res);
+			Log.d(TAG, "mBluetoothLeService.connect: result=" + res);
 		}
 	}
 
 	@Override
 	protected void onPause() {
-		Log.d(TAG, this.getClass().getName() + ": onPause");
+		Log.d(TAG, this.getClass().getSimpleName() + ": onPause");
 		super.onPause();
 		unregisterReceiver(mGattUpdateReceiver);
 	}
@@ -167,8 +187,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
 				String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
 				// Use this instead of getPreferences to be application-wide
-				SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this)
-						.edit();
+				SharedPreferences.Editor editor = PreferenceManager
+						.getDefaultSharedPreferences(this).edit();
 				editor.putString(DEVICE_NAME_CODE, deviceName);
 				editor.putString(DEVICE_ADDRESS_CODE, deviceAddress);
 				editor.commit();
@@ -243,7 +263,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			// Utils.excMsg(this, "Error displaying message", ex);
 		}
 	}
-	
+
 	/**
 	 * Resets the data view to show default values
 	 */

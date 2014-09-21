@@ -68,20 +68,29 @@ public class BluetoothLeService extends Service implements IConstants {
 		@Override
 		public void onConnectionStateChange(BluetoothGatt gatt, int status,
 				int newState) {
+			Log.i(TAG, "onConnectionStateChange: status="
+					+ (status == BluetoothGatt.GATT_SUCCESS ? "GATT_SUCCESS"
+							: status));
+			if (status != BluetoothGatt.GATT_SUCCESS) {
+				Log.i(TAG,
+						"onConnectionStateChange: Aborting: status is not GATT_SUCCESS");
+				return;
+			}
 			String intentAction;
 			if (newState == BluetoothProfile.STATE_CONNECTED) {
 				intentAction = ACTION_GATT_CONNECTED;
 				mConnectionState = BluetoothProfile.STATE_CONNECTED;
 				broadcastUpdate(intentAction);
-				Log.i(TAG, "Connected to GATT server.");
+				Log.i(TAG, "onConnectionStateChange: Connected to GATT server");
 				// Attempts to discover services after successful connection.
-				Log.i(TAG, "Attempting to start service discovery:"
-						+ mBluetoothGatt.discoverServices());
-
+				Log.i(TAG,
+						"onConnectionStateChange: Attempting to start service discovery: "
+								+ mBluetoothGatt.discoverServices());
 			} else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
 				intentAction = ACTION_GATT_DISCONNECTED;
 				mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
-				Log.i(TAG, "Disconnected from GATT server.");
+				Log.i(TAG,
+						"onConnectionStateChange: Disconnected from GATT server");
 				broadcastUpdate(intentAction);
 			}
 		}
@@ -100,6 +109,8 @@ public class BluetoothLeService extends Service implements IConstants {
 				BluetoothGattCharacteristic characteristic, int status) {
 			if (status == BluetoothGatt.GATT_SUCCESS) {
 				broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
+			} else {
+				Log.w(TAG, "onCharacteristicRead received: " + status);
 			}
 		}
 
@@ -131,7 +142,7 @@ public class BluetoothLeService extends Service implements IConstants {
 			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr()));
 			intent.putExtra(EXTRA_RR, values.getRr());
 			intent.putExtra(EXTRA_DATA, values.getString());
-//			Log.d(TAG, String.format("Received HR: %d", values.getHr()));
+			// Log.d(TAG, String.format("Received HR: %d", values.getHr()));
 		} else if (UUID_BATTERY_LEVEL.equals(characteristic.getUuid())) {
 			final int iVal = characteristic.getIntValue(
 					BluetoothGattCharacteristic.FORMAT_UINT8, 0);
@@ -240,7 +251,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	public boolean connect(final String address) {
 		if (mBluetoothAdapter == null || address == null) {
 			Log.w(TAG,
-					"BluetoothAdapter not initialized or unspecified address.");
+					"connect: BluetoothAdapter not initialized or unspecified address.");
 			return false;
 		}
 
@@ -249,7 +260,7 @@ public class BluetoothLeService extends Service implements IConstants {
 				&& address.equals(mBluetoothDeviceAddress)
 				&& mBluetoothGatt != null) {
 			Log.d(TAG,
-					"Trying to use an existing mBluetoothGatt for connection.");
+					"connect: Trying to use an existing mBluetoothGatt for connection.");
 			if (mBluetoothGatt.connect()) {
 				mConnectionState = BluetoothProfile.STATE_CONNECTING;
 				return true;
@@ -265,8 +276,7 @@ public class BluetoothLeService extends Service implements IConstants {
 			return false;
 		}
 		// We want to directly connect to the device, so we are setting the
-		// autoConnect
-		// parameter to false.
+		// autoConnect parameter to false.
 		mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
 		Log.d(TAG, "Trying to create a new connection.");
 		mBluetoothDeviceAddress = address;
@@ -318,7 +328,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	}
 
 	/**
-	 * Enables or disables notification on a give characteristic.
+	 * Enables or disables notification on a given characteristic.
 	 *
 	 * @param characteristic
 	 *            Characteristic to act on.
