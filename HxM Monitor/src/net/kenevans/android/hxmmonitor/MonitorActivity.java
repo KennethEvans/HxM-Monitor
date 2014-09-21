@@ -70,7 +70,7 @@ public class MonitorActivity extends Activity implements IConstants {
 			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
 			return true;
 		case R.id.menu_test:
-			intent = new Intent(this, DeviceControlActivity.class);
+			intent = new Intent(this, DeviceMonitorActivity.class);
 			startActivityForResult(intent, REQUEST_TEST);
 			return true;
 		}

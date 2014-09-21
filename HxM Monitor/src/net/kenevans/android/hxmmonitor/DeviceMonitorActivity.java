@@ -27,7 +27,7 @@ import android.widget.TextView;
  * device. The Activity communicates with {@code BluetoothLeService}, which in
  * turn interacts with the Bluetooth LE API.
  */
-public class DeviceControlActivity extends Activity implements IConstants {
+public class DeviceMonitorActivity extends Activity implements IConstants {
 	private TextView mConnectionState;
 	private TextView mBat;
 	private TextView mHr;
@@ -40,17 +40,10 @@ public class DeviceControlActivity extends Activity implements IConstants {
 	private BluetoothLeService mBluetoothLeService;
 	private boolean mConnected = false;
 
-	// private CharacteristicItem[] mCharacteristics = {
-	// new CharacteristicItem()
-	// }
-	//
-	// // End
-	// };
-
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_device_control);
+		setContentView(R.layout.activity_device_monitor);
 
 		// Get the preferences here before refresh()
 		// Use this instead of getPreferences to be application-wide
@@ -72,7 +65,6 @@ public class DeviceControlActivity extends Activity implements IConstants {
 		mStatus = (TextView) findViewById(R.id.status_value);
 		resetDataViews();
 
-		getActionBar().setTitle(mDeviceName);
 		getActionBar().setDisplayHomeAsUpEnabled(true);
 		Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
 		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
@@ -106,7 +98,7 @@ public class DeviceControlActivity extends Activity implements IConstants {
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		getMenuInflater().inflate(R.menu.gatt_services, menu);
+		getMenuInflater().inflate(R.menu.menu_device_monitor, menu);
 		if (mConnected) {
 			menu.findItem(R.id.menu_connect).setVisible(false);
 			menu.findItem(R.id.menu_disconnect).setVisible(true);
@@ -129,8 +121,29 @@ public class DeviceControlActivity extends Activity implements IConstants {
 		case android.R.id.home:
 			onBackPressed();
 			return true;
+		case R.id.menu_select_device:
+			Intent intent = new Intent(this, DeviceScanActivity.class);
+			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
+			return true;
 		}
 		return super.onOptionsItemSelected(item);
+	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		if (requestCode == REQUEST_SELECT_DEVICE) {
+			if (resultCode == Activity.RESULT_OK) {
+				String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
+				String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
+				// Use this instead of getPreferences to be application-wide
+				SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(this)
+						.edit();
+				editor.putString(DEVICE_NAME_CODE, deviceName);
+				editor.putString(DEVICE_ADDRESS_CODE, deviceAddress);
+				editor.commit();
+			}
+		}
+		super.onActivityResult(requestCode, resultCode, data);
 	}
 
 	private void updateConnectionState(final int resourceId) {

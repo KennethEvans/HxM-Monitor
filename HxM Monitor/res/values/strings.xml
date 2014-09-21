@@ -3,6 +3,7 @@
 
     <string name="app_name">HxM Monitor</string>
     <string name="device_scan_name">Select BLE Device</string>
+    <string name="device_monitor_name">HxM Monitor</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     
