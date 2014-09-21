@@ -29,7 +29,11 @@ import android.widget.TextView;
  */
 public class DeviceControlActivity extends Activity implements IConstants {
 	private TextView mConnectionState;
-	private TextView mDataField;
+	private TextView mBat;
+	private TextView mHr;
+	private TextView mRr;
+	private TextView mAct;
+	private TextView mPa;
 	private TextView mStatus;
 	private String mDeviceName;
 	private String mDeviceAddress;
@@ -57,11 +61,16 @@ public class DeviceControlActivity extends Activity implements IConstants {
 		Log.d(TAG, this.getClass().getName() + ": onCreate: " + mDeviceName
 				+ " " + mDeviceAddress);
 
-		// Sets up UI references.
+		((TextView) findViewById(R.id.device_name)).setText(mDeviceName);
 		((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
 		mConnectionState = (TextView) findViewById(R.id.connection_state);
-		mDataField = (TextView) findViewById(R.id.data_value);
-		mStatus = (TextView) findViewById(R.id.status);
+		mBat = (TextView) findViewById(R.id.bat_value);
+		mHr = (TextView) findViewById(R.id.hr_value);
+		mRr = (TextView) findViewById(R.id.rr_value);
+		mAct = (TextView) findViewById(R.id.act_value);
+		mPa = (TextView) findViewById(R.id.pa_value);
+		mStatus = (TextView) findViewById(R.id.status_value);
+		resetDataViews();
 
 		getActionBar().setTitle(mDeviceName);
 		getActionBar().setDisplayHomeAsUpEnabled(true);
@@ -141,6 +150,7 @@ public class DeviceControlActivity extends Activity implements IConstants {
 	private void displayData(Intent intent) {
 		String uuidString = null;
 		UUID uuid = null;
+		String value;
 		try {
 			uuidString = intent.getStringExtra(EXTRA_UUID);
 			if (uuidString == null) {
@@ -148,13 +158,39 @@ public class DeviceControlActivity extends Activity implements IConstants {
 				return;
 			}
 			uuid = UUID.fromString(uuidString);
-			String data = intent.getStringExtra(EXTRA_DATA);
-			if (data == null) {
-				mStatus.setText(" Received null data");
-				return;
-			}
 			if (uuid.equals(UUID_HEART_RATE_MEASUREMENT)) {
-				mDataField.setText(data);
+				value = intent.getStringExtra(EXTRA_HR);
+				if (value == null) {
+					mHr.setText("NA");
+				} else {
+					mHr.setText(value);
+				}
+				value = intent.getStringExtra(EXTRA_RR);
+				if (value == null) {
+					mRr.setText("NA");
+				} else {
+					mRr.setText(value);
+				}
+			} else if (uuid.equals(UUID_BATTERY_LEVEL)) {
+				value = intent.getStringExtra(EXTRA_BAT);
+				if (value == null) {
+					mBat.setText("NA");
+				} else {
+					mBat.setText(value);
+				}
+			} else if (uuid.equals(UUID_CUSTOM_MEASUREMENT)) {
+				value = intent.getStringExtra(EXTRA_ACT);
+				if (value == null) {
+					mAct.setText("NA");
+				} else {
+					mAct.setText(value);
+				}
+				value = intent.getStringExtra(EXTRA_PA);
+				if (value == null) {
+					mPa.setText("NA");
+				} else {
+					mPa.setText(value);
+				}
 			}
 		} catch (Exception ex) {
 			Log.d(TAG, "Error displaying data", ex);
@@ -162,6 +198,18 @@ public class DeviceControlActivity extends Activity implements IConstants {
 			// Don't use Utils here as there may be many
 			// Utils.excMsg(this, "Error displaying message", ex);
 		}
+	}
+	
+	/**
+	 * Resets the data view to show default values
+	 */
+	public void resetDataViews() {
+		mBat.setText("NA");
+		mHr.setText("NA");
+		mRr.setText("NA");
+		mAct.setText("NA");
+		mPa.setText("NA");
+		mStatus.setText("");
 	}
 
 	/**
@@ -171,13 +219,16 @@ public class DeviceControlActivity extends Activity implements IConstants {
 	 */
 	private void onCharacteristicFound(
 			BluetoothGattCharacteristic characteristic) {
+		Log.d(TAG, "onCharacteristicFound: " + characteristic.getUuid());
 		// First try to read it
 		final int property = characteristic.getProperties();
 		if ((property | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
+			Log.d(TAG, "  PROPERTY_READ");
 			mBluetoothLeService.readCharacteristic(characteristic);
 		}
 		// Then set up a notification if possible
 		if ((property | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+			Log.d(TAG, "  PROPERTY_NOTIFY");
 			mBluetoothLeService.setCharacteristicNotification(characteristic,
 					true);
 		}
@@ -236,21 +287,25 @@ public class DeviceControlActivity extends Activity implements IConstants {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			final String action = intent.getAction();
-			Log.d(TAG, "onReceive: " + action);
 			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+				Log.d(TAG, "onReceive: " + action);
 				mConnected = true;
 				updateConnectionState(R.string.connected);
 				invalidateOptionsMenu();
 			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
 					.equals(action)) {
+				Log.d(TAG, "onReceive: " + action);
 				mConnected = false;
+				resetDataViews();
 				updateConnectionState(R.string.disconnected);
 				invalidateOptionsMenu();
 			} else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
 					.equals(action)) {
+				Log.d(TAG, "onReceive: " + action);
 				onServicesDiscovered(mBluetoothLeService
 						.getSupportedGattServices());
 			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+				// Log.d(TAG, "onReceive: " + action);
 				displayData(intent);
 			}
 		}

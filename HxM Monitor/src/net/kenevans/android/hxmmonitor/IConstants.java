@@ -129,6 +129,18 @@ public interface IConstants {
 	public final static String EXTRA_DATA = PACKAGE_NAME + ".extraData";
 	/** The intent code for UUID. */
 	public final static String EXTRA_UUID = PACKAGE_NAME + ".extraUuid";
+	/** The intent code for the date. */
+	public final static String EXTRA_DATE = PACKAGE_NAME + ".extraDate";
+	/** The intent code for the heart rate. */
+	public final static String EXTRA_HR = PACKAGE_NAME + ".extraHr";
+	/** The intent code for the R-R values. */
+	public final static String EXTRA_RR = PACKAGE_NAME + ".extraRr";
+	/** The intent code for the activity value. */
+	public final static String EXTRA_ACT = PACKAGE_NAME + ".extraAct";
+	/** The intent code for the peak acceleration. */
+	public final static String EXTRA_PA = PACKAGE_NAME + ".extraPa";
+	/** The intent code for the battery level. */
+	public final static String EXTRA_BAT = PACKAGE_NAME + ".extraBattery";
 
 	/** The static format string to use for formatting dates. */
 	// public static final String longFormat = "MMM dd, yyyy HH:mm:ss Z";

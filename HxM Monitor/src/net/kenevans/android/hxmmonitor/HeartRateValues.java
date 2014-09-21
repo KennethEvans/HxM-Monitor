@@ -55,21 +55,16 @@ public class HeartRateValues implements IConstants {
 		if ((flag & 0x10) != 0) {
 			int len = characteristic.getValue().length;
 			// There may be more than 1 R-R value
-			boolean first = true;
 			int iVal;
 			String rrString = "";
 			while (offset < len) {
 				iVal = characteristic.getIntValue(
 						BluetoothGattCharacteristic.FORMAT_UINT16, offset);
 				offset += 2;
-				if (first) {
-					first = false;
-					rrString += "\nR-R: " + iVal;
-				} else {
-					rrString += " " + iVal;
-				}
+				rrString += " " + iVal;
 			}
-			string += rrString;
+			rr = rrString;
+			string += "\nR-R: " + rrString;
 		} else {
 			string += "\nR-R: NA";
 		}

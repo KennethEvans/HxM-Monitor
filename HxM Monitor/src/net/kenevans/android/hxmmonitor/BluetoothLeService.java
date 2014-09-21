@@ -16,6 +16,7 @@
 
 package net.kenevans.android.hxmmonitor;
 
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -40,8 +41,7 @@ import android.util.Log;
  * hosted on a given Bluetooth LE device.
  */
 public class BluetoothLeService extends Service implements IConstants {
-	private final static String TAG = BluetoothLeService.class.getSimpleName();
-	private static final boolean DEBUG_DATA = false;
+	private final static String TAG = "HxM BLEService";
 
 	private BluetoothManager mBluetoothManager;
 	private BluetoothAdapter mBluetoothAdapter;
@@ -117,127 +117,33 @@ public class BluetoothLeService extends Service implements IConstants {
 
 	private void broadcastUpdate(final String action,
 			final BluetoothGattCharacteristic characteristic) {
+		long date = (new Date()).getTime();
 		final Intent intent = new Intent(action);
 		intent.putExtra(EXTRA_UUID, characteristic.getUuid().toString());
+		intent.putExtra(EXTRA_DATE, date);
 
 		// This is special handling for the Heart Rate Measurement profile.
 		// parsing is carried out as per profile specifications:
 		// http: //
 		// developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
 		if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
-			String string = "";
-			int flag = characteristic.getProperties();
-			int format = -1;
-			int offset = 1;
-			if ((flag & 0x01) != 0) {
-				format = BluetoothGattCharacteristic.FORMAT_UINT16;
-				Log.d(TAG, "Heart rate format UINT16.");
-				offset += 2;
-			} else {
-				format = BluetoothGattCharacteristic.FORMAT_UINT8;
-				offset += 1;
-				Log.d(TAG, "Heart rate format UINT8.");
-			}
-			int iVal = characteristic.getIntValue(format, 1);
-			string += "Heart Rate: " + iVal;
-			// Sensor Contact
-			int sensor = (flag >> 1) & 0x11;
-			switch (sensor) {
-			case 0:
-			case 1:
-				string += "\nSensor contact not supported";
-				break;
-			case 2:
-				string += "\nSensor contact not detected";
-				break;
-			case 3:
-				string += "\nSensor contact detected";
-				break;
-			}
-			// Energy Expended
-			if ((flag & 0x08) != 0) {
-				offset += 2;
-				iVal = characteristic.getIntValue(
-						BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-				string += "\nEnergy Expended: " + iVal;
-			} else {
-				string += "\nEnergy Expended: NA";
-			}
-			// R-R
-			if ((flag & 0x10) != 0) {
-				int len = characteristic.getValue().length;
-				// There may be more than 1 R-R value
-				boolean first = true;
-				while (offset < len) {
-					iVal = characteristic.getIntValue(
-							BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-					offset += 2;
-					if (first) {
-						first = false;
-						string += "\nR-R: " + iVal;
-					} else {
-						string += " " + iVal;
-					}
-				}
-			} else {
-				string += "\nR-R: NA";
-			}
-			// DEBUG
-			if (DEBUG_DATA) {
-				final byte[] data = characteristic.getValue();
-				if (data != null && data.length > 0) {
-					final StringBuilder stringBuilder = new StringBuilder(
-							data.length);
-					for (byte byteChar : data) {
-						stringBuilder.append(String.format("%02X ", byteChar));
-					}
-					string += "\n" + stringBuilder.toString();
-				}
-			}
-			Log.d(TAG, String.format("Received heart rate: %d", iVal));
-			intent.putExtra(EXTRA_DATA, String.valueOf(string));
+			HeartRateValues values = new HeartRateValues(characteristic, date);
+			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr()));
+			intent.putExtra(EXTRA_RR, values.getRr());
+			intent.putExtra(EXTRA_DATA, values.getString());
+//			Log.d(TAG, String.format("Received HR: %d", values.getHr()));
 		} else if (UUID_BATTERY_LEVEL.equals(characteristic.getUuid())) {
 			final int iVal = characteristic.getIntValue(
 					BluetoothGattCharacteristic.FORMAT_UINT8, 0);
 			Log.d(TAG, String.format("Received battery level: %d", iVal));
+			intent.putExtra(EXTRA_BAT, String.valueOf(iVal));
 			intent.putExtra(EXTRA_DATA,
 					String.valueOf("Battery Level: " + iVal));
 		} else if (UUID_CUSTOM_MEASUREMENT.equals(characteristic.getUuid())) {
-			String string = "";
-			int offset = 0;
-			int iVal;
-			int flag = characteristic.getIntValue(
-					BluetoothGattCharacteristic.FORMAT_UINT8, offset);
-			offset += 1;
-			if ((flag & 0x01) != 0) {
-				iVal = characteristic.getIntValue(
-						BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-				offset += 2;
-				string += "Activity: " + iVal;
-			} else {
-				string += "Activity: NA";
-			}
-			if ((flag & 0x02) != 0) {
-				iVal = characteristic.getIntValue(
-						BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-				offset += 2;
-				string += "\nPeak Acceleration: " + iVal;
-			} else {
-				string += "\nPeak Acceleration: NA";
-			}
-			// DEBUG
-			if (DEBUG_DATA) {
-				final byte[] data = characteristic.getValue();
-				if (data != null && data.length > 0) {
-					final StringBuilder stringBuilder = new StringBuilder(
-							data.length);
-					for (byte byteChar : data) {
-						stringBuilder.append(String.format("%02X ", byteChar));
-					}
-					string += "\n" + stringBuilder.toString();
-				}
-			}
-			intent.putExtra(EXTRA_DATA, String.valueOf(string));
+			HxMCustomValues values = new HxMCustomValues(characteristic, date);
+			intent.putExtra(EXTRA_ACT, String.valueOf(values.getActivity()));
+			intent.putExtra(EXTRA_PA, String.valueOf(values.getPa()));
+			intent.putExtra(EXTRA_DATA, values.getString());
 		} else {
 			// For all other profiles, writes the data formatted in HEX.
 			final byte[] data = characteristic.getValue();
@@ -429,6 +335,16 @@ public class BluetoothLeService extends Service implements IConstants {
 
 		// This is specific to Heart Rate Measurement.
 		if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
+			BluetoothGattDescriptor descriptor = characteristic
+					.getDescriptor(UUID
+							.fromString(GattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+			descriptor
+					.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+			mBluetoothGatt.writeDescriptor(descriptor);
+		}
+
+		// This is specific to Battery Level
+		if (UUID_BATTERY_LEVEL.equals(characteristic.getUuid())) {
 			BluetoothGattDescriptor descriptor = characteristic
 					.getDescriptor(UUID
 							.fromString(GattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
