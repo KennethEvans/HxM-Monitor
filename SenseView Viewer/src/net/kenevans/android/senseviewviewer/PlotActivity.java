@@ -146,11 +146,11 @@ public class PlotActivity extends Activity implements IConstants {
 	 *            The result code to send.
 	 */
 	private void returnResult(int resultCode, String msg) {
-		Intent intent = new Intent();
+		Intent data = new Intent();
 		if (msg != null) {
-			intent.putExtra(MSG_CODE, msg);
+			data.putExtra(MSG_CODE, msg);
 		}
-		setResult(resultCode, intent);
+		setResult(resultCode, data);
 		finish();
 	}
 

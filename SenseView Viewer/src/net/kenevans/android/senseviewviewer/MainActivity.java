@@ -78,12 +78,10 @@ public class MainActivity extends ListActivity implements IConstants {
 			break;
 		case PLOT_SELECT_CODE:
 			String msg = null;
-//			Bundle extras = data.getExtras();
-//			if (extras != null) {
-//				msg = extras.getString(MSG_CODE, null);
-//			}
-			if (resultCode == RESULT_OK) {
-			} else if (resultCode == RESULT_BAD_FILE) {
+			if (data != null) {
+				msg = data.getStringExtra(MSG_CODE);
+			}
+			if (resultCode == RESULT_BAD_FILE) {
 				if (msg != null) {
 					Utils.errMsg(this, msg);
 				} else {
