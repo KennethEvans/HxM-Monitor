@@ -34,6 +34,10 @@ public interface IConstants {
 	/** Name of the package for this application. */
 	public static final String PACKAGE_NAME = "net.kenevans.android.hxmmonitor";
 
+	// Base
+	/** Base string for standard UUIDS. These UUIDs differ in characters 4-7. */
+	public static final String BASE_UUID = "00000000-0000-1000-8000-00805f9b34fb";
+
 	// Services
 	public static final UUID UUID_BATTERY_SERVICE = UUID
 			.fromString("0000180f-0000-1000-8000-00805f9b34fb");
@@ -55,6 +59,17 @@ public interface IConstants {
 			.fromString("00002a37-0000-1000-8000-00805f9b34fb");
 	public static final UUID UUID_TEST_MODE = UUID
 			.fromString("befdffb1-c979-11e1-9b21-0800200c9a66");
+	public static final UUID UUID_BODY_SENSOR_LOCATION = UUID
+			.fromString("00002a38-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_MODEL_NUMBER_STRING = UUID
+			.fromString("00002a24-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_FIRMWARE_REVISION_STRING = UUID
+			.fromString("00002a26-0000-1000-8000-00805f9b34fb");
+	public static final UUID UUID_APPEARANCE = UUID
+			.fromString("00002a01-0000-1000-8000-00805f9b34fb");
+
+	public static final UUID UUID_CLIENT_CHARACTERISTIC_CONFIG = UUID
+			.fromString("00002902-0000-1000-8000-00805f9b34fb");
 
 	/** Directory on the SD card where the database is stored */
 	public static final String SD_CARD_DB_DIRECTORY = "HxM Monitor";

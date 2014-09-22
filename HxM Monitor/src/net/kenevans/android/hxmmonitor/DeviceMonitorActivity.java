@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.UUID;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
 import android.bluetooth.BluetoothGattService;
@@ -11,6 +12,7 @@ import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -57,7 +59,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			String msg = "Bluetooth LE is not supported on this device";
 			Utils.errMsg(this, msg);
 			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-			finish();
+			return;
 		}
 
 		// Initializes a Bluetooth adapter. For API level 18 and above, get a
@@ -70,7 +72,6 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			String msg = "Bluetooth is not supported on this device";
 			Utils.errMsg(this, msg);
 			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-			finish();
 			return;
 		}
 
@@ -105,25 +106,27 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				+ (mBluetoothLeService == null ? "null" : "not null"));
 		super.onResume();
 		Log.d(TAG, "Starting registerReceiver");
-		Intent intent = registerReceiver(mGattUpdateReceiver,
-				makeGattUpdateIntentFilter());
-		if (intent == null) {
-			Log.d(TAG, "After registerReceiver: intent is null");
-		} else {
-			Log.d(TAG, "After registerReceiver: intent is not null");
-			final String action = intent.getAction();
-			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-				Log.d(TAG, "  intent.getAction: ACTION_GATT_CONNECTED");
-			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
-					.equals(action)) {
-				Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
-			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
-					.equals(action)) {
-				Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
-			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-				Log.d(TAG, "  intent.getAction: ACTION_DATA_AVAILABLE");
-			}
-		}
+		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+		// Debug
+		// Intent intent = registerReceiver(mGattUpdateReceiver,
+		// makeGattUpdateIntentFilter());
+		// if (intent == null) {
+		// Log.d(TAG, "After registerReceiver: intent is null");
+		// } else {
+		// Log.d(TAG, "After registerReceiver: intent is not null");
+		// final String action = intent.getAction();
+		// if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+		// Log.d(TAG, "  intent.getAction: ACTION_GATT_CONNECTED");
+		// } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+		// .equals(action)) {
+		// Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
+		// } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+		// .equals(action)) {
+		// Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
+		// } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+		// Log.d(TAG, "  intent.getAction: ACTION_DATA_AVAILABLE");
+		// }
+		// }
 		if (mBluetoothLeService != null) {
 			Log.d(TAG, "Starting mBluetoothLeService.connect");
 			final boolean res = mBluetoothLeService.connect(mDeviceAddress);
@@ -171,10 +174,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			onBackPressed();
 			return true;
 		case R.id.menu_select_device:
-			// Scan doesn't find current device if it is connected
-			mBluetoothLeService.disconnect();
-			Intent intent = new Intent(this, DeviceScanActivity.class);
-			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
+			selectDevice();
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -197,6 +197,11 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		super.onActivityResult(requestCode, resultCode, data);
 	}
 
+	/**
+	 * Updates the connection state view on the UI thread.
+	 * 
+	 * @param resourceId
+	 */
 	private void updateConnectionState(final int resourceId) {
 		runOnUiThread(new Runnable() {
 			@Override
@@ -204,6 +209,35 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				mConnectionState.setText(resourceId);
 			}
 		});
+	}
+
+	public void selectDevice() {
+		// Scan doesn't find current device if it is connected
+		if (mConnected) {
+			// Confirm the user wants to scan even if the current device is
+			// connected
+			new AlertDialog.Builder(DeviceMonitorActivity.this)
+					.setIcon(android.R.drawable.ic_dialog_alert)
+					.setTitle(R.string.confirm)
+					.setMessage(R.string.scan_prompt)
+					.setPositiveButton(R.string.ok,
+							new DialogInterface.OnClickListener() {
+								@Override
+								public void onClick(DialogInterface dialog,
+										int which) {
+									Intent intent = new Intent(
+											DeviceMonitorActivity.this,
+											DeviceScanActivity.class);
+									startActivityForResult(intent,
+											REQUEST_SELECT_DEVICE);
+								}
+
+							}).setNegativeButton(R.string.cancel, null).show();
+		} else {
+			Intent intent = new Intent(DeviceMonitorActivity.this,
+					DeviceScanActivity.class);
+			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
+		}
 	}
 
 	/**
@@ -284,6 +318,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	private void onCharacteristicFound(
 			BluetoothGattCharacteristic characteristic) {
 		Log.d(TAG, "onCharacteristicFound: " + characteristic.getUuid());
+		if (!characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
+			return;
+		}
 		// First try to read it
 		final int property = characteristic.getProperties();
 		if ((property | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
@@ -325,8 +362,10 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			mBluetoothLeService = ((BluetoothLeService.LocalBinder) service)
 					.getService();
 			if (!mBluetoothLeService.initialize()) {
-				Log.e(TAG, "Unable to initialize Bluetooth");
-				finish();
+				String msg = "Unable to initialize Bluetooth";
+				Log.e(TAG, msg);
+				Utils.errMsg(DeviceMonitorActivity.this, msg);
+				return;
 			}
 			// Automatically connects to the device upon successful start-up
 			// initialization.

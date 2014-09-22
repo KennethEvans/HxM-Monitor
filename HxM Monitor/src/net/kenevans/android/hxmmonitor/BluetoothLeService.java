@@ -18,7 +18,6 @@ package net.kenevans.android.hxmmonitor;
 
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -166,10 +165,9 @@ public class BluetoothLeService extends Service implements IConstants {
 				}
 				intent.putExtra(
 						EXTRA_DATA,
-						GattAttributes.lookup(
-								characteristic.getUuid().toString(),
-								getResources().getString(
-										R.string.unknown_characteristic))
+						BleNamesResolver
+								.resolveCharacteristicName(characteristic
+										.getUuid().toString())
 								+ "\n"
 								+ new String(data)
 								+ "\n"
@@ -177,10 +175,9 @@ public class BluetoothLeService extends Service implements IConstants {
 			} else {
 				intent.putExtra(
 						EXTRA_DATA,
-						GattAttributes.lookup(
-								characteristic.getUuid().toString(),
-								getResources().getString(
-										R.string.unknown_characteristic))
+						BleNamesResolver
+								.resolveCharacteristicName(characteristic
+										.getUuid().toString())
 								+ "\n" + ((data == null) ? "null" : "No data"));
 			}
 		}
@@ -346,8 +343,7 @@ public class BluetoothLeService extends Service implements IConstants {
 		// This is specific to Heart Rate Measurement.
 		if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
 			BluetoothGattDescriptor descriptor = characteristic
-					.getDescriptor(UUID
-							.fromString(GattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+					.getDescriptor(UUID_CLIENT_CHARACTERISTIC_CONFIG);
 			descriptor
 					.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
 			mBluetoothGatt.writeDescriptor(descriptor);
@@ -356,8 +352,7 @@ public class BluetoothLeService extends Service implements IConstants {
 		// This is specific to Battery Level
 		if (UUID_BATTERY_LEVEL.equals(characteristic.getUuid())) {
 			BluetoothGattDescriptor descriptor = characteristic
-					.getDescriptor(UUID
-							.fromString(GattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+					.getDescriptor(UUID_CLIENT_CHARACTERISTIC_CONFIG);
 			descriptor
 					.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
 			mBluetoothGatt.writeDescriptor(descriptor);
@@ -366,8 +361,7 @@ public class BluetoothLeService extends Service implements IConstants {
 		// This is specific to Custom Measurement
 		if (UUID_CUSTOM_MEASUREMENT.equals(characteristic.getUuid())) {
 			BluetoothGattDescriptor descriptor = characteristic
-					.getDescriptor(UUID
-							.fromString(GattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+					.getDescriptor(UUID_CLIENT_CHARACTERISTIC_CONFIG);
 			descriptor
 					.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
 			mBluetoothGatt.writeDescriptor(descriptor);
@@ -376,8 +370,7 @@ public class BluetoothLeService extends Service implements IConstants {
 		// This is specific to Test Mode
 		if (UUID_TEST_MODE.equals(characteristic.getUuid())) {
 			BluetoothGattDescriptor descriptor = characteristic
-					.getDescriptor(UUID
-							.fromString(GattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
+					.getDescriptor(UUID_CLIENT_CHARACTERISTIC_CONFIG);
 			descriptor
 					.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
 			mBluetoothGatt.writeDescriptor(descriptor);
