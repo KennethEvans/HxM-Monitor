@@ -345,7 +345,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 								&& mCharHr != null
 								&& mBluetoothLeService != null) {
 							boolean res = mBluetoothLeService.startSession(
-									mCharBat, mCharHr, mCharCustom, true);
+									mCharBat, mCharHr, null, true);
 							if (res) {
 								mTimer.cancel();
 								Log.d(TAG,
@@ -360,7 +360,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 					@Override
 					public void onFinish() {
 						boolean res = mBluetoothLeService.startSession(
-								mCharBat, mCharHr, mCharCustom, true);
+								mCharBat, mCharHr, null, true);
 						if (!res) {
 							runOnUiThread(new Runnable() {
 								public void run() {

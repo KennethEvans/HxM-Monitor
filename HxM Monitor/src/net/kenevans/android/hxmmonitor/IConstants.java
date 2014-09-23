@@ -161,20 +161,22 @@ public interface IConstants {
 	/** The intent code for the battery level. */
 	public final static String EXTRA_BAT = PACKAGE_NAME + ".extraBattery";
 
-	/** The static format string to use for formatting dates. */
-	// public static final String longFormat = "MMM dd, yyyy HH:mm:ss Z";
-	public static final String longFormat = "hh:mm a MMM dd, yyyy";
+	/** The static long formatter to use for formatting dates. */
 	public static final SimpleDateFormat longFormatter = new SimpleDateFormat(
-			longFormat, Locale.US);
+			"MMM dd, yyyy HH:mm:ss Z", Locale.US);
+//	public static final SimpleDateFormat longFormatter = new SimpleDateFormat(
+//			"hh:mm a MMM dd, yyyy", Locale.US);
 
-	/** The static format string to use for formatting dates. */
-	public static final String mediumFormat = "MMM dd, yyyy HH:mm:ss";
+	/** The static formatter to use for formatting dates. */
 	public static final SimpleDateFormat mediumFormatter = new SimpleDateFormat(
-			mediumFormat, Locale.US);
+			"MMM dd, yyyy HH:mm:ss", Locale.US);
 
-	/** The static short format string to use for formatting dates. */
-	public static final String shortFormat = "M/d/yy h:mm a";
+	/** The static short formatter to use for formatting dates. */
 	public static final SimpleDateFormat shortFormatter = new SimpleDateFormat(
-			shortFormat, Locale.US);
+			"M/d/yy h:mm a", Locale.US);
+
+	/** The static millisecond time formatter to use for formatting dates. */
+	public static final SimpleDateFormat millisecTimeFormater = new SimpleDateFormat(
+			"hh:mm.ss.SSS", Locale.US);
 
 }

@@ -151,7 +151,9 @@ public class BluetoothLeService extends Service implements IConstants {
 
 	private void broadcastUpdate(final String action,
 			final BluetoothGattCharacteristic characteristic) {
-		long date = (new Date()).getTime();
+		Date now = new Date();
+		long date = now.getTime();
+		String dateStr = " @ " + millisecTimeFormater.format(now);
 		final Intent intent = new Intent(action);
 		intent.putExtra(EXTRA_UUID, characteristic.getUuid().toString());
 		intent.putExtra(EXTRA_DATE, date);
@@ -166,8 +168,8 @@ public class BluetoothLeService extends Service implements IConstants {
 			mLastRr = values.getRr();
 			Log.d(TAG, String.format("Received heart rate measurement: %d",
 					mLastHr));
-			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr()));
-			intent.putExtra(EXTRA_RR, values.getRr());
+			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr() + dateStr));
+			intent.putExtra(EXTRA_RR, values.getRr() + dateStr);
 			intent.putExtra(EXTRA_DATA, values.getString());
 			if (mSessionInProgress && mSessionState == SESSION_WAITING_HR) {
 				incrementSessionState();
@@ -178,7 +180,7 @@ public class BluetoothLeService extends Service implements IConstants {
 					BluetoothGattCharacteristic.FORMAT_UINT8, 0);
 			mLastBat = iVal;
 			Log.d(TAG, String.format("Received battery level: %d", iVal));
-			intent.putExtra(EXTRA_BAT, String.valueOf(iVal));
+			intent.putExtra(EXTRA_BAT, String.valueOf(iVal) + dateStr);
 			intent.putExtra(EXTRA_DATA,
 					String.valueOf("Battery Level: " + iVal));
 			if (mSessionInProgress && mSessionState == SESSION_WAITING_BAT) {
@@ -190,9 +192,10 @@ public class BluetoothLeService extends Service implements IConstants {
 			mLastPa = values.getPa();
 			Log.d(TAG,
 					String.format("Received custom measurement: %d", mLastAct));
-			intent.putExtra(EXTRA_ACT, String.valueOf(values.getActivity()));
-			intent.putExtra(EXTRA_PA, String.valueOf(values.getPa()));
-			intent.putExtra(EXTRA_DATA, values.getString());
+			intent.putExtra(EXTRA_ACT,
+					String.valueOf(values.getActivity() + dateStr));
+			intent.putExtra(EXTRA_PA, String.valueOf(values.getPa() + dateStr));
+			intent.putExtra(EXTRA_DATA, dateStr + values.getString());
 			if (mSessionInProgress && mSessionState == SESSION_WAITING_CUSTOM) {
 				incrementSessionState();
 			}
@@ -363,7 +366,16 @@ public class BluetoothLeService extends Service implements IConstants {
 			Log.w(TAG, "BluetoothAdapter not initialized");
 			return;
 		}
-		mBluetoothGatt.readCharacteristic(characteristic);
+		boolean res = mBluetoothGatt.readCharacteristic(characteristic);
+		if (!res) {
+			String name = BleNamesResolver
+					.resolveCharacteristicName(characteristic.getUuid()
+							.toString());
+			Log.d(TAG, "readCharacteristic failed for " + name);
+			if ((mCharCustom.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
+				Log.d(TAG, name + " is not readable");
+			}
+		}
 	}
 
 	/**
@@ -380,8 +392,18 @@ public class BluetoothLeService extends Service implements IConstants {
 			Log.w(TAG, "BluetoothAdapter not initialized");
 			return;
 		}
-		mBluetoothGatt.setCharacteristicNotification(characteristic, enabled);
+		boolean res = mBluetoothGatt.setCharacteristicNotification(
+				characteristic, enabled);
+		if (!res) {
+			Log.d(TAG,
+					"setCharacteristicNotification failed for "
+							+ BleNamesResolver
+									.resolveCharacteristicName(characteristic
+											.getUuid().toString()));
+		}
 
+		// TODO This is client specific, not characteristic specific. It is the
+		// same code for all characteristics.
 		// This is specific to Heart Rate Measurement.
 		if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
 			BluetoothGattDescriptor descriptor = characteristic
@@ -443,6 +465,66 @@ public class BluetoothLeService extends Service implements IConstants {
 	}
 
 	/**
+	 * Writes READ, NOTIFY, WRITE properties to the Log. Use for debugging.
+	 * 
+	 * @param charBat
+	 * @param charHr
+	 * @param charCustom
+	 */
+	void checkPermissions(BluetoothGattCharacteristic charBat,
+			BluetoothGattCharacteristic charHr,
+			BluetoothGattCharacteristic charCustom) {
+		// Check permissions
+		if ((charBat.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
+			Log.d(TAG, "incrementSessionState: charBat: Not Readable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charBat: Readable");
+		}
+		if ((charBat.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0) {
+			Log.d(TAG, "incrementSessionState: charBat: Not Notifiable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charBat: Notifiable");
+		}
+		if ((charBat.getProperties() & BluetoothGattCharacteristic.PROPERTY_WRITE) == 0) {
+			Log.d(TAG, "incrementSessionState: charBat: Not Writeable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charBat: Writeable");
+		}
+
+		if ((charHr.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
+			Log.d(TAG, "incrementSessionState: charHr: Not Readable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charHr: Readable");
+		}
+		if ((charHr.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0) {
+			Log.d(TAG, "incrementSessionState: charHr: Not Notifiable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charHr: Notifiable");
+		}
+		if ((charHr.getProperties() & BluetoothGattCharacteristic.PROPERTY_WRITE) == 0) {
+			Log.d(TAG, "incrementSessionState: charHr: Not Writeable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charHr: Writeable");
+		}
+
+		if ((charCustom.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
+			Log.d(TAG, "incrementSessionState: charCustom: Not Readable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charCustom: Readable");
+		}
+		if ((charCustom.getProperties() & BluetoothGattCharacteristic.PROPERTY_NOTIFY) == 0) {
+			Log.d(TAG, "incrementSessionState: charCustom: Not Notifiable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charCustom: Notifiable");
+		}
+		if ((charCustom.getProperties() & BluetoothGattCharacteristic.PROPERTY_WRITE) == 0) {
+			Log.d(TAG, "incrementSessionState: charCustom: Not Writeable");
+		} else {
+			Log.d(TAG, "incrementSessionState: charCustom: Writeable");
+		}
+	}
+
+	/**
 	 * Sets the state to SESSION_WAITING_BAT if there is a session in progress.
 	 * 
 	 * @return If successful.
@@ -480,6 +562,10 @@ public class BluetoothLeService extends Service implements IConstants {
 		boolean res = true;
 		mSessionStartTime = new Date().getTime();
 		mTemporarySession = temporary;
+		
+		// // DEBUG Check permissions
+		// checkPermissions(charBat, charHr, charCustom);
+
 		// Stop notifying for existing characteristics
 		if (mSessionInProgress = true && mCharHr != null) {
 			setCharacteristicNotification(charHr, false);
