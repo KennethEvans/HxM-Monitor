@@ -19,6 +19,7 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -45,6 +46,10 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	private String mDeviceAddress;
 	private BluetoothLeService mBluetoothLeService;
 	private boolean mConnected = false;
+	private BluetoothGattCharacteristic mCharBat;
+	private BluetoothGattCharacteristic mCharHr;
+	private BluetoothGattCharacteristic mCharCustom;
+	private CancelableCountDownTimer mTimer;
 
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
@@ -318,21 +323,80 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	private void onCharacteristicFound(
 			BluetoothGattCharacteristic characteristic) {
 		Log.d(TAG, "onCharacteristicFound: " + characteristic.getUuid());
-		if (!characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
-			return;
+		if (characteristic.getUuid().equals(UUID_HEART_RATE_MEASUREMENT)
+				|| characteristic.getUuid().equals(UUID_BATTERY_LEVEL)
+				|| characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
+			if (characteristic.getUuid().equals(UUID_HEART_RATE_MEASUREMENT)) {
+				mCharHr = characteristic;
+			} else if (characteristic.getUuid().equals(UUID_BATTERY_LEVEL)) {
+				mCharBat = characteristic;
+			} else if (characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
+				mCharCustom = characteristic;
+			}
+			// Start a timer to wait for all characteristics to be accumulated
+			if (mTimer == null) {
+				Log.d(TAG, "onCharacteristicFound: new Timer created");
+				mTimer = new CancelableCountDownTimer(
+						CHARACTERISTIC_TIMER_TIMEOUT,
+						CHARACTERISTIC_TIMER_INTERVAL) {
+					@Override
+					public void onTick(long millisUntilFinished) {
+						if (mCharCustom != null && mCharBat != null
+								&& mCharHr != null
+								&& mBluetoothLeService != null) {
+							boolean res = mBluetoothLeService.startSession(
+									mCharBat, mCharHr, mCharCustom, true);
+							if (res) {
+								mTimer.cancel();
+								Log.d(TAG,
+										"onTick: Session started with all characteristics");
+							} else {
+								Log.d(TAG,
+										"onTick: Session failed to start with all characteristics");
+							}
+						}
+					}
+
+					@Override
+					public void onFinish() {
+						boolean res = mBluetoothLeService.startSession(
+								mCharBat, mCharHr, mCharCustom, true);
+						if (!res) {
+							runOnUiThread(new Runnable() {
+								public void run() {
+									Utils.errMsg(DeviceMonitorActivity.this,
+											"Failed to start server session");
+								}
+							});
+						} else {
+							Log.d(TAG, "onTick: Session started: mCharHr="
+									+ (mCharHr != null ? "found" : "null")
+									+ " mCharBat="
+									+ (mCharBat != null ? "found" : "null")
+									+ " mCharCustom="
+									+ (mCharCustom != null ? "found" : "null"));
+						}
+						this.cancel();
+					}
+				};
+				mTimer.start();
+			}
 		}
-		// First try to read it
-		final int property = characteristic.getProperties();
-		if ((property | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
-			Log.d(TAG, "  PROPERTY_READ");
-			mBluetoothLeService.readCharacteristic(characteristic);
-		}
-		// Then set up a notification if possible
-		if ((property | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-			Log.d(TAG, "  PROPERTY_NOTIFY");
-			mBluetoothLeService.setCharacteristicNotification(characteristic,
-					true);
-		}
+		// if (!characteristic.getUuid().equals(UUID_HEART_RATE_MEASUREMENT)) {
+		// return;
+		// }
+		// // First try to read it
+		// final int property = characteristic.getProperties();
+		// if ((property | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
+		// Log.d(TAG, "  PROPERTY_READ");
+		// mBluetoothLeService.readCharacteristic(characteristic);
+		// }
+		// // Then set up a notification if possible
+		// if ((property | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
+		// Log.d(TAG, "  PROPERTY_NOTIFY");
+		// mBluetoothLeService.setCharacteristicNotification(characteristic,
+		// true);
+		// }
 	}
 
 	/**
@@ -424,8 +488,12 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			return;
 		}
 		// Loop through available GATT Services
+		mTimer = null;
 		UUID serviceUuid = null;
 		UUID charUuid = null;
+		mCharBat = null;
+		mCharHr = null;
+		mCharCustom = null;
 		boolean hrFound = false, batFound = false, customFound = false;
 		for (BluetoothGattService gattService : gattServices) {
 			serviceUuid = gattService.getUuid();
@@ -436,6 +504,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 						.getCharacteristics()) {
 					charUuid = characteristic.getUuid();
 					if (charUuid.equals(UUID_HEART_RATE_MEASUREMENT)) {
+						mCharHr = characteristic;
 						onCharacteristicFound(characteristic);
 					}
 				}
@@ -446,6 +515,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 						.getCharacteristics()) {
 					charUuid = characteristic.getUuid();
 					if (charUuid.equals(UUID_BATTERY_LEVEL)) {
+						mCharBat = characteristic;
 						onCharacteristicFound(characteristic);
 					}
 				}
@@ -456,21 +526,30 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 						.getCharacteristics()) {
 					charUuid = characteristic.getUuid();
 					if (charUuid.equals(UUID_CUSTOM_MEASUREMENT)) {
+						mCharCustom = characteristic;
 						onCharacteristicFound(characteristic);
 					}
 				}
 			}
 		}
-		if (!hrFound || !batFound || !customFound) {
-			String info = "Services not found:" + "\n";
+		if (!hrFound || !batFound || !customFound || mCharHr == null
+				|| mCharBat == null || mCharCustom == null) {
+			String info = "Services and Characteristics not found:" + "\n";
 			if (!hrFound) {
 				info += "  Heart Rate" + "\n";
+			} else if (mCharHr == null) {
+				info += "    Heart Rate Measurement" + "\n";
 			} else if (!batFound) {
 				info += "  Battery" + "\n";
+			} else if (mCharBat == null) {
+				info += "    Battery Level" + "\n";
 			} else if (!customFound) {
-				info += "  HxM Custom" + "\n";
+				info += "  HxM2 Custom Data Service" + "\n";
+			} else if (mCharCustom == null) {
+				info += "    Custom Measurement" + "\n";
 			}
 			Utils.warnMsg(this, info);
+			Log.d(TAG, "onServicesDiscovered: " + info);
 		}
 	}
 

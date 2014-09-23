@@ -39,6 +39,10 @@ import android.util.Log;
  * Service for managing connection and data communication with a GATT server
  * hosted on a given Bluetooth LE device.
  */
+/**
+ * @author evans
+ *
+ */
 public class BluetoothLeService extends Service implements IConstants {
 	private final static String TAG = "HxM BLEService";
 
@@ -47,6 +51,19 @@ public class BluetoothLeService extends Service implements IConstants {
 	private String mBluetoothDeviceAddress;
 	private BluetoothGatt mBluetoothGatt;
 	private int mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
+	private int mSessionState = SESSION_IDLE;
+	private int mLastBat;
+	private int mLastHr;
+	private String mLastRr;
+	private int mLastAct;
+	private int mLastPa;
+	private BluetoothGattCharacteristic mCharBat;
+	private BluetoothGattCharacteristic mCharHr;
+	private BluetoothGattCharacteristic mCharCustom;
+	private boolean mSessionInProgress = false;
+	private boolean mTemporarySession = true;
+	// TODO Is this needed?
+	private long mSessionStartTime;
 
 	// private static final int STATE_DISCONNECTED = 0;
 	// private static final int STATE_CONNECTING = 1;
@@ -79,6 +96,8 @@ public class BluetoothLeService extends Service implements IConstants {
 			if (newState == BluetoothProfile.STATE_CONNECTED) {
 				intentAction = ACTION_GATT_CONNECTED;
 				mConnectionState = BluetoothProfile.STATE_CONNECTED;
+				// Stop any session
+				stopSession();
 				broadcastUpdate(intentAction);
 				Log.i(TAG, "onConnectionStateChange: Connected to GATT server");
 				// Attempts to discover services after successful connection.
@@ -90,6 +109,8 @@ public class BluetoothLeService extends Service implements IConstants {
 				mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
 				Log.i(TAG,
 						"onConnectionStateChange: Disconnected from GATT server");
+				// Stop any session
+				stopSession();
 				broadcastUpdate(intentAction);
 			}
 		}
@@ -116,6 +137,9 @@ public class BluetoothLeService extends Service implements IConstants {
 		@Override
 		public void onCharacteristicChanged(BluetoothGatt gatt,
 				BluetoothGattCharacteristic characteristic) {
+			if (mSessionInProgress) {
+				incrementSessionState();
+			}
 			broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
 		}
 	};
@@ -138,22 +162,40 @@ public class BluetoothLeService extends Service implements IConstants {
 		// developer.bluetooth.org/gatt/characteristics/Pages/CharacteristicViewer.aspx?u=org.bluetooth.characteristic.heart_rate_measurement.xml
 		if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
 			HeartRateValues values = new HeartRateValues(characteristic, date);
+			mLastHr = values.getHr();
+			mLastRr = values.getRr();
+			Log.d(TAG, String.format("Received heart rate measurement: %d",
+					mLastHr));
 			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr()));
 			intent.putExtra(EXTRA_RR, values.getRr());
 			intent.putExtra(EXTRA_DATA, values.getString());
+			if (mSessionInProgress && mSessionState == SESSION_WAITING_HR) {
+				incrementSessionState();
+			}
 			// Log.d(TAG, String.format("Received HR: %d", values.getHr()));
 		} else if (UUID_BATTERY_LEVEL.equals(characteristic.getUuid())) {
 			final int iVal = characteristic.getIntValue(
 					BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+			mLastBat = iVal;
 			Log.d(TAG, String.format("Received battery level: %d", iVal));
 			intent.putExtra(EXTRA_BAT, String.valueOf(iVal));
 			intent.putExtra(EXTRA_DATA,
 					String.valueOf("Battery Level: " + iVal));
+			if (mSessionInProgress && mSessionState == SESSION_WAITING_BAT) {
+				incrementSessionState();
+			}
 		} else if (UUID_CUSTOM_MEASUREMENT.equals(characteristic.getUuid())) {
 			HxMCustomValues values = new HxMCustomValues(characteristic, date);
+			mLastAct = values.getActivity();
+			mLastPa = values.getPa();
+			Log.d(TAG,
+					String.format("Received custom measurement: %d", mLastAct));
 			intent.putExtra(EXTRA_ACT, String.valueOf(values.getActivity()));
 			intent.putExtra(EXTRA_PA, String.valueOf(values.getPa()));
 			intent.putExtra(EXTRA_DATA, values.getString());
+			if (mSessionInProgress && mSessionState == SESSION_WAITING_CUSTOM) {
+				incrementSessionState();
+			}
 		} else {
 			// For all other profiles, writes the data formatted in HEX.
 			final byte[] data = characteristic.getValue();
@@ -398,6 +440,148 @@ public class BluetoothLeService extends Service implements IConstants {
 	 */
 	public int getConnectionState() {
 		return mConnectionState;
+	}
+
+	/**
+	 * Sets the state to SESSION_WAITING_BAT if there is a session in progress.
+	 * 
+	 * @return If successful.
+	 */
+	public boolean checkBattery() {
+		if (!mSessionInProgress || mCharBat == null) {
+			return false;
+		}
+		// Stop notifying for existing characteristics
+		if (mSessionInProgress = true && mCharHr != null) {
+			setCharacteristicNotification(mCharHr, false);
+		}
+		if (mSessionInProgress = true && mCharCustom != null) {
+			setCharacteristicNotification(mCharCustom, false);
+		}
+		mSessionState = SESSION_WAITING_BAT;
+		readCharacteristic(mCharBat);
+
+		return true;
+	}
+
+	/**
+	 * Stops a session.
+	 * 
+	 * @param charBat
+	 * @param charHr
+	 * @param charCustom
+	 * @param temporary
+	 *            If the session is temporary.
+	 * @return If successful.
+	 */
+	public boolean startSession(BluetoothGattCharacteristic charBat,
+			BluetoothGattCharacteristic charHr,
+			BluetoothGattCharacteristic charCustom, boolean temporary) {
+		boolean res = true;
+		mSessionStartTime = new Date().getTime();
+		mTemporarySession = temporary;
+		// Stop notifying for existing characteristics
+		if (mSessionInProgress = true && mCharHr != null) {
+			setCharacteristicNotification(charHr, false);
+		}
+		if (mSessionInProgress = true && mCharCustom != null) {
+			setCharacteristicNotification(mCharCustom, false);
+		}
+		if (charBat != null) {
+			mSessionState = SESSION_WAITING_BAT;
+			readCharacteristic(charBat);
+		} else if (charHr != null) {
+			mSessionState = SESSION_WAITING_HR;
+			setCharacteristicNotification(charHr, true);
+		} else if (charCustom != null) {
+			mSessionState = SESSION_WAITING_CUSTOM;
+			setCharacteristicNotification(charCustom, true);
+		} else {
+			mSessionState = SESSION_IDLE;
+			res = false;
+		}
+		mCharBat = charBat;
+		mCharHr = charHr;
+		mCharCustom = charCustom;
+		mLastBat = -1;
+		mLastHr = -1;
+		mLastRr = null;
+		mLastAct = -1;
+		mLastPa = -1;
+		mSessionInProgress = res;
+
+		return res;
+	}
+
+	/**
+	 * Stops a session.
+	 */
+	public void stopSession() {
+		// Stop notifying for existing characteristics
+		if (mSessionInProgress = true && mCharHr != null) {
+			setCharacteristicNotification(mCharHr, false);
+		}
+		if (mSessionInProgress = true && mCharCustom != null) {
+			setCharacteristicNotification(mCharCustom, false);
+		}
+		mCharBat = null;
+		mCharHr = null;
+		mCharCustom = null;
+		mLastBat = -1;
+		mLastHr = -1;
+		mLastRr = null;
+		mLastAct = -1;
+		mLastPa = -1;
+		mSessionState = SESSION_IDLE;
+		mSessionInProgress = false;
+	}
+
+	/**
+	 * Performs the logic to set the next session state.
+	 */
+	public void incrementSessionState() {
+		if (!mSessionInProgress) {
+			mSessionState = SESSION_IDLE;
+			return;
+		}
+		int oldSessionState = mSessionState;
+		switch (mSessionState) {
+		case SESSION_WAITING_BAT:
+			if (mCharHr != null) {
+				mSessionState = SESSION_WAITING_HR;
+				setCharacteristicNotification(mCharHr, true);
+			} else if (mCharCustom != null) {
+				mSessionState = SESSION_WAITING_CUSTOM;
+				setCharacteristicNotification(mCharCustom, true);
+			}
+			// Else leave it as is
+			break;
+		case SESSION_WAITING_HR:
+			if (mCharCustom != null) {
+				if (mCharHr != null) {
+					setCharacteristicNotification(mCharHr, false);
+					mSessionState = SESSION_WAITING_CUSTOM;
+					readCharacteristic(mCharCustom);
+				} else {
+					mSessionState = SESSION_WAITING_CUSTOM;
+					setCharacteristicNotification(mCharCustom, true);
+				}
+			}
+			// Else leave it as is
+			break;
+		case SESSION_WAITING_CUSTOM:
+			if (mCharHr != null) {
+				if (mCharCustom != null) {
+					setCharacteristicNotification(mCharHr, false);
+				}
+				mSessionState = SESSION_WAITING_HR;
+				setCharacteristicNotification(mCharHr, true);
+			}
+			// Else leave it as is
+			break;
+		}
+		Log.d(TAG, "incrementSessionState: oldState=" + oldSessionState
+				+ " new State=" + mSessionState);
 	}
 
 }

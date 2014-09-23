@@ -91,6 +91,18 @@ public interface IConstants {
 	// Information
 	/** Key for information URL sent to InfoActivity. */
 	public static final String INFO_URL = "InformationURL";
+	
+	// Session state
+	public static final int SESSION_IDLE = 0;
+	public static final int SESSION_WAITING_BAT = 1;
+	public static final int SESSION_WAITING_HR = 2;
+	public static final int SESSION_WAITING_CUSTOM = 3;
+	
+	// Timer
+	/** Timer timeout for accumulating characteristics (ms). */
+	public static final long CHARACTERISTIC_TIMER_TIMEOUT = 100;
+	/** Timer interval for accumulating characteristics (ms). */
+	public static final long CHARACTERISTIC_TIMER_INTERVAL = 1;
 
 	// Database
 	/** Database column for the id. Identifies the row. */
@@ -98,7 +110,7 @@ public interface IConstants {
 	/** Database column for the date. */
 	public static final String COL_DATE = "date";
 	/** Database column for the start date. */
-	public static final String COL_START_DATE = "strartdate";
+	public static final String COL_START_DATE = "startdate";
 	/** Database column for the heart rate. */
 	public static final String COL_HR = "hr";
 	/** Database column for the R-Rl. */
@@ -126,14 +138,6 @@ public interface IConstants {
 
 	/** Request code for displaying a message. */
 	public static final int DISPLAY_MESSAGE = 0;
-	/**
-	 * Result code for ACTIVITY_DISPLAY_MESSAGE indicating the previous message.
-	 */
-	public static final int RESULT_PREV = 1000;
-	/**
-	 * Result code for ACTIVITY_DISPLAY_MESSAGE indicating the next message.
-	 */
-	public static final int RESULT_NEXT = 1001;
 
 	/** The intent code for device name. */
 	public static final String DEVICE_NAME_CODE = PACKAGE_NAME + "deviceName";

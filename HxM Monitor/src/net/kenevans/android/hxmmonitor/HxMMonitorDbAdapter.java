@@ -30,8 +30,9 @@ public class HxMMonitorDbAdapter implements IConstants {
 	private static final String DB_CREATE = "create table " + DB_TABLE
 			+ " (_id integer primary key autoincrement, " + COL_DATE
 			+ " integer not null, " + COL_START_DATE + " integer not null, "
-			+ COL_HR + " integer not null, " + COL_RR + " text not null, "
-			+ COL_ACTIVITY + " real not null," + COL_PA + " real not null);";
+			+ COL_TMP + " integer not null, " + COL_HR + " integer not null, "
+			+ COL_RR + " text not null, " + COL_ACTIVITY + " real not null,"
+			+ COL_PA + " real not null);";
 
 	/**
 	 * Constructor - takes the context to allow the database to be
