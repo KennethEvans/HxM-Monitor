@@ -109,7 +109,7 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 		if (!mBluetoothAdapter.isEnabled()) {
 			Intent enableBtIntent = new Intent(
 					BluetoothAdapter.ACTION_REQUEST_ENABLE);
-			startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+			startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT_CODE);
 		} else {
 			// Initialize the list view adapter
 			mLeDeviceListAdapter = new LeDeviceListAdapter();
@@ -121,7 +121,7 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		// User chose not to enable Bluetooth.
-		if (requestCode == REQUEST_ENABLE_BT
+		if (requestCode == REQUEST_ENABLE_BT_CODE
 				&& resultCode == Activity.RESULT_CANCELED) {
 			finish();
 			return;

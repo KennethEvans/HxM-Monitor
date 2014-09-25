@@ -67,11 +67,11 @@ public class MonitorActivity extends Activity implements IConstants {
 			return true;
 		case R.id.menu_select_device:
 			intent = new Intent(this, DeviceScanActivity.class);
-			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
+			startActivityForResult(intent, REQUEST_SELECT_DEVICE_CODE);
 			return true;
 		case R.id.menu_test:
 			intent = new Intent(this, DeviceMonitorActivity.class);
-			startActivityForResult(intent, REQUEST_TEST);
+			startActivityForResult(intent, REQUEST_TEST_CODE);
 			return true;
 		}
 		return false;
@@ -80,7 +80,7 @@ public class MonitorActivity extends Activity implements IConstants {
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		// User chose not to enable Bluetooth.
-		if (requestCode == REQUEST_SELECT_DEVICE) {
+		if (requestCode == REQUEST_SELECT_DEVICE_CODE) {
 			if (resultCode == Activity.RESULT_OK) {
 				String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
 				String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);

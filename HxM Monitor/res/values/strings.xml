@@ -4,6 +4,7 @@
     <string name="app_name">HxM Monitor</string>
     <string name="device_scan_name">Select BLE Device</string>
     <string name="device_monitor_name">HxM Monitor</string>
+    <string name="plot_name">HxM Monitor</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
     
@@ -24,6 +25,7 @@
     <string name="disconnected">Disconnected</string>
     <string name="title_devices">BLE Device Scan</string>
     <string name="error_bluetooth_not_supported">Bluetooth not supported.</string>
+    <string name="view_info">View Info</string>
     
 	<string name="scan_prompt">The current device may not be found in the scan, since it is still connected.  Continue?</string>
     <string name="cancel">Cancel</string>
@@ -42,6 +44,7 @@
     <string name="menu_stop">Stop</string>
     <string name="menu_select_device">Select Device</string>
     <string name="menu_test">Test</string>
+    <string name="menu_plot">Plot</string>
     
 	<!-- Utils -->
 	<string name="error">Error</string>

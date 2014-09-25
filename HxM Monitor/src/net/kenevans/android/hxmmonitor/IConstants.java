@@ -130,11 +130,13 @@ public interface IConstants {
 
 	// Messages
 	/** Request code for selecting a device. */
-	public static final int REQUEST_SELECT_DEVICE = 10;
+	public static final int REQUEST_SELECT_DEVICE_CODE = 10;
 	/** Request code for enabling Bluetooth. */
-	public static final int REQUEST_ENABLE_BT = 11;
+	public static final int REQUEST_ENABLE_BT_CODE = 11;
 	/** Request code for test. */
-	public static final int REQUEST_TEST = 12;
+	public static final int REQUEST_TEST_CODE = 12;
+	/** Request code for plotting. */
+	public static final int REQUEST_PLOT_CODE = 13;
 
 	/** Request code for displaying a message. */
 	public static final int DISPLAY_MESSAGE = 0;
@@ -160,6 +162,15 @@ public interface IConstants {
 	public final static String EXTRA_PA = PACKAGE_NAME + ".extraPa";
 	/** The intent code for the battery level. */
 	public final static String EXTRA_BAT = PACKAGE_NAME + ".extraBattery";
+	
+	// Messages
+	/** Intent code for a message. */
+	public static final String MSG_CODE = "MessageCode";
+
+	// Result codes
+	/** Result code for an error. */
+	public static final int RESULT_ERROR = 1001;
+
 
 	/** The static long formatter to use for formatting dates. */
 	public static final SimpleDateFormat longFormatter = new SimpleDateFormat(

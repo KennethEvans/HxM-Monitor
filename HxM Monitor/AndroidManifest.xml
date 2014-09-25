@@ -27,6 +27,10 @@
                   android:label="@string/device_scan_name"
                   android:theme="@android:style/Theme.Holo" >
         </activity>
+        <activity android:name=".PlotActivity"
+                  android:label="@string/plot_name"
+                  android:theme="@android:style/Theme.Holo" >
+        </activity>
         <activity android:name=".DeviceMonitorActivity"
                   android:label="@string/device_monitor_name"
                   android:theme="@android:style/Theme.Holo" >

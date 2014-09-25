@@ -19,7 +19,6 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.os.CountDownTimer;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -181,13 +180,17 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		case R.id.menu_select_device:
 			selectDevice();
 			return true;
+		case R.id.menu_plot:
+			plot();
+			return true;
 		}
 		return super.onOptionsItemSelected(item);
 	}
 
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		if (requestCode == REQUEST_SELECT_DEVICE) {
+		switch (requestCode) {
+		case REQUEST_SELECT_DEVICE_CODE:
 			if (resultCode == Activity.RESULT_OK) {
 				String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
 				String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
@@ -198,6 +201,26 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				editor.putString(DEVICE_ADDRESS_CODE, deviceAddress);
 				editor.commit();
 			}
+			break;
+		case REQUEST_PLOT_CODE:
+			String msg = null;
+			if (data != null) {
+				msg = data.getStringExtra(MSG_CODE);
+			}
+			if (resultCode == RESULT_ERROR) {
+				if (msg != null) {
+					Utils.errMsg(this, msg);
+				} else {
+					Utils.errMsg(this, "Error reading file");
+				}
+				// } else if (resultCode == RESULT_CANCELED) {
+				// if (msg != null) {
+				// Utils.errMsg(this, msg);
+				// } else {
+				// Utils.errMsg(this, "Canceled");
+				// }
+			}
+			break;
 		}
 		super.onActivityResult(requestCode, resultCode, data);
 	}
@@ -216,6 +239,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		});
 	}
 
+	/**
+	 * Calls an activity to select the device.
+	 */
 	public void selectDevice() {
 		// Scan doesn't find current device if it is connected
 		if (mConnected) {
@@ -234,15 +260,24 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 											DeviceMonitorActivity.this,
 											DeviceScanActivity.class);
 									startActivityForResult(intent,
-											REQUEST_SELECT_DEVICE);
+											REQUEST_SELECT_DEVICE_CODE);
 								}
 
 							}).setNegativeButton(R.string.cancel, null).show();
 		} else {
 			Intent intent = new Intent(DeviceMonitorActivity.this,
 					DeviceScanActivity.class);
-			startActivityForResult(intent, REQUEST_SELECT_DEVICE);
+			startActivityForResult(intent, REQUEST_SELECT_DEVICE_CODE);
 		}
+	}
+
+	/**
+	 * Calls an activity to plot the data.
+	 */
+	public void plot() {
+		Intent intent = new Intent(DeviceMonitorActivity.this,
+				PlotActivity.class);
+		startActivityForResult(intent, REQUEST_PLOT_CODE);
 	}
 
 	/**
