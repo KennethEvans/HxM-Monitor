@@ -479,12 +479,17 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		}
 	};
 
-	// Handles various events fired by the Service.
-	// ACTION_GATT_CONNECTED: connected to a GATT server.
-	// ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
-	// ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
-	// ACTION_DATA_AVAILABLE: received data from the device. This can be a
-	// result of read or notification operations.
+	/**
+	 * Handles various events fired by the Service.
+	 * 
+	 * <br>
+	 * <br>
+	 * ACTION_GATT_CONNECTED: connected to a GATT server.<br>
+	 * ACTION_GATT_DISCONNECTED: disconnected from a GATT server.<br>
+	 * ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.<br>
+	 * ACTION_DATA_AVAILABLE: received data from the device. This can be a
+	 * result of read or notification operations.<br>
+	 */
 	private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {

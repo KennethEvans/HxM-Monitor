@@ -153,7 +153,9 @@ public class BluetoothLeService extends Service implements IConstants {
 			final BluetoothGattCharacteristic characteristic) {
 		Date now = new Date();
 		long date = now.getTime();
-		String dateStr = " @ " + millisecTimeFormater.format(now);
+		// Set this to "" to not get the date in the return value
+		// String dateStr = " @ " + millisecTimeFormater.format(now);
+		String dateStr = "";
 		final Intent intent = new Intent(action);
 		intent.putExtra(EXTRA_UUID, characteristic.getUuid().toString());
 		intent.putExtra(EXTRA_DATE, date);
@@ -166,8 +168,8 @@ public class BluetoothLeService extends Service implements IConstants {
 			HeartRateValues values = new HeartRateValues(characteristic, date);
 			mLastHr = values.getHr();
 			mLastRr = values.getRr();
-			Log.d(TAG, String.format("Received heart rate measurement: %d",
-					mLastHr));
+			// Log.d(TAG, String.format("Received heart rate measurement: %d",
+			// mLastHr));
 			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr() + dateStr));
 			intent.putExtra(EXTRA_RR, values.getRr() + dateStr);
 			intent.putExtra(EXTRA_DATA, values.getString());
@@ -179,7 +181,7 @@ public class BluetoothLeService extends Service implements IConstants {
 			final int iVal = characteristic.getIntValue(
 					BluetoothGattCharacteristic.FORMAT_UINT8, 0);
 			mLastBat = iVal;
-			Log.d(TAG, String.format("Received battery level: %d", iVal));
+			// Log.d(TAG, String.format("Received battery level: %d", iVal));
 			intent.putExtra(EXTRA_BAT, String.valueOf(iVal) + dateStr);
 			intent.putExtra(EXTRA_DATA,
 					String.valueOf("Battery Level: " + iVal));
@@ -190,8 +192,8 @@ public class BluetoothLeService extends Service implements IConstants {
 			HxMCustomValues values = new HxMCustomValues(characteristic, date);
 			mLastAct = values.getActivity();
 			mLastPa = values.getPa();
-			Log.d(TAG,
-					String.format("Received custom measurement: %d", mLastAct));
+			// Log.d(TAG,
+			// String.format("Received custom measurement: %d", mLastAct));
 			intent.putExtra(EXTRA_ACT,
 					String.valueOf(values.getActivity() + dateStr));
 			intent.putExtra(EXTRA_PA, String.valueOf(values.getPa() + dateStr));
@@ -562,7 +564,7 @@ public class BluetoothLeService extends Service implements IConstants {
 		boolean res = true;
 		mSessionStartTime = new Date().getTime();
 		mTemporarySession = temporary;
-		
+
 		// // DEBUG Check permissions
 		// checkPermissions(charBat, charHr, charCustom);
 

@@ -1,8 +1,6 @@
 package net.kenevans.android.hxmmonitor;
 
-import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.HashMap;
 import java.util.Locale;
 
 import org.afree.chart.AFreeChart;
@@ -16,7 +14,7 @@ import org.afree.chart.renderer.xy.XYItemRenderer;
 import org.afree.chart.renderer.xy.XYLineAndShapeRenderer;
 import org.afree.chart.title.LegendTitle;
 import org.afree.chart.title.TextTitle;
-import org.afree.data.time.Month;
+import org.afree.data.time.FixedMillisecond;
 import org.afree.data.time.TimeSeries;
 import org.afree.data.time.TimeSeriesCollection;
 import org.afree.data.xy.XYDataset;
@@ -27,7 +25,10 @@ import org.afree.graphics.geom.RectShape;
 import org.afree.ui.RectangleInsets;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Typeface;
@@ -43,41 +44,17 @@ import android.view.Window;
  *
  */
 public class PlotActivity extends Activity implements IConstants {
-	private String mFilePath;
+	private static final String TAG = "HxM Plot";
 	private AFreeChartView mView;
 	private AFreeChart mChart;
-	/** Translation from file names to What is stored */
-	private static HashMap<String, String> mDataTypes = new HashMap<String, String>();
-	private static final DateFormat dateFormatter = new SimpleDateFormat(
-			"yyyy-MM-dd hh:mm:ss", Locale.US);
-
-	/** Ways of handling duplicates */
-	private enum OVERWRITE_MODE {
-		MAX("Max"), MIN("Min"), AVG("Average"), FIRST("First"), LAST("Last");
-		private String name;
-
-		OVERWRITE_MODE(String name) {
-			this.name = name;
-		}
-
-		public String getName() {
-			return name;
-		}
-	}
-
-	/** Current way of handling duplicates */
-	private OVERWRITE_MODE overwriteMode = OVERWRITE_MODE.AVG;
-
-	static {
-		mDataTypes.put("LEHHRMHR", "Heart Rate");
-		mDataTypes.put("LEHHRMCD", "Contact Detected");
-		mDataTypes.put("LEHHRMEE", "Energy Expended");
-		mDataTypes.put("LEHHRMRR", "R-R");
-		mDataTypes.put("LEHBAT", "Battery Level");
-	}
+	private XYDataset mHrDataset;
+	private XYDataset mRrDataset;
+	private TimeSeries mHrSeries;
+	private TimeSeries mRrSeries;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate");
 		super.onCreate(savedInstanceState);
 		mView = new AFreeChartView(this);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -85,23 +62,32 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	@Override
-	protected void onPause() {
-		super.onPause();
-	}
-
-	@Override
 	protected void onResume() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onResume: " + "mView="
+				+ mView + " mHrDataset=" + mHrDataset + " mHrSeries="
+				+ mHrSeries);
 		super.onResume();
 		// SharedPreferences prefs = getPreferences(MODE_PRIVATE);
 		// lastTimeOffset = prefs.getInt("timeOffset", lastTimeOffset);
 		// dryRun = prefs.getBoolean("dryrun", dryRun);
-		if (mView != null) {
+		if (mView != null && mChart == null) {
 			mChart = createChart();
 			mView.setChart(mChart);
 		} else {
 			Log.d(TAG, getClass().getSimpleName() + ".onResume: mView null");
 			returnResult(RESULT_ERROR, "mView is null");
 		}
+		super.onResume();
+
+		Log.d(TAG, "Starting registerReceiver");
+		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+	}
+
+	@Override
+	protected void onPause() {
+		Log.d(TAG, this.getClass().getSimpleName() + " :onPause");
+		super.onPause();
+		unregisterReceiver(mGattUpdateReceiver);
 	}
 
 	@Override
@@ -143,81 +129,40 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Creates a chart.
-	 *
-	 * @param dataset
-	 *            The dataset to use.
-	 *
-	 * @return The chart.
+	 * Handles various events fired by the Service.
+	 * 
+	 * <br>
+	 * <br>
+	 * ACTION_GATT_CONNECTED: connected to a GATT server.<br>
+	 * ACTION_GATT_DISCONNECTED: disconnected from a GATT server.<br>
+	 * ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.<br>
+	 * ACTION_DATA_AVAILABLE: received data from the device. This can be a
+	 * result of read or notification operations.<br>
 	 */
-	private AFreeChart createChart() {
-
-		XYDataset dataset1 = createDataset1();
-		AFreeChart chart = ChartFactory.createTimeSeriesChart(
-				"HxM Heart Monitor", // title
-				"Time", // x-axis label
-				"HR", // y-axis label
-				dataset1, // data
-				true, // create legend?
-				true, // generate tooltips?
-				false // generate URLs?
-				);
-		chart.setBackgroundPaintType(new SolidColor(Color.WHITE));
-
-		Font font = new Font("SansSerif", Typeface.NORMAL, 24);
-		Font titleFont = new Font("SansSerif", Typeface.BOLD, 30);
-
-		TextTitle title = chart.getTitle();
-		title.setFont(titleFont);
-
-		LegendTitle legend = chart.getLegend();
-		legend.setItemFont(font);
-
-		XYPlot plot = (XYPlot) chart.getPlot();
-		plot.setBackgroundPaintType(new SolidColor(Color.LTGRAY));
-		plot.setDomainGridlinePaintType(new SolidColor(Color.WHITE));
-		plot.setRangeGridlinePaintType(new SolidColor(Color.WHITE));
-		plot.setAxisOffset(new RectangleInsets(5.0, 5.0, 5.0, 5.0));
-		// TODO Find out what these mean
-		// plot.setDomainCrosshairVisible(true);
-		// plot.setRangeCrosshairVisible(true);
-
-		DateAxis xAxis = (DateAxis) plot.getDomainAxis();
-		xAxis.setDateFormatOverride(new SimpleDateFormat("hh:mm", Locale.US));
-		xAxis.setLabelFont(font);
-		xAxis.setTickLabelFont(font);
-
-		NumberAxis yAxis1 = (NumberAxis) plot.getRangeAxis();
-		yAxis1.setTickUnit(new NumberTickUnit(10));
-		yAxis1.setLabelFont(font);
-		yAxis1.setTickLabelFont(font);
-		XYItemRenderer renderer1 = new StandardXYItemRenderer();
-		renderer1.setSeriesPaintType(1, new SolidColor(Color.BLUE));
-		plot.setRenderer(0, renderer1);
-
-		XYDataset dataset2 = createDataset2();
-
-		NumberAxis axis2 = new NumberAxis("RR");
-		axis2.setAutoRangeIncludesZero(false);
-		plot.setRangeAxis(1, axis2);
-		plot.setDataset(1, dataset2);
-		plot.mapDatasetToRangeAxis(1, 1);
-		axis2.setTickUnit(new NumberTickUnit(100));
-		axis2.setLabelFont(font);
-		axis2.setTickLabelFont(font);
-		XYItemRenderer renderer2 = new StandardXYItemRenderer();
-		renderer2.setSeriesPaintType(1, new SolidColor(Color.BLUE));
-		plot.setRenderer(1, renderer2);
-
-		XYItemRenderer r = plot.getRenderer();
-		if (r instanceof XYLineAndShapeRenderer) {
-			XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) r;
-			renderer.setBaseShapesVisible(true);
-			renderer.setBaseShapesFilled(true);
-			renderer.setDrawSeriesLineAsPath(true);
+	private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			final String action = intent.getAction();
+			if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+				// Log.d(TAG, "onReceive: " + action);
+				updateChart(intent);
+			}
 		}
+	};
 
-		return chart;
+	/**
+	 * Make an IntentFilter for the actions in which we are interested.
+	 * 
+	 * @return
+	 */
+	private static IntentFilter makeGattUpdateIntentFilter() {
+		final IntentFilter intentFilter = new IntentFilter();
+		// intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
+		// intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+		// intentFilter
+		// .addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+		return intentFilter;
 	}
 
 	/**
@@ -261,34 +206,176 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Creates a chart.
+	 *
+	 * @param dataset
+	 *            The dataset to use.
+	 *
+	 * @return The chart.
+	 */
+	private AFreeChart createChart() {
+		Log.d(TAG, "createChart");
+		if (mHrDataset == null) {
+			mHrDataset = createDataset1();
+		}
+		AFreeChart chart = ChartFactory.createTimeSeriesChart(
+				"HxM Heart Monitor", // title
+				"Time", // x-axis label
+				"HR", // y-axis label
+				mHrDataset, // data
+				true, // create legend?
+				true, // generate tooltips?
+				false // generate URLs?
+				);
+		chart.setBackgroundPaintType(new SolidColor(Color.WHITE));
+
+		Font font = new Font("SansSerif", Typeface.NORMAL, 24);
+		Font titleFont = new Font("SansSerif", Typeface.BOLD, 30);
+
+		TextTitle title = chart.getTitle();
+		title.setFont(titleFont);
+
+		LegendTitle legend = chart.getLegend();
+		legend.setItemFont(font);
+
+		XYPlot plot = (XYPlot) chart.getPlot();
+		plot.setBackgroundPaintType(new SolidColor(Color.LTGRAY));
+		plot.setDomainGridlinePaintType(new SolidColor(Color.WHITE));
+		plot.setRangeGridlinePaintType(new SolidColor(Color.WHITE));
+		plot.setAxisOffset(new RectangleInsets(5.0, 5.0, 5.0, 5.0));
+		// TODO Find out what these mean
+		// plot.setDomainCrosshairVisible(true);
+		// plot.setRangeCrosshairVisible(true);
+
+		DateAxis xAxis = (DateAxis) plot.getDomainAxis();
+		xAxis.setDateFormatOverride(new SimpleDateFormat("hh:mm", Locale.US));
+		xAxis.setLabelFont(font);
+		xAxis.setTickLabelFont(font);
+
+		NumberAxis yAxis1 = (NumberAxis) plot.getRangeAxis();
+		yAxis1.setAutoRangeIncludesZero(true);
+		yAxis1.setLabelFont(font);
+		yAxis1.setTickLabelFont(font);
+		XYItemRenderer renderer1 = new StandardXYItemRenderer();
+		renderer1.setSeriesPaintType(1, new SolidColor(Color.BLUE));
+		plot.setRenderer(0, renderer1);
+
+		if (mRrDataset == null) {
+			mRrDataset = createDataset2();
+		}
+
+		NumberAxis yAxis2 = new NumberAxis("RR");
+		yAxis2.setAutoRangeIncludesZero(false);
+		plot.setRangeAxis(1, yAxis2);
+		plot.setDataset(1, mRrDataset);
+		plot.mapDatasetToRangeAxis(1, 1);
+		yAxis2.setTickUnit(new NumberTickUnit(.2));
+		yAxis2.setLabelFont(font);
+		yAxis2.setTickLabelFont(font);
+		XYItemRenderer renderer2 = new StandardXYItemRenderer();
+		renderer2.setSeriesPaintType(1, new SolidColor(Color.BLUE));
+		plot.setRenderer(1, renderer2);
+
+		XYItemRenderer r = plot.getRenderer();
+		if (r instanceof XYLineAndShapeRenderer) {
+			XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) r;
+			renderer.setBaseShapesVisible(true);
+			renderer.setBaseShapesFilled(true);
+			renderer.setDrawSeriesLineAsPath(true);
+		}
+
+		return chart;
+	}
+
+	/**
+	 * Updates the chart when data is received.
+	 * 
+	 * @param intent
+	 */
+	private void updateChart(Intent intent) {
+		String strValue;
+		String[] tokens;
+		long date = intent.getLongExtra(EXTRA_DATE, Long.MIN_VALUE);
+		if (date == Long.MIN_VALUE) {
+			return;
+		}
+		double value = Double.NaN;
+		double max;
+		if (mHrSeries != null) {
+			strValue = intent.getStringExtra(EXTRA_HR);
+			if (strValue != null) {
+				try {
+					value = Double.parseDouble(strValue);
+				} catch (NumberFormatException ex) {
+					value = Double.NaN;
+				}
+			}
+			mHrSeries.addOrUpdate(new FixedMillisecond(date), value);
+		}
+		if (mRrSeries != null) {
+			value = Double.NaN;
+			strValue = intent.getStringExtra(EXTRA_RR);
+			if (strValue != null) {
+				tokens = strValue.trim().split("\\s+");
+				if (tokens.length == 1) {
+					try {
+						value = Double.parseDouble(tokens[0]);
+					} catch (NumberFormatException ex) {
+						value = Double.NaN;
+					}
+				} else {
+					// TODO Consider other alternatives
+					max = -Double.MAX_VALUE;
+					for (String string : tokens) {
+						try {
+							value = Double.parseDouble(tokens[0]);
+						} catch (NumberFormatException ex) {
+							continue;
+						}
+						if (value > max) {
+							max = value;
+						}
+					}
+					if (max == -Double.MAX_VALUE) {
+						value = Double.NaN;
+					} else {
+						value = max;
+					}
+				}
+			}
+			mRrSeries.addOrUpdate(new FixedMillisecond(date), value / 1024.);
+		}
+	}
+
+	/**
 	 * Creates a sample dataset.
 	 *
 	 * @return The dataset.
 	 */
-	private static XYDataset createDataset1() {
-		TimeSeries s1 = new TimeSeries("HR");
-		s1.add(new Month(2, 2001), 60);
-		s1.add(new Month(3, 2001), 61);
-		s1.add(new Month(4, 2001), 65);
-		s1.add(new Month(5, 2001), 70);
-		s1.add(new Month(6, 2001), 80);
-		s1.add(new Month(7, 2001), 100);
-		s1.add(new Month(8, 2001), 101);
-		s1.add(new Month(9, 2001), 105);
-		s1.add(new Month(10, 2001), 110);
-		s1.add(new Month(11, 2001), 115);
-		s1.add(new Month(12, 2001), 117);
-		s1.add(new Month(1, 2002), 114);
-		s1.add(new Month(2, 2002), 112);
-		s1.add(new Month(3, 2002), 110);
-		s1.add(new Month(4, 2002), 108);
-		s1.add(new Month(5, 2002), 105);
-		s1.add(new Month(6, 2002), 103);
-		s1.add(new Month(7, 2002), 100);
+	private XYDataset createDataset1() {
+		mHrSeries = new TimeSeries("HR");
+		// long date = new Date().getTime();
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 160);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 161);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 165);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 170);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 180);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 200);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 201);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 205);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 210);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 215);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 217);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 214);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 212);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 210);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 208);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 205);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 203);
+		// mHrSeries.add(new FixedMillisecond(date -= 1000), 200);
 
 		TimeSeriesCollection dataset = new TimeSeriesCollection();
-		dataset.addSeries(s1);
-
+		dataset.addSeries(mHrSeries);
 		return dataset;
 	}
 
@@ -297,162 +384,31 @@ public class PlotActivity extends Activity implements IConstants {
 	 *
 	 * @return The dataset.
 	 */
-	private static XYDataset createDataset2() {
-		TimeSeries s2 = new TimeSeries("RR");
-		s2.add(new Month(2, 2001), 429.6);
-		s2.add(new Month(3, 2001), 323.2);
-		s2.add(new Month(4, 2001), 417.2);
-		s2.add(new Month(5, 2001), 624.1);
-		s2.add(new Month(6, 2001), 422.6);
-		s2.add(new Month(7, 2001), 619.2);
-		s2.add(new Month(8, 2001), 416.5);
-		s2.add(new Month(9, 2001), 512.7);
-		s2.add(new Month(10, 2001), 501.5);
-		s2.add(new Month(11, 2001), 306.1);
-		s2.add(new Month(12, 2001), 410.3);
-		s2.add(new Month(1, 2002), 511.7);
-		s2.add(new Month(2, 2002), 611.0);
-		s2.add(new Month(3, 2002), 709.6);
-		s2.add(new Month(4, 2002), 613.2);
-		s2.add(new Month(5, 2002), 711.6);
-		s2.add(new Month(6, 2002), 708.8);
-		s2.add(new Month(7, 2002), 501.6);
+	private XYDataset createDataset2() {
+		mRrSeries = new TimeSeries("RR");
+		// long date = new Date().getTime();
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 260);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 261);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 265);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 270);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 280);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 200);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 201);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 205);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 210);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 215);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 217);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 214);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 212);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 210);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 208);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 205);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 203);
+		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 200);
 
 		TimeSeriesCollection dataset = new TimeSeriesCollection();
-		dataset.addSeries(s2);
-
+		dataset.addSeries(mRrSeries);
 		return dataset;
 	}
 
-	/**
-	 * Creates the dataset, consisting of two series of monthly data.
-	 *
-	 * @return The dataset.
-	 */
-	private XYDataset createDataset(String name) {
-		// if (mFilePath == null) {
-		// String msg = getClass().getSimpleName()
-		// + ".createDataset: file path is null";
-		// Log.d(TAG, msg);
-		// returnResult(RESULT_BAD_FILE, msg);
-		// }
-		// File file = new File(mFilePath);
-		// if (!file.exists()) {
-		// String msg = getClass().getSimpleName()
-		// + ".createDataset: file does not exist";
-		// Log.d(TAG, msg);
-		// returnResult(RESULT_BAD_FILE, msg);
-		// }
-		// TimeSeries s1 = new TimeSeries(name);
-		// BufferedReader in = null;
-		// String[] tokens;
-		// int lineNum = 0;
-		// double value;
-		// Date date;
-		// double max = -Double.MAX_VALUE;
-		// double min = Double.MAX_VALUE;
-		// long prevDate = -1;
-		// long dateVal;
-		// int nPrev = 0;
-		// double prevVal = Double.MAX_VALUE;
-		// double sumPrev = 0;
-		// double maxPrev = -Double.MAX_VALUE;
-		// double minPrev = Double.MAX_VALUE;
-		// try {
-		// in = new BufferedReader(new FileReader(file));
-		// String line;
-		// while ((line = in.readLine()) != null) {
-		// lineNum++;
-		// // Log.d(TAG, line);
-		// tokens = line.trim().split(",");
-		// date = getTimeFromStrings(tokens[0], tokens[1]);
-		// value = Double.parseDouble(tokens[2]);
-		// if (value > max) {
-		// max = value;
-		// }
-		// if (value < min) {
-		// min = value;
-		// }
-		// dateVal = date.getTime();
-		// if (dateVal == prevDate) {
-		// nPrev++;
-		// switch (overwriteMode) {
-		// case MAX:
-		// if (nPrev == 1) {
-		// if (prevVal > maxPrev) {
-		// maxPrev = prevVal;
-		// }
-		// }
-		// if (value > maxPrev) {
-		// maxPrev = value;
-		// }
-		// s1.addOrUpdate(new FixedMillisecond(date), maxPrev);
-		// break;
-		// case MIN:
-		// if (nPrev == 1) {
-		// if (prevVal < minPrev) {
-		// minPrev = prevVal;
-		// }
-		// }
-		// if (value < minPrev) {
-		// minPrev = value;
-		// }
-		// s1.addOrUpdate(new FixedMillisecond(date), minPrev);
-		// break;
-		// case AVG:
-		// if (nPrev == 1) {
-		// sumPrev = prevVal + value;
-		// } else {
-		// sumPrev += value;
-		// }
-		// s1.addOrUpdate(new FixedMillisecond(date), sumPrev
-		// / (nPrev + 1));
-		// break;
-		// case FIRST:
-		// // Do nothing
-		// break;
-		// case LAST:
-		// default:
-		// s1.addOrUpdate(new FixedMillisecond(date), value);
-		// break;
-		// }
-		//
-		// } else {
-		// nPrev = 0;
-		// sumPrev = 0;
-		// maxPrev = -Double.MAX_VALUE;
-		// minPrev = Double.MAX_VALUE;
-		// s1.addOrUpdate(new FixedMillisecond(date), value);
-		// }
-		// prevDate = date.getTime();
-		// prevVal = value;
-		// }
-		// } catch (Exception ex) {
-		// String msg = getClass().getSimpleName() + ".createDataset: "
-		// + " lineNum=" + lineNum + ": " + ex + ": "
-		// + ex.getMessage();
-		// Log.d(TAG, msg);
-		// returnResult(RESULT_BAD_FILE, msg);
-		// } finally {
-		// try {
-		// if (in != null)
-		// in.close();
-		// } catch (IOException ex) {
-		// String msg = getClass().getSimpleName() + ".createDataset: "
-		// + " Error closing file: " + ex + ": " + ex.getMessage();
-		// Log.d(TAG, msg);
-		// returnResult(RESULT_BAD_FILE, msg);
-		// }
-		// }
-		// Log.d(TAG, "nSeries=" + s1.getItemCount() + " lineNum=" + lineNum);
-		// Log.d(TAG, "max=" + max + " min=" + min);
-		//
-		// TimeSeriesCollection dataset = new TimeSeriesCollection();
-		// dataset.addSeries(s1);
-
-		// TODO
-		TimeSeriesCollection dataset = null;
-
-		return dataset;
-	}
 }
