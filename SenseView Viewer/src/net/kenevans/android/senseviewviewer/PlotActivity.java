@@ -220,7 +220,7 @@ public class PlotActivity extends Activity implements IConstants {
 		xAxis.setTickLabelFont(font);
 
 		NumberAxis yAxis = (NumberAxis) plot.getRangeAxis();
-		if (name == "R-R") {
+		if (name.equals("R-R")) {
 			yAxis.setTickUnit(new NumberTickUnit(100));
 		} else {
 			yAxis.setTickUnit(new NumberTickUnit(10));
@@ -333,7 +333,7 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Gets a Date from the two Strings in SEnseView output.
+	 * Gets a Date from the two Strings in SenseView output.
 	 * 
 	 * @param dateStr
 	 *            The date.
