@@ -26,6 +26,7 @@
     <string name="title_devices">BLE Device Scan</string>
     <string name="error_bluetooth_not_supported">Bluetooth not supported.</string>
     <string name="view_info">View Info</string>
+    <string name="start_now">Start Now</string>
     
 	<string name="scan_prompt">The current device may not be found in the scan, since it is still connected.  Continue?</string>
     <string name="cancel">Cancel</string>

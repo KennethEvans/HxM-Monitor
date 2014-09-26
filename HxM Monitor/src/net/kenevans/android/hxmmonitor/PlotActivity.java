@@ -1,6 +1,8 @@
 package net.kenevans.android.hxmmonitor;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Locale;
 
 import org.afree.chart.AFreeChart;
@@ -12,7 +14,6 @@ import org.afree.chart.plot.XYPlot;
 import org.afree.chart.renderer.xy.StandardXYItemRenderer;
 import org.afree.chart.renderer.xy.XYItemRenderer;
 import org.afree.chart.renderer.xy.XYLineAndShapeRenderer;
-import org.afree.chart.title.LegendTitle;
 import org.afree.chart.title.TextTitle;
 import org.afree.data.time.FixedMillisecond;
 import org.afree.data.time.TimeSeries;
@@ -29,10 +30,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Point;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.view.Display;
 import android.view.Menu;
@@ -51,6 +55,9 @@ public class PlotActivity extends Activity implements IConstants {
 	private XYDataset mRrDataset;
 	private TimeSeries mHrSeries;
 	private TimeSeries mRrSeries;
+	private HxMMonitorDbAdapter mDbAdapter;
+	private File mDataDir;
+	private long mPlotStartTime;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +66,40 @@ public class PlotActivity extends Activity implements IConstants {
 		mView = new AFreeChartView(this);
 		requestWindowFeature(Window.FEATURE_NO_TITLE);
 		setContentView(mView);
+
+		// Get the database name from the default preferences
+		SharedPreferences prefs = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		String prefString = prefs.getString(PREF_DATA_DIRECTORY, null);
+		if (prefString == null) {
+			return;
+		}
+
+		// Get the plot start time from the default preferences
+		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, Long.MIN_VALUE);
+		if (prefLong == Long.MIN_VALUE) {
+			// Set it to now
+			mPlotStartTime = new Date().getTime();
+			SharedPreferences.Editor editor = prefs.edit();
+			editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
+			editor.commit();
+		} else {
+			mPlotStartTime = prefLong;
+		}
+
+		// Open the database
+		mDataDir = new File(prefString);
+		if (mDataDir == null) {
+			Utils.errMsg(this, "Database directory is null");
+			return;
+		}
+		if (!mDataDir.exists()) {
+			Utils.errMsg(this, "Cannot find database directory: " + mDataDir);
+			mDataDir = null;
+			return;
+		}
+		mDbAdapter = new HxMMonitorDbAdapter(this, mDataDir);
+		mDbAdapter.open();
 	}
 
 	@Override
@@ -91,9 +132,18 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	@Override
+	protected void onDestroy() {
+		super.onDestroy();
+		if (mDbAdapter != null) {
+			mDbAdapter.close();
+			mDbAdapter = null;
+		}
+	}
+
+	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
 		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.plot, menu);
+		getMenuInflater().inflate(R.menu.menu_plot, menu);
 		return true;
 	}
 
@@ -105,6 +155,9 @@ public class PlotActivity extends Activity implements IConstants {
 		int id = item.getItemId();
 		switch (id) {
 		case R.id.action_settings:
+			return true;
+		case R.id.start_now:
+			startNow();
 			return true;
 		case R.id.get_view_info:
 			Utils.infoMsg(this, getViewInfo());
@@ -189,6 +242,22 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Resets the plot start time to now.
+	 */
+	private void startNow() {
+		mPlotStartTime = new Date().getTime();
+		SharedPreferences prefs = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		SharedPreferences.Editor editor = prefs.edit();
+		editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
+		editor.commit();
+		mHrDataset = createHrDataset();
+		mRrDataset = createRrDataset();
+		((XYPlot) mChart.getPlot()).setDataset(0, mHrDataset);
+		((XYPlot) mChart.getPlot()).setDataset(1, mRrDataset);
+	}
+
+	/**
 	 * Gets info about the view.
 	 */
 	private String getViewInfo() {
@@ -229,6 +298,50 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Converts the String of RR values from the database to a sing double
+	 * value.
+	 * 
+	 * @param strValues
+	 * @return The value or NaN if there is an error.
+	 */
+	private double convertRrStringsToDouble(String strValue) {
+		String[] tokens;
+		double value;
+		double max;
+		if (strValue == null) {
+			return Double.NaN;
+		}
+		tokens = strValue.trim().split("\\s+");
+		if (tokens.length == 1) {
+			try {
+				value = Double.parseDouble(tokens[0]);
+			} catch (NumberFormatException ex) {
+				value = Double.NaN;
+			}
+		} else {
+			// TODO Consider other alternatives
+			max = -Double.MAX_VALUE;
+			for (String string : tokens) {
+				max = -Double.NaN;
+				try {
+					value = Double.parseDouble(string);
+				} catch (NumberFormatException ex) {
+					continue;
+				}
+				if (value > max) {
+					max = value;
+				}
+			}
+			if (max == -Double.MAX_VALUE) {
+				value = Double.NaN;
+			} else {
+				value = max;
+			}
+		}
+		return value;
+	}
+
+	/**
 	 * Creates a chart.
 	 *
 	 * @param dataset
@@ -239,32 +352,45 @@ public class PlotActivity extends Activity implements IConstants {
 	private AFreeChart createChart() {
 		Log.d(TAG, "createChart");
 		if (mHrDataset == null) {
-			mHrDataset = createDataset1();
+			mHrDataset = createHrDataset();
 		}
-		AFreeChart chart = ChartFactory.createTimeSeriesChart(
-				"HxM Heart Monitor", // title
+		AFreeChart chart = ChartFactory.createTimeSeriesChart(null, // title
 				"Time", // x-axis label
 				"HR", // y-axis label
 				mHrDataset, // data
-				true, // create legend?
+				false, // create legend?
 				true, // generate tooltips?
 				false // generate URLs?
 				);
-		chart.setBackgroundPaintType(new SolidColor(Color.WHITE));
+
+		SolidColor white = new SolidColor(Color.WHITE);
+		SolidColor black = new SolidColor(Color.BLACK);
+		SolidColor red = new SolidColor(Color.RED);
+		SolidColor blue = new SolidColor(Color.BLUE);
+		SolidColor gray = new SolidColor(Color.GRAY);
+		SolidColor ltgray = new SolidColor(Color.LTGRAY);
+
+		chart.setBackgroundPaintType(black);
+		// chart.setBorderPaintType(white);
+		chart.setBorderVisible(false);
+		// chart.setPadding(new RectangleInsets(10.0, 10.0, 10.0, 10.0));
 
 		Font font = new Font("SansSerif", Typeface.NORMAL, 24);
 		Font titleFont = new Font("SansSerif", Typeface.BOLD, 30);
 
+		chart.setTitle("HxM Monitor");
 		TextTitle title = chart.getTitle();
 		title.setFont(titleFont);
+		title.setPaintType(white);
 
-		LegendTitle legend = chart.getLegend();
-		legend.setItemFont(font);
+		// LegendTitle legend = chart.getLegend();
+		// legend.setItemFont(font);
 
 		XYPlot plot = (XYPlot) chart.getPlot();
-		plot.setBackgroundPaintType(new SolidColor(Color.LTGRAY));
-		plot.setDomainGridlinePaintType(new SolidColor(Color.WHITE));
-		plot.setRangeGridlinePaintType(new SolidColor(Color.WHITE));
+		plot.setBackgroundPaintType(black);
+		plot.setDomainGridlinePaintType(gray);
+		plot.setRangeGridlinePaintType(gray);
+		plot.setOutlineVisible(true);
 		plot.setAxisOffset(new RectangleInsets(5.0, 5.0, 5.0, 5.0));
 		// TODO Find out what these mean
 		// plot.setDomainCrosshairVisible(true);
@@ -273,31 +399,49 @@ public class PlotActivity extends Activity implements IConstants {
 		DateAxis xAxis = (DateAxis) plot.getDomainAxis();
 		xAxis.setDateFormatOverride(new SimpleDateFormat("hh:mm", Locale.US));
 		xAxis.setLabelFont(font);
+		xAxis.setLabelPaintType(white);
+		xAxis.setAxisLinePaintType(white);
 		xAxis.setTickLabelFont(font);
+		xAxis.setTickLabelPaintType(ltgray);
 
-		NumberAxis yAxis1 = (NumberAxis) plot.getRangeAxis();
-		yAxis1.setAutoRangeIncludesZero(true);
-		yAxis1.setLabelFont(font);
-		yAxis1.setTickLabelFont(font);
-		XYItemRenderer renderer1 = new StandardXYItemRenderer();
-		renderer1.setSeriesPaintType(1, new SolidColor(Color.BLUE));
-		plot.setRenderer(0, renderer1);
+		float strokeSize = 5f;
+
+		NumberAxis yAxis0 = (NumberAxis) plot.getRangeAxis();
+		yAxis0.setAutoRangeIncludesZero(true);
+		yAxis0.setAutoRangeMinimumSize(10);
+		yAxis0.setLabelFont(font);
+		yAxis0.setLabelPaintType(white);
+		yAxis0.setAxisLinePaintType(white);
+		yAxis0.setTickLabelFont(font);
+		yAxis0.setTickLabelPaintType(ltgray);
+		XYItemRenderer renderer0 = new StandardXYItemRenderer();
+		renderer0.setSeriesPaintType(0, red);
+		renderer0.setBaseStroke(strokeSize);
+		renderer0.setSeriesStroke(0, strokeSize);
+		plot.setRenderer(0, renderer0);
 
 		if (mRrDataset == null) {
-			mRrDataset = createDataset2();
+			mRrDataset = createRrDataset();
 		}
 
-		NumberAxis yAxis2 = new NumberAxis("RR");
-		yAxis2.setAutoRangeIncludesZero(false);
-		plot.setRangeAxis(1, yAxis2);
+		NumberAxis yAxis1 = new NumberAxis("RR");
+		plot.setRangeAxis(1, yAxis1);
 		plot.setDataset(1, mRrDataset);
 		plot.mapDatasetToRangeAxis(1, 1);
-		yAxis2.setTickUnit(new NumberTickUnit(.2));
-		yAxis2.setLabelFont(font);
-		yAxis2.setTickLabelFont(font);
-		XYItemRenderer renderer2 = new StandardXYItemRenderer();
-		renderer2.setSeriesPaintType(1, new SolidColor(Color.BLUE));
-		plot.setRenderer(1, renderer2);
+		yAxis1.setAutoRangeIncludesZero(true);
+		yAxis1.setAutoRangeMinimumSize(.3);
+//		yAxis1.setTickUnit(new NumberTickUnit(.1));
+		yAxis1.setLabelFont(font);
+		yAxis1.setLabelPaintType(white);
+		yAxis1.setLabelPaintType(white);
+		yAxis1.setAxisLinePaintType(white);
+		yAxis1.setTickLabelFont(font);
+		yAxis1.setTickLabelPaintType(ltgray);
+		XYItemRenderer renderer1 = new StandardXYItemRenderer();
+		renderer1.setSeriesPaintType(0, blue);
+		renderer1.setBaseStroke(strokeSize);
+		renderer1.setSeriesStroke(0, strokeSize);
+		plot.setRenderer(1, renderer1);
 
 		XYItemRenderer r = plot.getRenderer();
 		if (r instanceof XYLineAndShapeRenderer) {
@@ -338,34 +482,7 @@ public class PlotActivity extends Activity implements IConstants {
 		if (mRrSeries != null) {
 			value = Double.NaN;
 			strValue = intent.getStringExtra(EXTRA_RR);
-			if (strValue != null) {
-				tokens = strValue.trim().split("\\s+");
-				if (tokens.length == 1) {
-					try {
-						value = Double.parseDouble(tokens[0]);
-					} catch (NumberFormatException ex) {
-						value = Double.NaN;
-					}
-				} else {
-					// TODO Consider other alternatives
-					max = -Double.MAX_VALUE;
-					for (String string : tokens) {
-						try {
-							value = Double.parseDouble(tokens[0]);
-						} catch (NumberFormatException ex) {
-							continue;
-						}
-						if (value > max) {
-							max = value;
-						}
-					}
-					if (max == -Double.MAX_VALUE) {
-						value = Double.NaN;
-					} else {
-						value = max;
-					}
-				}
-			}
+			value = convertRrStringsToDouble(strValue);
 			mRrSeries.addOrUpdate(new FixedMillisecond(date), value / 1024.);
 		}
 	}
@@ -375,8 +492,40 @@ public class PlotActivity extends Activity implements IConstants {
 	 *
 	 * @return The dataset.
 	 */
-	private XYDataset createDataset1() {
+	private XYDataset createHrDataset() {
+		Log.d(TAG, "Creating HR dataset");
 		mHrSeries = new TimeSeries("HR");
+		Cursor cursor = null;
+		int nItems = 0;
+		try {
+			if (mDbAdapter != null) {
+				cursor = mDbAdapter.fetchAllDataStartingAtTime(mPlotStartTime);
+				int indexDate = cursor.getColumnIndex(COL_DATE);
+				int indexHr = cursor.getColumnIndex(COL_HR);
+
+				// Loop over items
+				cursor.moveToFirst();
+				long date;
+				double hr;
+				while (cursor.isAfterLast() == false) {
+					nItems++;
+					date = cursor.getLong(indexDate);
+					hr = cursor.getInt(indexHr);
+					mHrSeries.addOrUpdate(new FixedMillisecond(date), hr);
+					cursor.moveToNext();
+				}
+			}
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error creating HR dataset", ex);
+		} finally {
+			try {
+				cursor.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+		Log.d(TAG, "Dataset 1 created with " + nItems + " items");
+
 		// long date = new Date().getTime();
 		// mHrSeries.add(new FixedMillisecond(date -= 1000), 160);
 		// mHrSeries.add(new FixedMillisecond(date -= 1000), 161);
@@ -407,8 +556,41 @@ public class PlotActivity extends Activity implements IConstants {
 	 *
 	 * @return The dataset.
 	 */
-	private XYDataset createDataset2() {
+	private XYDataset createRrDataset() {
+		Log.d(TAG, "Creating RR datase");
 		mRrSeries = new TimeSeries("RR");
+		Cursor cursor = null;
+		int nItems = 0;
+		try {
+			if (mDbAdapter != null) {
+				cursor = mDbAdapter.fetchAllDataStartingAtTime(mPlotStartTime);
+				int indexDate = cursor.getColumnIndex(COL_DATE);
+				int indexRr = cursor.getColumnIndex(COL_RR);
+
+				// Loop over items
+				cursor.moveToFirst();
+				long date;
+				double rr;
+				String rrString;
+				while (cursor.isAfterLast() == false) {
+					date = cursor.getLong(indexDate);
+					rrString = cursor.getString(indexRr);
+					rr = convertRrStringsToDouble(rrString);
+					mRrSeries.addOrUpdate(new FixedMillisecond(date), rr);
+					cursor.moveToNext();
+				}
+			}
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error creating RR dataset", ex);
+		} finally {
+			try {
+				cursor.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+		Log.d(TAG, "Dataset 2 created with " + nItems + " items");
+
 		// long date = new Date().getTime();
 		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 260);
 		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 261);

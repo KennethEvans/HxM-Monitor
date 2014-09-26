@@ -47,6 +47,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	private String mDeviceAddress;
 	private BluetoothLeService mBluetoothLeService;
 	private boolean mConnected = false;
+	private HxMMonitorDbAdapter mDbAdapter;
+	private File mDataDir;
 	private BluetoothGattCharacteristic mCharBat;
 	private BluetoothGattCharacteristic mCharHr;
 	private BluetoothGattCharacteristic mCharCustom;
@@ -104,8 +106,13 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
 		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
-		// Open the database, which sets the preference, but don't open it
-		getDataDirectory();
+		// Open the database
+		mDataDir = getDataDirectory();
+		if (mDataDir == null) {
+			return;
+		}
+		mDbAdapter = new HxMMonitorDbAdapter(this, mDataDir);
+		mDbAdapter.open();
 	}
 
 	@Override
@@ -155,6 +162,10 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		super.onDestroy();
 		unbindService(mServiceConnection);
 		mBluetoothLeService = null;
+		if (mDbAdapter != null) {
+			mDbAdapter.close();
+			mDbAdapter = null;
+		}
 	}
 
 	@Override
@@ -257,8 +268,12 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			Utils.errMsg(this, "Data directory is null");
 		}
 		if (!dataDir.exists()) {
-			Utils.errMsg(this, "Cannot find directory: " + dataDir);
-			return null;
+			boolean res = dataDir.mkdir();
+			if (!res) {
+				Utils.errMsg(this, "Cannot find or create directory: "
+						+ dataDir);
+				return null;
+			}
 		}
 		return dataDir;
 	}
@@ -525,6 +540,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				Log.e(TAG, msg);
 				Utils.errMsg(DeviceMonitorActivity.this, msg);
 				return;
+			}
+			if (mDbAdapter != null) {
+				mBluetoothLeService.startDatabase(mDbAdapter);
 			}
 			// Automatically connects to the device upon successful start-up
 			// initialization.

@@ -87,6 +87,7 @@ public interface IConstants {
 
 	// Preferences
 	public static final String PREF_DATA_DIRECTORY = "dataDirectory";
+	public static final String PREF_PLOT_START_TIME = "plotStartTime";
 
 	// Information
 	/** Key for information URL sent to InfoActivity. */

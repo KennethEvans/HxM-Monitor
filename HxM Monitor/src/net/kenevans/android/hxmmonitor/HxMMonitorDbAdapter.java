@@ -2,6 +2,7 @@ package net.kenevans.android.hxmmonitor;
 
 import java.io.File;
 
+import android.app.Activity;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -17,7 +18,7 @@ import android.util.Log;
 public class HxMMonitorDbAdapter implements IConstants {
 	private DatabaseHelper mDbHelper;
 	private SQLiteDatabase mDb;
-	private final Context mContext;
+	private final Activity mActivity;
 	private File mDataDir;
 
 	/** Database creation SQL statement */
@@ -31,13 +32,13 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * Constructor - takes the context to allow the database to be
 	 * opened/created
 	 * 
-	 * @param context
+	 * @param activity
 	 *            The context.
 	 * @param dataDir
 	 *            The location of the data.
 	 */
-	public HxMMonitorDbAdapter(Context context, File dataDir) {
-		mContext = context;
+	public HxMMonitorDbAdapter(Activity activity, File dataDir) {
+		mActivity = activity;
 		mDataDir = dataDir;
 	}
 
@@ -47,14 +48,19 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * the failure
 	 * 
 	 * @return this (self reference, allowing this to be chained in an
-	 *         initialization call)
+	 *         initialization call).
 	 * @throws SQLException
-	 *             if the database could be neither opened or created
+	 *             if the database could be neither opened or created.
 	 */
 	public HxMMonitorDbAdapter open() throws SQLException {
 		// Make sure the directory exists and is available
 		if (mDataDir == null) {
-			Utils.errMsg(mContext, "Cannot access database");
+			mActivity.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					Utils.errMsg(mActivity, "Cannot access database");
+				}
+			});
 			return null;
 		}
 		try {
@@ -62,34 +68,28 @@ public class HxMMonitorDbAdapter implements IConstants {
 				mDataDir.mkdirs();
 				// Try again
 				if (!mDataDir.exists()) {
-					Utils.errMsg(mContext,
-							"Unable to create database directory at "
-									+ mDataDir);
+					mActivity.runOnUiThread(new Runnable() {
+						@Override
+						public void run() {
+							Utils.errMsg(mActivity,
+									"Unable to create database directory at "
+											+ mDataDir);
+						}
+					});
 					return null;
 				}
 			}
-			mDbHelper = new DatabaseHelper(mContext, mDataDir.getPath()
+			mDbHelper = new DatabaseHelper(mActivity, mDataDir.getPath()
 					+ File.separator + DB_NAME);
 			mDb = mDbHelper.getWritableDatabase();
-			// String info = mDb.toString() + "\n";
-			// info += "mDataDir=" + mDataDir.getPath() + "\n";
-			// info += "mDb.getPath()=" + mDb.getPath() + "\n";
-			// info += "mDb.isOpen()=" + mDb.isOpen() + "\n";
-			// File file = new File(mDb.getPath()).getParentFile();
-			// File[] files = file.listFiles();
-			// if (files == null) {
-			// info += "files is  null" + "\n";
-			// } else {
-			// for (File file1 : files) {
-			// info += "     " + file1.getName() + "\n";
-			// }
-			// }
-			// // mDb.close();
-			// // boolean res = SQLiteDatabase.deleteDatabase(file);
-			// // info += "res=" + res + "\n";
-			// Utils.infoMsg(mContext, info);
-		} catch (Exception ex) {
-			Utils.excMsg(mContext, "Error opening database at " + mDataDir, ex);
+		} catch (final Exception ex) {
+			mActivity.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					Utils.excMsg(mActivity, "Error opening database at "
+							+ mDataDir, ex);
+				}
+			});
 		}
 		return this;
 	}
@@ -103,7 +103,6 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * successfully created return the new rowId for that entry, otherwise
 	 * return a -1 to indicate failure.
 	 * 
-	 * @param rowId
 	 * @param date
 	 * @param startDate
 	 * @param tmp
@@ -111,10 +110,16 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * @param rr
 	 * @return
 	 */
-	public long createData(long rowId, long date, long startDate, boolean tmp,
-			int hr, String rr) {
+	public long createData(long date, long startDate, boolean tmp, int hr,
+			String rr) {
 		if (mDb == null) {
-			Utils.errMsg(mContext, "Failed to create data. Database is null.");
+			mActivity.runOnUiThread(new Runnable() {
+				@Override
+				public void run() {
+					Utils.errMsg(mActivity,
+							"Failed to create data. Database is null.");
+				}
+			});
 			return -1;
 		}
 		ContentValues values = new ContentValues();
@@ -128,20 +133,29 @@ public class HxMMonitorDbAdapter implements IConstants {
 	}
 
 	/**
-	 * Delete the data with the given rowId
+	 * Delete the data with the given rowId.
 	 * 
 	 * @param rowId
 	 *            id of data to delete
-	 * @return true if deleted, false otherwise
+	 * @return true if deleted, false otherwise.
 	 */
 	public boolean deleteData(long rowId) {
 		return mDb.delete(DB_TABLE, COL_ID + "=" + rowId, null) > 0;
 	}
 
 	/**
+	 * Deletes all data temporary data in the database.
+	 * 
+	 * @return
+	 */
+	public boolean deleteAllTemporaryData() {
+		return mDb.delete(DB_TABLE, COL_TMP + "= 1", null) > 0;
+	}
+
+	/**
 	 * Delete all the data and recreate the table.
 	 * 
-	 * @return true if deleted, false otherwise
+	 * @return true if deleted, false otherwise.
 	 */
 	public void recreateTable() {
 		mDb.execSQL("DROP TABLE IF EXISTS " + DB_TABLE);
@@ -149,9 +163,9 @@ public class HxMMonitorDbAdapter implements IConstants {
 	}
 
 	/**
-	 * Return a Cursor over the list of all notes in the database
+	 * Return a Cursor over the list of all items in the database.
 	 * 
-	 * @return Cursor over all notes
+	 * @return Cursor over items.
 	 */
 	public Cursor fetchAllData(String filter) {
 		if (mDb == null) {
@@ -163,13 +177,29 @@ public class HxMMonitorDbAdapter implements IConstants {
 	}
 
 	/**
+	 * Return a Cursor over the list of all items in the database for a given
+	 * time and later.
+	 * 
+	 * @param date
+	 * @return Cursor over items.
+	 */
+	public Cursor fetchAllDataStartingAtTime(long date) {
+		if (mDb == null) {
+			return null;
+		}
+		return mDb.query(DB_TABLE, new String[] { COL_ID, COL_DATE,
+				COL_START_DATE, COL_TMP, COL_HR, COL_RR }, COL_DATE + " >= "
+				+ Long.toString(date), null, null, null, SORT_ASCENDING);
+	}
+
+	/**
 	 * Return a Cursor positioned at the data that matches the given rowId
 	 * 
 	 * @param rowId
-	 *            id of entry to retrieve
-	 * @return Cursor positioned to matching entry, if found
+	 *            id of entry to retrieve.
+	 * @return Cursor positioned to matching entry, if found.
 	 * @throws SQLException
-	 *             if entry could not be found/retrieved
+	 *             if entry could not be found/retrieved.
 	 */
 	public Cursor fetchData(long rowId) throws SQLException {
 		Cursor mCursor = mDb.query(true, DB_TABLE, new String[] { COL_ID,

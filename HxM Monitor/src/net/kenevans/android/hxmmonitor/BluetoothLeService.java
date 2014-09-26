@@ -50,6 +50,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	private BluetoothAdapter mBluetoothAdapter;
 	private String mBluetoothDeviceAddress;
 	private BluetoothGatt mBluetoothGatt;
+	private HxMMonitorDbAdapter mDbAdapter;
 	private int mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
 	private int mSessionState = SESSION_IDLE;
 	private int mLastBat;
@@ -182,6 +183,9 @@ public class BluetoothLeService extends Service implements IConstants {
 			mLastRr = values.getRr();
 			// Log.d(TAG, String.format("Received heart rate measurement: %d",
 			// mLastHr));
+			if(mDbAdapter != null) {
+				mDbAdapter.createData(date, mSessionStartTime, true, mLastHr, mLastRr);
+			}
 			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr() + dateStr));
 			intent.putExtra(EXTRA_RR, values.getRr() + dateStr);
 			intent.putExtra(EXTRA_DATA, values.getString());
@@ -293,6 +297,27 @@ public class BluetoothLeService extends Service implements IConstants {
 	}
 
 	/**
+	 * Starts writing to the database with the given adapter.
+	 * 
+	 * @param adapter
+	 * @return
+	 */
+	public boolean startDatabase(HxMMonitorDbAdapter adapter) {
+		mDbAdapter = adapter;
+		if (mDbAdapter == null) {
+			return false;
+		}
+		return true;
+	}
+
+	/**
+	 * Stops writing to the the database.
+	 */
+	public void stopDatabase() {
+		mDbAdapter = null;
+	}
+
+	/**
 	 * Connects to the GATT server hosted on the Bluetooth LE device.
 	 *
 	 * @param address
@@ -358,6 +383,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 * resources are released properly.
 	 */
 	public void close() {
+		stopDatabase();
 		if (mBluetoothGatt == null) {
 			return;
 		}
