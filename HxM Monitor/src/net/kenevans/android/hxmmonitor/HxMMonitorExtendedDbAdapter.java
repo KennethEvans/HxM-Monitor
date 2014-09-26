@@ -14,7 +14,7 @@ import android.util.Log;
  * Simple database access helper class, modified from the Notes example
  * application.
  */
-public class HxMMonitorDbAdapter implements IConstants {
+public class HxMMonitorExtendedDbAdapter implements IConstants {
 	private DatabaseHelper mDbHelper;
 	private SQLiteDatabase mDb;
 	private final Context mContext;
@@ -25,7 +25,8 @@ public class HxMMonitorDbAdapter implements IConstants {
 			+ " (_id integer primary key autoincrement, " + COL_DATE
 			+ " integer not null, " + COL_START_DATE + " integer not null, "
 			+ COL_TMP + " integer not null, " + COL_HR + " integer not null, "
-			+ COL_RR + " text not null);";
+			+ COL_RR + " text not null, " + COL_ACTIVITY + " real not null,"
+			+ COL_PA + " real not null);";
 
 	/**
 	 * Constructor - takes the context to allow the database to be
@@ -36,7 +37,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * @param dataDir
 	 *            The location of the data.
 	 */
-	public HxMMonitorDbAdapter(Context context, File dataDir) {
+	public HxMMonitorExtendedDbAdapter(Context context, File dataDir) {
 		mContext = context;
 		mDataDir = dataDir;
 	}
@@ -51,7 +52,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * @throws SQLException
 	 *             if the database could be neither opened or created
 	 */
-	public HxMMonitorDbAdapter open() throws SQLException {
+	public HxMMonitorExtendedDbAdapter open() throws SQLException {
 		// Make sure the directory exists and is available
 		if (mDataDir == null) {
 			Utils.errMsg(mContext, "Cannot access database");
@@ -109,10 +110,12 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * @param tmp
 	 * @param hr
 	 * @param rr
+	 * @param activity
+	 * @param pa
 	 * @return
 	 */
 	public long createData(long rowId, long date, long startDate, boolean tmp,
-			int hr, String rr) {
+			int hr, String rr, double activity, double pa) {
 		if (mDb == null) {
 			Utils.errMsg(mContext, "Failed to create data. Database is null.");
 			return -1;
@@ -123,6 +126,8 @@ public class HxMMonitorDbAdapter implements IConstants {
 		values.put(COL_TMP, tmp ? 1 : 0);
 		values.put(COL_HR, hr);
 		values.put(COL_RR, rr);
+		values.put(COL_ACTIVITY, activity);
+		values.put(COL_PA, pa);
 
 		return mDb.insert(DB_TABLE, null, values);
 	}
@@ -157,9 +162,10 @@ public class HxMMonitorDbAdapter implements IConstants {
 		if (mDb == null) {
 			return null;
 		}
-		return mDb.query(DB_TABLE, new String[] { COL_ID, COL_DATE,
-				COL_START_DATE, COL_TMP, COL_HR, COL_RR }, filter, null, null,
-				null, SORT_ASCENDING);
+		return mDb.query(DB_TABLE,
+				new String[] { COL_ID, COL_DATE, COL_START_DATE, COL_TMP,
+						COL_HR, COL_RR, COL_ACTIVITY, COL_PA }, filter, null,
+				null, null, SORT_ASCENDING);
 	}
 
 	/**
@@ -172,9 +178,10 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 *             if entry could not be found/retrieved
 	 */
 	public Cursor fetchData(long rowId) throws SQLException {
-		Cursor mCursor = mDb.query(true, DB_TABLE, new String[] { COL_ID,
-				COL_DATE, COL_START_DATE, COL_HR, COL_RR }, COL_ID + "="
-				+ rowId, null, null, null, null, null);
+		Cursor mCursor = mDb.query(true, DB_TABLE,
+				new String[] { COL_ID, COL_DATE, COL_START_DATE, COL_HR,
+						COL_RR, COL_ACTIVITY, COL_PA }, COL_ID + "=" + rowId,
+				null, null, null, null, null);
 		if (mCursor != null) {
 			mCursor.moveToFirst();
 		}
@@ -191,16 +198,21 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * @param tmp
 	 * @param hr
 	 * @param rr
+	 * @param activity
+	 * @param pa
+	 * @param comment
 	 * @return
 	 */
 	public boolean updateData(long rowId, long date, long startDate,
-			boolean tmp, int hr, String rr) {
+			boolean tmp, int hr, String rr, double activity, double pa) {
 		ContentValues values = new ContentValues();
 		values.put(COL_DATE, date);
 		values.put(COL_START_DATE, startDate);
 		values.put(COL_TMP, tmp ? 1 : 0);
 		values.put(COL_HR, hr);
 		values.put(COL_RR, rr);
+		values.put(COL_ACTIVITY, activity);
+		values.put(COL_PA, pa);
 
 		return mDb.update(DB_TABLE, values, COL_ID + "=" + rowId, null) > 0;
 	}

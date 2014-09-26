@@ -1,5 +1,6 @@
 package net.kenevans.android.hxmmonitor;
 
+import java.io.File;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,6 +20,7 @@ import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -101,6 +103,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		getActionBar().setDisplayHomeAsUpEnabled(true);
 		Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
 		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
+
+		// Open the database, which sets the preference, but don't open it
+		getDataDirectory();
 	}
 
 	@Override
@@ -226,6 +231,39 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	}
 
 	/**
+	 * Gets the current data directory and sets the default preference for
+	 * PREF_DATA_DIRECTORY.
+	 * 
+	 * @return GThe directory or null on failure.
+	 */
+	public File getDataDirectory() {
+		SharedPreferences prefs = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		String dataDirName = prefs.getString(PREF_DATA_DIRECTORY, null);
+		File dataDir = null;
+		if (dataDirName != null) {
+			dataDir = new File(dataDirName);
+		} else {
+			File sdCardRoot = Environment.getExternalStorageDirectory();
+			if (sdCardRoot != null) {
+				dataDir = new File(sdCardRoot, SD_CARD_DB_DIRECTORY);
+				// Change the stored value (even if it is null)
+				SharedPreferences.Editor editor = prefs.edit();
+				editor.putString(PREF_DATA_DIRECTORY, dataDir.getPath());
+				editor.commit();
+			}
+		}
+		if (dataDir == null) {
+			Utils.errMsg(this, "Data directory is null");
+		}
+		if (!dataDir.exists()) {
+			Utils.errMsg(this, "Cannot find directory: " + dataDir);
+			return null;
+		}
+		return dataDir;
+	}
+
+	/**
 	 * Updates the connection state view on the UI thread.
 	 * 
 	 * @param resourceId
@@ -292,7 +330,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		try {
 			uuidString = intent.getStringExtra(EXTRA_UUID);
 			if (uuidString == null) {
-				mStatus.setText(" Received null uuid");
+				mStatus.setText("Received null uuid");
 				return;
 			}
 			uuid = UUID.fromString(uuidString);
@@ -335,6 +373,28 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			mStatus.setText("Exception: " + ex.getMessage());
 			// Don't use Utils here as there may be many
 			// Utils.excMsg(this, "Error displaying message", ex);
+		}
+	}
+
+	/**
+	 * Displays the error from an ACTION_ERROR callback.
+	 * 
+	 * @param intent
+	 */
+	private void displayError(Intent intent) {
+		String msg = null;
+		try {
+			msg = intent.getStringExtra(EXTRA_MSG);
+			if (msg == null) {
+				mStatus.setText("Received null error message");
+				Utils.errMsg(this, "Received null error message");
+				return;
+			}
+			Utils.errMsg(this, msg);
+		} catch (Exception ex) {
+			Log.d(TAG, "Error displaying error", ex);
+			mStatus.setText("Exception: " + ex.getMessage());
+			Utils.excMsg(this, msg, ex);
 		}
 	}
 
@@ -514,6 +574,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
 				// Log.d(TAG, "onReceive: " + action);
 				displayData(intent);
+			} else if (BluetoothLeService.ACTION_ERROR.equals(action)) {
+				// Log.d(TAG, "onReceive: " + action);
+				displayError(intent);
 			}
 		}
 	};

@@ -13,7 +13,7 @@ import android.view.MenuItem;
 import android.widget.TextView;
 
 public class MonitorActivity extends Activity implements IConstants {
-	private HxMMonitorDbAdapter mDbHelper;
+	private HxMMonitorDbAdapter mDbAdapter;
 	private File mDataDir;
 
 	@Override
@@ -43,8 +43,8 @@ public class MonitorActivity extends Activity implements IConstants {
 
 		// Open the database
 		mDataDir = this.getExternalFilesDir(null);
-		mDbHelper = new HxMMonitorDbAdapter(this, mDataDir);
-		mDbHelper.open();
+		mDbAdapter = new HxMMonitorDbAdapter(this, mDataDir);
+		mDbAdapter.open();
 	}
 
 	@Override

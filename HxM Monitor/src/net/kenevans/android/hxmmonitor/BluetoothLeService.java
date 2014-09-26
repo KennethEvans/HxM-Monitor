@@ -77,6 +77,7 @@ public class BluetoothLeService extends Service implements IConstants {
 			+ ".ACTION_GATT_SERVICES_DISCOVERED";
 	public final static String ACTION_DATA_AVAILABLE = PACKAGE_NAME
 			+ ".ACTION_DATA_AVAILABLE";
+	public final static String ACTION_ERROR = PACKAGE_NAME + ".ACTION_ERROR";
 
 	// Implements callback methods for GATT events that the app cares about. For
 	// example, connection change and services discovered.
@@ -143,6 +144,17 @@ public class BluetoothLeService extends Service implements IConstants {
 			broadcastUpdate(ACTION_DATA_AVAILABLE, characteristic);
 		}
 	};
+
+	/**
+	 * Broadcast an error using ACTION_ERROR.
+	 * 
+	 * @param msg
+	 */
+	private void broadcastError(final String msg) {
+		final Intent intent = new Intent(ACTION_ERROR);
+		intent.putExtra(EXTRA_MSG, msg);
+		sendBroadcast(intent);
+	}
 
 	private void broadcastUpdate(final String action) {
 		final Intent intent = new Intent(action);
@@ -262,8 +274,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 */
 	public boolean initialize() {
 		// For API level 18 and above, get a reference to BluetoothAdapter
-		// through
-		// BluetoothManager.
+		// through BluetoothManager.
 		if (mBluetoothManager == null) {
 			mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
 			if (mBluetoothManager == null) {

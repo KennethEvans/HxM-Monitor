@@ -86,18 +86,18 @@ public interface IConstants {
 	public static final int DB_VERSION = 1;
 
 	// Preferences
-	public static final String PREF_ = "dataDirectory";
+	public static final String PREF_DATA_DIRECTORY = "dataDirectory";
 
 	// Information
 	/** Key for information URL sent to InfoActivity. */
 	public static final String INFO_URL = "InformationURL";
-	
+
 	// Session state
 	public static final int SESSION_IDLE = 0;
 	public static final int SESSION_WAITING_BAT = 1;
 	public static final int SESSION_WAITING_HR = 2;
 	public static final int SESSION_WAITING_CUSTOM = 3;
-	
+
 	// Timer
 	/** Timer timeout for accumulating characteristics (ms). */
 	public static final long CHARACTERISTIC_TIMER_TIMEOUT = 100;
@@ -162,7 +162,9 @@ public interface IConstants {
 	public final static String EXTRA_PA = PACKAGE_NAME + ".extraPa";
 	/** The intent code for the battery level. */
 	public final static String EXTRA_BAT = PACKAGE_NAME + ".extraBattery";
-	
+	/** The intent code for a message. */
+	public final static String EXTRA_MSG = PACKAGE_NAME + ".extraMessage";
+
 	// Messages
 	/** Intent code for a message. */
 	public static final String MSG_CODE = "MessageCode";
@@ -171,12 +173,12 @@ public interface IConstants {
 	/** Result code for an error. */
 	public static final int RESULT_ERROR = 1001;
 
-
 	/** The static long formatter to use for formatting dates. */
 	public static final SimpleDateFormat longFormatter = new SimpleDateFormat(
 			"MMM dd, yyyy HH:mm:ss Z", Locale.US);
-//	public static final SimpleDateFormat longFormatter = new SimpleDateFormat(
-//			"hh:mm a MMM dd, yyyy", Locale.US);
+	// public static final SimpleDateFormat longFormatter = new
+	// SimpleDateFormat(
+	// "hh:mm a MMM dd, yyyy", Locale.US);
 
 	/** The static formatter to use for formatting dates. */
 	public static final SimpleDateFormat mediumFormatter = new SimpleDateFormat(

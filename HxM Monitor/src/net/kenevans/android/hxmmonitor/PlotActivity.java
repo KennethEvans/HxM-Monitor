@@ -146,6 +146,9 @@ public class PlotActivity extends Activity implements IConstants {
 			if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
 				// Log.d(TAG, "onReceive: " + action);
 				updateChart(intent);
+			} else if (BluetoothLeService.ACTION_ERROR.equals(action)) {
+				Log.d(TAG, "onReceive: " + action);
+				displayError(intent);
 			}
 		}
 	};
@@ -163,6 +166,26 @@ public class PlotActivity extends Activity implements IConstants {
 		// .addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
 		intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
 		return intentFilter;
+	}
+
+	/**
+	 * Displays the error from an ACTION_ERROR callback.
+	 * 
+	 * @param intent
+	 */
+	private void displayError(Intent intent) {
+		String msg = null;
+		try {
+			msg = intent.getStringExtra(EXTRA_MSG);
+			if (msg == null) {
+				Utils.errMsg(this, "Received null error message");
+				return;
+			}
+			Utils.errMsg(this, msg);
+		} catch (Exception ex) {
+			Log.d(TAG, "Error displaying error", ex);
+			Utils.excMsg(this, msg, ex);
+		}
 	}
 
 	/**
