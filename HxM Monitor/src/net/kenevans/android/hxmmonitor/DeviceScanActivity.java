@@ -37,12 +37,11 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		getActionBar().setTitle(R.string.title_devices);
+		getActionBar().setTitle(R.string.title_activity_devices);
 		mHandler = new Handler();
 
 		// Use this check to determine whether BLE is supported on the device.
-		// Then you can
-		// selectively disable BLE-related features.
+		// Then you can selectively disable BLE-related features.
 		if (!getPackageManager().hasSystemFeature(
 				PackageManager.FEATURE_BLUETOOTH_LE)) {
 			String msg = "Bluetooth LE is not supported on this device";
@@ -119,17 +118,6 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 	}
 
 	@Override
-	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-		// User chose not to enable Bluetooth.
-		if (requestCode == REQUEST_ENABLE_BT_CODE
-				&& resultCode == Activity.RESULT_CANCELED) {
-			finish();
-			return;
-		}
-		super.onActivityResult(requestCode, resultCode, data);
-	}
-
-	@Override
 	protected void onPause() {
 		super.onPause();
 		if (mBluetoothAdapter.isEnabled()) {
@@ -138,6 +126,17 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 		if (mLeDeviceListAdapter != null) {
 			mLeDeviceListAdapter.clear();
 		}
+	}
+
+	@Override
+	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+		// User chose not to enable Bluetooth.
+		if (requestCode == REQUEST_ENABLE_BT_CODE
+				&& resultCode == Activity.RESULT_CANCELED) {
+			finish();
+			return;
+		}
+		super.onActivityResult(requestCode, resultCode, data);
 	}
 
 	@Override
@@ -244,9 +243,10 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 			final String deviceName = device.getName();
 			if (deviceName != null && deviceName.length() > 0) {
 				viewHolder.deviceName.setText(deviceName);
+				viewHolder.deviceAddress.setText(device.getAddress());
 			} else {
 				viewHolder.deviceName.setText(R.string.unknown_device);
-				viewHolder.deviceAddress.setText(device.getAddress());
+				viewHolder.deviceAddress.setText("");
 			}
 			return view;
 		}
@@ -272,4 +272,5 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 		TextView deviceName;
 		TextView deviceAddress;
 	}
+
 }

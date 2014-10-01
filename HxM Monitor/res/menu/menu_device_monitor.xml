@@ -12,6 +12,10 @@
           android:title="@string/menu_select_device"
           android:orderInCategory="10"
           android:showAsAction="never"/>
+    <item android:id="@+id/menu_session_manager"
+          android:title="@string/menu_session_manager"
+          android:orderInCategory="10"
+          android:showAsAction="never"/>
     <item android:id="@+id/menu_plot"
           android:title="@string/menu_plot"
           android:orderInCategory="20"

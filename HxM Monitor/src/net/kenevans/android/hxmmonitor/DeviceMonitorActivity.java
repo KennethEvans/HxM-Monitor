@@ -54,6 +54,81 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	private BluetoothGattCharacteristic mCharCustom;
 	private CancelableCountDownTimer mTimer;
 
+	/**
+	 * Manages the service lifecycle.
+	 */
+	private final ServiceConnection mServiceConnection = new ServiceConnection() {
+		@Override
+		public void onServiceConnected(ComponentName componentName,
+				IBinder service) {
+			Log.d(TAG, "onServiceConnected: " + mDeviceName + " "
+					+ mDeviceAddress);
+			mBluetoothLeService = ((BluetoothLeService.LocalBinder) service)
+					.getService();
+			if (!mBluetoothLeService.initialize()) {
+				String msg = "Unable to initialize Bluetooth";
+				Log.e(TAG, msg);
+				Utils.errMsg(DeviceMonitorActivity.this, msg);
+				return;
+			}
+			if (mDbAdapter != null) {
+				mBluetoothLeService.startDatabase(mDbAdapter);
+			}
+			// Automatically connects to the device upon successful start-up
+			// initialization.
+			boolean res = mBluetoothLeService.connect(mDeviceAddress);
+			Log.d(TAG, "Connect mBluetoothLeService result=" + res);
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName componentName) {
+			Log.d(TAG, "onServiceDisconnected");
+			mBluetoothLeService = null;
+		}
+	};
+
+	/**
+	 * Handles various events fired by the Service.
+	 * 
+	 * <br>
+	 * <br>
+	 * ACTION_GATT_CONNECTED: connected to a GATT server.<br>
+	 * ACTION_GATT_DISCONNECTED: disconnected from a GATT server.<br>
+	 * ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.<br>
+	 * ACTION_DATA_AVAILABLE: received data from the device. This can be a
+	 * result of read or notification operations.<br>
+	 */
+	private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			final String action = intent.getAction();
+			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+				Log.d(TAG, "onReceive: " + action);
+				mConnected = true;
+				updateConnectionState(R.string.connected);
+				invalidateOptionsMenu();
+			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+					.equals(action)) {
+				Log.d(TAG, "onReceive: " + action);
+				mConnected = false;
+				resetDataViews();
+				updateConnectionState(R.string.disconnected);
+				invalidateOptionsMenu();
+			} else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
+					.equals(action)) {
+				Log.d(TAG, "onReceive: " + action);
+				onServicesDiscovered(mBluetoothLeService
+						.getSupportedGattServices());
+			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+				// Log.d(TAG, "onReceive: " + action);
+				displayData(intent);
+			} else if (BluetoothLeService.ACTION_ERROR.equals(action)) {
+				// Log.d(TAG, "onReceive: " + action);
+				displayError(intent);
+			}
+		}
+	};
+
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -196,6 +271,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		case R.id.menu_select_device:
 			selectDevice();
 			return true;
+		case R.id.menu_session_manager:
+			startSessionManager();
+			return true;
 		case R.id.menu_plot:
 			plot();
 			return true;
@@ -325,12 +403,23 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Calls an activity to plot the data.
+	 * Calls the plot activity.
 	 */
 	public void plot() {
 		Intent intent = new Intent(DeviceMonitorActivity.this,
 				PlotActivity.class);
+		// Plot the current data, not a session
+		intent.putExtra(PLOT_SESSION_CODE, false);
 		startActivityForResult(intent, REQUEST_PLOT_CODE);
+	}
+
+	/**
+	 * Calls the session manager activity.
+	 */
+	public void startSessionManager() {
+		Intent intent = new Intent(DeviceMonitorActivity.this,
+				SessionManagerActivity.class);
+		startActivityForResult(intent, REQUEST_SESSION_MANAGER_CODE);
 	}
 
 	/**
@@ -459,10 +548,10 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 							if (res) {
 								mTimer.cancel();
 								Log.d(TAG,
-										"onTick: Session started with all characteristics");
+										"onTick: New session started with all characteristics");
 							} else {
 								Log.d(TAG,
-										"onTick: Session failed to start with all characteristics");
+										"onTick: Session failed to start new session with all characteristics");
 							}
 						}
 					}
@@ -475,11 +564,11 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 							runOnUiThread(new Runnable() {
 								public void run() {
 									Utils.errMsg(DeviceMonitorActivity.this,
-											"Failed to start server session");
+											"Failed to start new session");
 								}
 							});
 						} else {
-							Log.d(TAG, "onTick: Session started: mCharHr="
+							Log.d(TAG, "onTick: New session started: mCharHr="
 									+ (mCharHr != null ? "found" : "null")
 									+ " mCharBat="
 									+ (mCharBat != null ? "found" : "null")
@@ -523,81 +612,6 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
 		return intentFilter;
 	}
-
-	/**
-	 * Manages the service lifecycle.
-	 */
-	private final ServiceConnection mServiceConnection = new ServiceConnection() {
-		@Override
-		public void onServiceConnected(ComponentName componentName,
-				IBinder service) {
-			Log.d(TAG, "onServiceConnected: " + mDeviceName + " "
-					+ mDeviceAddress);
-			mBluetoothLeService = ((BluetoothLeService.LocalBinder) service)
-					.getService();
-			if (!mBluetoothLeService.initialize()) {
-				String msg = "Unable to initialize Bluetooth";
-				Log.e(TAG, msg);
-				Utils.errMsg(DeviceMonitorActivity.this, msg);
-				return;
-			}
-			if (mDbAdapter != null) {
-				mBluetoothLeService.startDatabase(mDbAdapter);
-			}
-			// Automatically connects to the device upon successful start-up
-			// initialization.
-			boolean res = mBluetoothLeService.connect(mDeviceAddress);
-			Log.d(TAG, "Connect mBluetoothLeService result=" + res);
-		}
-
-		@Override
-		public void onServiceDisconnected(ComponentName componentName) {
-			Log.d(TAG, "onServiceDisconnected");
-			mBluetoothLeService = null;
-		}
-	};
-
-	/**
-	 * Handles various events fired by the Service.
-	 * 
-	 * <br>
-	 * <br>
-	 * ACTION_GATT_CONNECTED: connected to a GATT server.<br>
-	 * ACTION_GATT_DISCONNECTED: disconnected from a GATT server.<br>
-	 * ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.<br>
-	 * ACTION_DATA_AVAILABLE: received data from the device. This can be a
-	 * result of read or notification operations.<br>
-	 */
-	private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
-		@Override
-		public void onReceive(Context context, Intent intent) {
-			final String action = intent.getAction();
-			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
-				Log.d(TAG, "onReceive: " + action);
-				mConnected = true;
-				updateConnectionState(R.string.connected);
-				invalidateOptionsMenu();
-			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
-					.equals(action)) {
-				Log.d(TAG, "onReceive: " + action);
-				mConnected = false;
-				resetDataViews();
-				updateConnectionState(R.string.disconnected);
-				invalidateOptionsMenu();
-			} else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
-					.equals(action)) {
-				Log.d(TAG, "onReceive: " + action);
-				onServicesDiscovered(mBluetoothLeService
-						.getSupportedGattServices());
-			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-				// Log.d(TAG, "onReceive: " + action);
-				displayData(intent);
-			} else if (BluetoothLeService.ACTION_ERROR.equals(action)) {
-				// Log.d(TAG, "onReceive: " + action);
-				displayError(intent);
-			}
-		}
-	};
 
 	/**
 	 * Called when services are discovered.

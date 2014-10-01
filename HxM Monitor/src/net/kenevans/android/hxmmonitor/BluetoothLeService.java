@@ -65,6 +65,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	private boolean mTemporarySession = true;
 	// TODO Is this needed?
 	private long mSessionStartTime;
+	private final IBinder mBinder = new LocalBinder();
 
 	// private static final int STATE_DISCONNECTED = 0;
 	// private static final int STATE_CONNECTING = 1;
@@ -183,8 +184,9 @@ public class BluetoothLeService extends Service implements IConstants {
 			mLastRr = values.getRr();
 			// Log.d(TAG, String.format("Received heart rate measurement: %d",
 			// mLastHr));
-			if(mDbAdapter != null) {
-				mDbAdapter.createData(date, mSessionStartTime, true, mLastHr, mLastRr);
+			if (mDbAdapter != null) {
+				mDbAdapter.createData(date, mSessionStartTime,
+						mTemporarySession, mLastHr, mLastRr);
 			}
 			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr() + dateStr));
 			intent.putExtra(EXTRA_RR, values.getRr() + dateStr);
@@ -255,11 +257,13 @@ public class BluetoothLeService extends Service implements IConstants {
 
 	@Override
 	public IBinder onBind(Intent intent) {
+		Log.d(TAG, "onBind");
 		return mBinder;
 	}
 
 	@Override
 	public boolean onUnbind(Intent intent) {
+		Log.d(TAG, "onUnbind");
 		// After using a given device, you should make sure that
 		// BluetoothGatt.close() is called
 		// such that resources are cleaned up properly. In this particular
@@ -269,27 +273,26 @@ public class BluetoothLeService extends Service implements IConstants {
 		return super.onUnbind(intent);
 	}
 
-	private final IBinder mBinder = new LocalBinder();
-
 	/**
 	 * Initializes a reference to the local Bluetooth adapter.
 	 *
 	 * @return Return true if the initialization is successful.
 	 */
 	public boolean initialize() {
+		Log.d(TAG, "initialize");
 		// For API level 18 and above, get a reference to BluetoothAdapter
 		// through BluetoothManager.
 		if (mBluetoothManager == null) {
 			mBluetoothManager = (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
 			if (mBluetoothManager == null) {
-				Log.e(TAG, "Unable to initialize BluetoothManager.");
+				Log.e(TAG, "Unable to initialize BluetoothManager");
 				return false;
 			}
 		}
 
 		mBluetoothAdapter = mBluetoothManager.getAdapter();
 		if (mBluetoothAdapter == null) {
-			Log.e(TAG, "Unable to obtain a BluetoothAdapter.");
+			Log.e(TAG, "Unable to obtain a BluetoothAdapter");
 			return false;
 		}
 
@@ -303,6 +306,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 * @return
 	 */
 	public boolean startDatabase(HxMMonitorDbAdapter adapter) {
+		Log.d(TAG, "startDatabase");
 		mDbAdapter = adapter;
 		if (mDbAdapter == null) {
 			return false;
@@ -314,6 +318,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 * Stops writing to the the database.
 	 */
 	public void stopDatabase() {
+		Log.d(TAG, "stopDatabase");
 		mDbAdapter = null;
 	}
 
@@ -329,9 +334,10 @@ public class BluetoothLeService extends Service implements IConstants {
 	 *         callback.
 	 */
 	public boolean connect(final String address) {
+		Log.d(TAG, "connect");
 		if (mBluetoothAdapter == null || address == null) {
 			Log.w(TAG,
-					"connect: BluetoothAdapter not initialized or unspecified address.");
+					"connect: BluetoothAdapter not initialized or unspecified address");
 			return false;
 		}
 
@@ -340,7 +346,7 @@ public class BluetoothLeService extends Service implements IConstants {
 				&& address.equals(mBluetoothDeviceAddress)
 				&& mBluetoothGatt != null) {
 			Log.d(TAG,
-					"connect: Trying to use an existing mBluetoothGatt for connection.");
+					"connect: Trying to use an existing mBluetoothGatt for connection");
 			if (mBluetoothGatt.connect()) {
 				mConnectionState = BluetoothProfile.STATE_CONNECTING;
 				return true;
@@ -352,13 +358,13 @@ public class BluetoothLeService extends Service implements IConstants {
 		final BluetoothDevice device = mBluetoothAdapter
 				.getRemoteDevice(address);
 		if (device == null) {
-			Log.w(TAG, "Device not found.  Unable to connect.");
+			Log.w(TAG, "Device not found.  Unable to connect");
 			return false;
 		}
 		// We want to directly connect to the device, so we are setting the
 		// autoConnect parameter to false.
 		mBluetoothGatt = device.connectGatt(this, false, mGattCallback);
-		Log.d(TAG, "Trying to create a new connection.");
+		Log.d(TAG, "Trying to create a new connection");
 		mBluetoothDeviceAddress = address;
 		mConnectionState = BluetoothProfile.STATE_CONNECTING;
 		return true;
@@ -371,6 +377,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 * callback.
 	 */
 	public void disconnect() {
+		Log.d(TAG, "disconnect");
 		if (mBluetoothAdapter == null || mBluetoothGatt == null) {
 			Log.w(TAG, "BluetoothAdapter not initialized");
 			return;
@@ -383,6 +390,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 * resources are released properly.
 	 */
 	public void close() {
+		Log.d(TAG, "close");
 		stopDatabase();
 		if (mBluetoothGatt == null) {
 			return;
@@ -513,6 +521,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	void checkPermissions(BluetoothGattCharacteristic charBat,
 			BluetoothGattCharacteristic charHr,
 			BluetoothGattCharacteristic charCustom) {
+		// DEBUG
 		// Check permissions
 		if ((charBat.getProperties() & BluetoothGattCharacteristic.PROPERTY_READ) == 0) {
 			Log.d(TAG, "incrementSessionState: charBat: Not Readable");
@@ -569,6 +578,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 * @return If successful.
 	 */
 	public boolean checkBattery() {
+		Log.d(TAG, "checkBattery");
 		if (!mSessionInProgress || mCharBat == null) {
 			return false;
 		}
@@ -598,6 +608,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	public boolean startSession(BluetoothGattCharacteristic charBat,
 			BluetoothGattCharacteristic charHr,
 			BluetoothGattCharacteristic charCustom, boolean temporary) {
+		Log.d(TAG, "startSession");
 		boolean res = true;
 		mSessionStartTime = new Date().getTime();
 		mTemporarySession = temporary;
@@ -642,6 +653,7 @@ public class BluetoothLeService extends Service implements IConstants {
 	 * Stops a session.
 	 */
 	public void stopSession() {
+		Log.d(TAG, "stopSession");
 		// Stop notifying for existing characteristics
 		if (mSessionInProgress = true && mCharHr != null) {
 			setCharacteristicNotification(mCharHr, false);
@@ -669,7 +681,7 @@ public class BluetoothLeService extends Service implements IConstants {
 			mSessionState = SESSION_IDLE;
 			return;
 		}
-		int oldSessionState = mSessionState;
+		// int oldSessionState = mSessionState;
 		switch (mSessionState) {
 		case SESSION_WAITING_BAT:
 			if (mCharHr != null) {
@@ -705,8 +717,9 @@ public class BluetoothLeService extends Service implements IConstants {
 			// Else leave it as is
 			break;
 		}
-		Log.d(TAG, "incrementSessionState: oldState=" + oldSessionState
-				+ " new State=" + mSessionState);
+		// DEBUG
+		// Log.d(TAG, "incrementSessionState: oldState=" + oldSessionState
+		// + " new State=" + mSessionState);
 	}
 
 }

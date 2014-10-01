@@ -21,7 +21,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 	private File mDataDir;
 
 	/** Database creation SQL statement */
-	private static final String DB_CREATE = "create table " + DB_TABLE
+	private static final String DB_CREATE = "create table " + DB_DATA_TABLE
 			+ " (_id integer primary key autoincrement, " + COL_DATE
 			+ " integer not null, " + COL_START_DATE + " integer not null, "
 			+ COL_TMP + " integer not null, " + COL_HR + " integer not null, "
@@ -129,7 +129,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 		values.put(COL_ACTIVITY, activity);
 		values.put(COL_PA, pa);
 
-		return mDb.insert(DB_TABLE, null, values);
+		return mDb.insert(DB_DATA_TABLE, null, values);
 	}
 
 	/**
@@ -140,7 +140,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 	 * @return true if deleted, false otherwise
 	 */
 	public boolean deleteData(long rowId) {
-		return mDb.delete(DB_TABLE, COL_ID + "=" + rowId, null) > 0;
+		return mDb.delete(DB_DATA_TABLE, COL_ID + "=" + rowId, null) > 0;
 	}
 
 	/**
@@ -149,7 +149,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 	 * @return true if deleted, false otherwise
 	 */
 	public void recreateTable() {
-		mDb.execSQL("DROP TABLE IF EXISTS " + DB_TABLE);
+		mDb.execSQL("DROP TABLE IF EXISTS " + DB_DATA_TABLE);
 		mDb.execSQL(DB_CREATE);
 	}
 
@@ -162,7 +162,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 		if (mDb == null) {
 			return null;
 		}
-		return mDb.query(DB_TABLE,
+		return mDb.query(DB_DATA_TABLE,
 				new String[] { COL_ID, COL_DATE, COL_START_DATE, COL_TMP,
 						COL_HR, COL_RR, COL_ACTIVITY, COL_PA }, filter, null,
 				null, null, SORT_ASCENDING);
@@ -178,7 +178,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 	 *             if entry could not be found/retrieved
 	 */
 	public Cursor fetchData(long rowId) throws SQLException {
-		Cursor mCursor = mDb.query(true, DB_TABLE,
+		Cursor mCursor = mDb.query(true, DB_DATA_TABLE,
 				new String[] { COL_ID, COL_DATE, COL_START_DATE, COL_HR,
 						COL_RR, COL_ACTIVITY, COL_PA }, COL_ID + "=" + rowId,
 				null, null, null, null, null);
@@ -214,7 +214,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 		values.put(COL_ACTIVITY, activity);
 		values.put(COL_PA, pa);
 
-		return mDb.update(DB_TABLE, values, COL_ID + "=" + rowId, null) > 0;
+		return mDb.update(DB_DATA_TABLE, values, COL_ID + "=" + rowId, null) > 0;
 	}
 
 	/**
@@ -238,7 +238,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 			// the version
 			Log.w(TAG, "Upgrading database from version " + oldVersion + " to "
 					+ newVersion + ", which will destroy all old data");
-			db.execSQL("DROP TABLE IF EXISTS " + DB_TABLE);
+			db.execSQL("DROP TABLE IF EXISTS " + DB_DATA_TABLE);
 			onCreate(db);
 		}
 	}

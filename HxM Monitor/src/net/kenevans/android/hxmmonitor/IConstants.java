@@ -33,6 +33,8 @@ public interface IConstants {
 	public static final String TAG = "HxM Monitor";
 	/** Name of the package for this application. */
 	public static final String PACKAGE_NAME = "net.kenevans.android.hxmmonitor";
+	/** Prefix for session names. Will be followed by a date and time. */
+	public static final String SESSION_NAME_PREFIX = "HxM-";
 
 	// Base
 	/** Base string for standard UUIDS. These UUIDs differ in characters 4-7. */
@@ -78,12 +80,6 @@ public interface IConstants {
 	 * was previously saved and then renamed.
 	 */
 	public static final String RESTORE_FILE_NAME = "restore.txt";
-	/** Simple name of the database. */
-	public static final String DB_NAME = "HxMMonitor.db";
-	/** Simple name of the table. */
-	public static final String DB_TABLE = "data";
-	/** The database version */
-	public static final int DB_VERSION = 1;
 
 	// Preferences
 	public static final String PREF_DATA_DIRECTORY = "dataDirectory";
@@ -106,15 +102,23 @@ public interface IConstants {
 	public static final long CHARACTERISTIC_TIMER_INTERVAL = 1;
 
 	// Database
+	/** Simple name of the database. */
+	public static final String DB_NAME = "HxMMonitor.db";
+	/** Simple name of the data table. */
+	public static final String DB_DATA_TABLE = "data";
+	/** The database version */
+	public static final int DB_VERSION = 1;
 	/** Database column for the id. Identifies the row. */
 	public static final String COL_ID = "_id";
 	/** Database column for the date. */
 	public static final String COL_DATE = "date";
 	/** Database column for the start date. */
 	public static final String COL_START_DATE = "startdate";
+	/** Database column for the end date. */
+	public static final String COL_END_DATE = "MAX(" + COL_DATE + ")";
 	/** Database column for the heart rate. */
 	public static final String COL_HR = "hr";
-	/** Database column for the R-Rl. */
+	/** Database column for the R-R. */
 	public static final String COL_RR = "rr";
 	/** Database column for the activity. */
 	public static final String COL_ACTIVITY = "activity";
@@ -125,6 +129,8 @@ public interface IConstants {
 
 	/** SQL sort command for date ascending */
 	public static final String SORT_ASCENDING = COL_DATE + " ASC";
+	/** SQL sort command for date ascending */
+	public static final String SORT_DESCENDING = COL_DATE + " DESC";
 
 	/** Default scan period for device scan. */
 	public static final long SCAN_PERIOD = 10000;
@@ -138,9 +144,8 @@ public interface IConstants {
 	public static final int REQUEST_TEST_CODE = 12;
 	/** Request code for plotting. */
 	public static final int REQUEST_PLOT_CODE = 13;
-
-	/** Request code for displaying a message. */
-	public static final int DISPLAY_MESSAGE = 0;
+	/** Request code for the session manager. */
+	public static final int REQUEST_SESSION_MANAGER_CODE = 14;
 
 	/** The intent code for device name. */
 	public static final String DEVICE_NAME_CODE = PACKAGE_NAME + "deviceName";
@@ -166,9 +171,15 @@ public interface IConstants {
 	/** The intent code for a message. */
 	public final static String EXTRA_MSG = PACKAGE_NAME + ".extraMessage";
 
-	// Messages
+	// Intent codes
 	/** Intent code for a message. */
 	public static final String MSG_CODE = "MessageCode";
+	/** Intent code for plotting a session of current. */
+	public static final String PLOT_SESSION_CODE = "PlotSessionCode";
+	/** Intent code for plotting session start time. */
+	public static final String PLOT_SESSION_START_TIME = "PlotSessionStartTime";
+	/** Intent code for plotting session end time. */
+	public static final String PLOT_SESSION_END_TIME = "PlotSessionEndTime";
 
 	// Result codes
 	/** Result code for an error. */
@@ -181,6 +192,14 @@ public interface IConstants {
 	// SimpleDateFormat(
 	// "hh:mm a MMM dd, yyyy", Locale.US);
 
+	/** The static formatter to use for formatting dates to ms level. */
+	public static final SimpleDateFormat sessionSaveFormatter = new SimpleDateFormat(
+			"yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
+
+	// public static final SimpleDateFormat sessionSaveFormatter = new
+	// SimpleDateFormat(
+	// "yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
+
 	/** The static formatter to use for formatting dates. */
 	public static final SimpleDateFormat mediumFormatter = new SimpleDateFormat(
 			"MMM dd, yyyy HH:mm:ss", Locale.US);
@@ -189,7 +208,18 @@ public interface IConstants {
 	public static final SimpleDateFormat shortFormatter = new SimpleDateFormat(
 			"M/d/yy h:mm a", Locale.US);
 
-	/** The static millisecond time formatter to use for formatting dates. */
+	/** The static second time formatter to use for formatting dates. */
+	public static final SimpleDateFormat secondTimeFormater = new SimpleDateFormat(
+			"hh:mm:ss", Locale.US);
+
+	/** The static formatter to use for formatting dates for file names. */
+	public static final SimpleDateFormat fileNameFormatter = new SimpleDateFormat(
+			"yyyy-MM-dd-HH-mm-ss", Locale.US);
+
+	/**
+	 * The static millisecond time formatter to use for formatting dates. Don't
+	 * use this for time differences as it will subtract the local GMT offset.
+	 */
 	public static final SimpleDateFormat millisecTimeFormater = new SimpleDateFormat(
 			"hh:mm.ss.SSS", Locale.US);
 

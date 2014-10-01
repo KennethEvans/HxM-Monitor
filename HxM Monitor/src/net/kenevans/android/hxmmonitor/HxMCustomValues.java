@@ -13,7 +13,6 @@ public class HxMCustomValues implements IConstants {
 		if (!characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
 			return;
 		}
-		String string = "";
 		int offset = 0;
 		int flag = characteristic.getIntValue(
 				BluetoothGattCharacteristic.FORMAT_UINT8, offset);

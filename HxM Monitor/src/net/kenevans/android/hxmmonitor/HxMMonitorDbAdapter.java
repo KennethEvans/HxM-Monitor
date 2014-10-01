@@ -22,11 +22,11 @@ public class HxMMonitorDbAdapter implements IConstants {
 	private File mDataDir;
 
 	/** Database creation SQL statement */
-	private static final String DB_CREATE = "create table " + DB_TABLE
-			+ " (_id integer primary key autoincrement, " + COL_DATE
-			+ " integer not null, " + COL_START_DATE + " integer not null, "
-			+ COL_TMP + " integer not null, " + COL_HR + " integer not null, "
-			+ COL_RR + " text not null);";
+	private static final String DB_CREATE_DATA_TABLE = "create table "
+			+ DB_DATA_TABLE + " (_id integer primary key autoincrement, "
+			+ COL_DATE + " integer not null, " + COL_START_DATE
+			+ " integer not null, " + COL_TMP + " integer not null, " + COL_HR
+			+ " integer not null, " + COL_RR + " text not null);";
 
 	/**
 	 * Constructor - takes the context to allow the database to be
@@ -129,7 +129,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 		values.put(COL_HR, hr);
 		values.put(COL_RR, rr);
 
-		return mDb.insert(DB_TABLE, null, values);
+		return mDb.insert(DB_DATA_TABLE, null, values);
 	}
 
 	/**
@@ -140,7 +140,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * @return true if deleted, false otherwise.
 	 */
 	public boolean deleteData(long rowId) {
-		return mDb.delete(DB_TABLE, COL_ID + "=" + rowId, null) > 0;
+		return mDb.delete(DB_DATA_TABLE, COL_ID + "=" + rowId, null) > 0;
 	}
 
 	/**
@@ -149,7 +149,20 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * @return
 	 */
 	public boolean deleteAllTemporaryData() {
-		return mDb.delete(DB_TABLE, COL_TMP + "= 1", null) > 0;
+		return mDb.delete(DB_DATA_TABLE, COL_TMP + "= 1", null) > 0;
+	}
+
+	/**
+	 * Deletes all data in the database for the interval corresponding to the
+	 * given the start and end dates.
+	 * 
+	 * @param start
+	 * @param end
+	 * @return
+	 */
+	public boolean deleteAllDataForTimes(long start, long end) {
+		return mDb.delete(DB_DATA_TABLE, COL_DATE + ">=" + Long.toString(start)
+				+ " AND " + COL_DATE + "<=" + Long.toString(end), null) > 0;
 	}
 
 	/**
@@ -157,9 +170,9 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 * 
 	 * @return true if deleted, false otherwise.
 	 */
-	public void recreateTable() {
-		mDb.execSQL("DROP TABLE IF EXISTS " + DB_TABLE);
-		mDb.execSQL(DB_CREATE);
+	public void recreateDataTable() {
+		mDb.execSQL("DROP TABLE IF EXISTS " + DB_DATA_TABLE);
+		mDb.execSQL(DB_CREATE_DATA_TABLE);
 	}
 
 	/**
@@ -171,7 +184,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 		if (mDb == null) {
 			return null;
 		}
-		return mDb.query(DB_TABLE, new String[] { COL_ID, COL_DATE,
+		return mDb.query(DB_DATA_TABLE, new String[] { COL_ID, COL_DATE,
 				COL_START_DATE, COL_TMP, COL_HR, COL_RR }, filter, null, null,
 				null, SORT_ASCENDING);
 	}
@@ -187,9 +200,60 @@ public class HxMMonitorDbAdapter implements IConstants {
 		if (mDb == null) {
 			return null;
 		}
-		return mDb.query(DB_TABLE, new String[] { COL_ID, COL_DATE,
-				COL_START_DATE, COL_TMP, COL_HR, COL_RR }, COL_DATE + " >= "
+		return mDb.query(DB_DATA_TABLE, new String[] { COL_ID, COL_DATE,
+				COL_START_DATE, COL_TMP, COL_HR, COL_RR }, COL_DATE + ">="
 				+ Long.toString(date), null, null, null, SORT_ASCENDING);
+	}
+
+	/**
+	 * Return a Cursor over the list of start and ending times, sorted in
+	 * reverse order.
+	 * 
+	 * @param date
+	 * @return Cursor over items.
+	 */
+	public Cursor fetchAllSessionStartEndData() {
+		if (mDb == null) {
+			return null;
+		}
+		return mDb.query(DB_DATA_TABLE, new String[] { COL_TMP, COL_START_DATE,
+				COL_END_DATE }, null, null, COL_START_DATE, null,
+				SORT_DESCENDING);
+	}
+
+	/**
+	 * Return a Cursor over the HR and RR items in the database for a given time
+	 * and later.
+	 * 
+	 * @param date
+	 * @return Cursor over items.
+	 */
+	public Cursor fetchAllHrRrDateDataForTimes(long start, long end) {
+		if (mDb == null) {
+			return null;
+		}
+		return mDb.query(DB_DATA_TABLE,
+				new String[] { COL_DATE, COL_HR, COL_RR }, COL_DATE + ">="
+						+ Long.toString(start) + " AND " + COL_DATE + "<="
+						+ Long.toString(end), null, null, null, SORT_ASCENDING);
+	}
+
+	/**
+	 * Return a Cursor over the HR and RR items in the database for a given time
+	 * and later.
+	 * 
+	 * @param date
+	 * @return Cursor over items.
+	 */
+	public Cursor fetchAllHrRrDateDataStartingAtTime(long date) {
+		if (mDb == null) {
+			return null;
+		}
+		return mDb
+				.query(DB_DATA_TABLE,
+						new String[] { COL_DATE, COL_HR, COL_RR }, COL_DATE
+								+ ">=" + Long.toString(date), null, null, null,
+						SORT_ASCENDING);
 	}
 
 	/**
@@ -202,7 +266,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 	 *             if entry could not be found/retrieved.
 	 */
 	public Cursor fetchData(long rowId) throws SQLException {
-		Cursor mCursor = mDb.query(true, DB_TABLE, new String[] { COL_ID,
+		Cursor mCursor = mDb.query(true, DB_DATA_TABLE, new String[] { COL_ID,
 				COL_DATE, COL_START_DATE, COL_HR, COL_RR }, COL_ID + "="
 				+ rowId, null, null, null, null, null);
 		if (mCursor != null) {
@@ -232,7 +296,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 		values.put(COL_HR, hr);
 		values.put(COL_RR, rr);
 
-		return mDb.update(DB_TABLE, values, COL_ID + "=" + rowId, null) > 0;
+		return mDb.update(DB_DATA_TABLE, values, COL_ID + "=" + rowId, null) > 0;
 	}
 
 	/**
@@ -247,7 +311,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 
 		@Override
 		public void onCreate(SQLiteDatabase db) {
-			db.execSQL(DB_CREATE);
+			db.execSQL(DB_CREATE_DATA_TABLE);
 		}
 
 		@Override
@@ -256,7 +320,7 @@ public class HxMMonitorDbAdapter implements IConstants {
 			// the version
 			Log.w(TAG, "Upgrading database from version " + oldVersion + " to "
 					+ newVersion + ", which will destroy all old data");
-			db.execSQL("DROP TABLE IF EXISTS " + DB_TABLE);
+			db.execSQL("DROP TABLE IF EXISTS " + DB_DATA_TABLE);
 			onCreate(db);
 		}
 	}

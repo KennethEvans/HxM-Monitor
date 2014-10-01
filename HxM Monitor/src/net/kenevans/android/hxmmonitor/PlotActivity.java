@@ -9,7 +9,6 @@ import org.afree.chart.AFreeChart;
 import org.afree.chart.ChartFactory;
 import org.afree.chart.axis.DateAxis;
 import org.afree.chart.axis.NumberAxis;
-import org.afree.chart.axis.NumberTickUnit;
 import org.afree.chart.plot.XYPlot;
 import org.afree.chart.renderer.xy.StandardXYItemRenderer;
 import org.afree.chart.renderer.xy.XYItemRenderer;
@@ -57,129 +56,10 @@ public class PlotActivity extends Activity implements IConstants {
 	private TimeSeries mRrSeries;
 	private HxMMonitorDbAdapter mDbAdapter;
 	private File mDataDir;
-	private long mPlotStartTime;
-
-	@Override
-	protected void onCreate(Bundle savedInstanceState) {
-		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate");
-		super.onCreate(savedInstanceState);
-		mView = new AFreeChartView(this);
-		requestWindowFeature(Window.FEATURE_NO_TITLE);
-		setContentView(mView);
-
-		// Get the database name from the default preferences
-		SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
-		String prefString = prefs.getString(PREF_DATA_DIRECTORY, null);
-		if (prefString == null) {
-			return;
-		}
-
-		// Get the plot start time from the default preferences
-		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, Long.MIN_VALUE);
-		if (prefLong == Long.MIN_VALUE) {
-			// Set it to now
-			mPlotStartTime = new Date().getTime();
-			SharedPreferences.Editor editor = prefs.edit();
-			editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
-			editor.commit();
-		} else {
-			mPlotStartTime = prefLong;
-		}
-
-		// Open the database
-		mDataDir = new File(prefString);
-		if (mDataDir == null) {
-			Utils.errMsg(this, "Database directory is null");
-			return;
-		}
-		if (!mDataDir.exists()) {
-			Utils.errMsg(this, "Cannot find database directory: " + mDataDir);
-			mDataDir = null;
-			return;
-		}
-		mDbAdapter = new HxMMonitorDbAdapter(this, mDataDir);
-		mDbAdapter.open();
-	}
-
-	@Override
-	protected void onResume() {
-		Log.d(TAG, this.getClass().getSimpleName() + ": onResume: " + "mView="
-				+ mView + " mHrDataset=" + mHrDataset + " mHrSeries="
-				+ mHrSeries);
-		super.onResume();
-		// SharedPreferences prefs = getPreferences(MODE_PRIVATE);
-		// lastTimeOffset = prefs.getInt("timeOffset", lastTimeOffset);
-		// dryRun = prefs.getBoolean("dryrun", dryRun);
-		if (mView != null && mChart == null) {
-			mChart = createChart();
-			mView.setChart(mChart);
-		} else {
-			Log.d(TAG, getClass().getSimpleName() + ".onResume: mView null");
-			returnResult(RESULT_ERROR, "mView is null");
-		}
-		super.onResume();
-
-		Log.d(TAG, "Starting registerReceiver");
-		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-	}
-
-	@Override
-	protected void onPause() {
-		Log.d(TAG, this.getClass().getSimpleName() + " :onPause");
-		super.onPause();
-		unregisterReceiver(mGattUpdateReceiver);
-	}
-
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		if (mDbAdapter != null) {
-			mDbAdapter.close();
-			mDbAdapter = null;
-		}
-	}
-
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
-		getMenuInflater().inflate(R.menu.menu_plot, menu);
-		return true;
-	}
-
-	@Override
-	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle action bar item clicks here. The action bar will
-		// automatically handle clicks on the Home/Up button, so long
-		// as you specify a parent activity in AndroidManifest.xml.
-		int id = item.getItemId();
-		switch (id) {
-		case R.id.action_settings:
-			return true;
-		case R.id.start_now:
-			startNow();
-			return true;
-		case R.id.get_view_info:
-			Utils.infoMsg(this, getViewInfo());
-			return true;
-		}
-		return super.onOptionsItemSelected(item);
-	}
-
-	/**
-	 * Sets the result code to send back to the calling Activity.
-	 * 
-	 * @param resultCode
-	 *            The result code to send.
-	 */
-	private void returnResult(int resultCode, String msg) {
-		Intent data = new Intent();
-		if (msg != null) {
-			data.putExtra(MSG_CODE, msg);
-		}
-		setResult(resultCode, data);
-		finish();
-	}
+	private long mPlotStartTime = Long.MIN_VALUE;
+	private long mPlotSessionStart = Long.MIN_VALUE;
+	private long mPlotSessionEnd = Long.MIN_VALUE;
+	private boolean mIsSession = false;
 
 	/**
 	 * Handles various events fired by the Service.
@@ -221,6 +101,152 @@ public class PlotActivity extends Activity implements IConstants {
 		return intentFilter;
 	}
 
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onCreate");
+		super.onCreate(savedInstanceState);
+		mView = new AFreeChartView(this);
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+		setContentView(mView);
+
+		// Get whether to plot a session or current
+		Bundle extras = getIntent().getExtras();
+		if (extras != null) {
+			mIsSession = extras.getBoolean(PLOT_SESSION_CODE, false);
+			if (mIsSession) {
+				mPlotSessionStart = extras.getLong(PLOT_SESSION_START_TIME, 0);
+				mPlotSessionEnd = extras.getLong(PLOT_SESSION_END_TIME, 0);
+			}
+		}
+		if (mIsSession && (mPlotSessionStart == 0 || mPlotSessionEnd == 0)) {
+			Utils.errMsg(this, "Plotting a session but got invalid "
+					+ "values for the start and end times");
+			return;
+		}
+
+		// Get the database name from the default preferences
+		SharedPreferences prefs = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		String prefString = prefs.getString(PREF_DATA_DIRECTORY, null);
+		if (prefString == null) {
+			Utils.errMsg(this, "Cannot find the name of the data directory");
+			return;
+		}
+
+		// Get the plot start time from the default preferences
+		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, Long.MIN_VALUE);
+		if (prefLong == Long.MIN_VALUE) {
+			// Set it to now
+			mPlotStartTime = new Date().getTime();
+			SharedPreferences.Editor editor = prefs.edit();
+			editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
+			editor.commit();
+		} else {
+			mPlotStartTime = prefLong;
+		}
+
+		// Open the database
+		mDataDir = new File(prefString);
+		if (mDataDir == null) {
+			Utils.errMsg(this, "Database directory is null");
+			return;
+		}
+		if (!mDataDir.exists()) {
+			Utils.errMsg(this, "Cannot find database directory: " + mDataDir);
+			mDataDir = null;
+			return;
+		}
+		mDbAdapter = new HxMMonitorDbAdapter(this, mDataDir);
+		mDbAdapter.open();
+
+		// Set result CANCELED in case the user backs out
+		setResult(Activity.RESULT_CANCELED);
+	}
+
+	@Override
+	protected void onResume() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onResume: " + "mView="
+				+ mView + " mHrDataset=" + mHrDataset + " mHrSeries="
+				+ mHrSeries);
+		super.onResume();
+		if (mView != null) {
+			if (mChart == null) {
+				mChart = createChart();
+				mView.setChart(mChart);
+			}
+		} else {
+			Log.d(TAG, getClass().getSimpleName() + ".onResume: mView is null");
+			returnResult(RESULT_ERROR, "mView is null");
+		}
+		if (!mIsSession) {
+			Log.d(TAG, "onResume: Starting registerReceiver");
+			registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+		}
+	}
+
+	@Override
+	protected void onPause() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onPause");
+		super.onPause();
+		if (!mIsSession) {
+			unregisterReceiver(mGattUpdateReceiver);
+		}
+	}
+
+	@Override
+	protected void onDestroy() {
+		Log.d(TAG, this.getClass().getSimpleName() + ": onDestroy");
+		super.onDestroy();
+		if (mDbAdapter != null) {
+			mDbAdapter.close();
+			mDbAdapter = null;
+		}
+	}
+
+	@Override
+	public boolean onCreateOptionsMenu(Menu menu) {
+		// Inflate the menu; this adds items to the action bar if it is present.
+		getMenuInflater().inflate(R.menu.menu_plot, menu);
+		return true;
+	}
+
+	@Override
+	public boolean onOptionsItemSelected(MenuItem item) {
+		// Handle action bar item clicks here. The action bar will
+		// automatically handle clicks on the Home/Up button, so long
+		// as you specify a parent activity in AndroidManifest.xml.
+		int id = item.getItemId();
+		switch (id) {
+		case R.id.action_settings:
+			return true;
+		case R.id.menu_start_now:
+			startNow();
+			return true;
+		case R.id.menu_refresh:
+			refresh();
+			return true;
+		case R.id.get_view_info:
+			Utils.infoMsg(this, getViewInfo());
+			return true;
+		}
+		return super.onOptionsItemSelected(item);
+	}
+
+	/**
+	 * Sets the result code to send back to the calling Activity.
+	 * 
+	 * @param resultCode
+	 *            The result code to send.
+	 */
+	private void returnResult(int resultCode, String msg) {
+		Intent data = new Intent();
+		if (msg != null) {
+			data.putExtra(MSG_CODE, msg);
+		}
+		setResult(resultCode, data);
+		finish();
+	}
+
 	/**
 	 * Displays the error from an ACTION_ERROR callback.
 	 * 
@@ -245,12 +271,27 @@ public class PlotActivity extends Activity implements IConstants {
 	 * Resets the plot start time to now.
 	 */
 	private void startNow() {
+		mIsSession = false;
 		mPlotStartTime = new Date().getTime();
+		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+		Log.d(TAG, "startNow: Starting registerReceiver");
+
 		SharedPreferences prefs = PreferenceManager
 				.getDefaultSharedPreferences(this);
 		SharedPreferences.Editor editor = prefs.edit();
 		editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
 		editor.commit();
+		mHrDataset = createHrDataset();
+		mRrDataset = createRrDataset();
+		((XYPlot) mChart.getPlot()).setDataset(0, mHrDataset);
+		((XYPlot) mChart.getPlot()).setDataset(1, mRrDataset);
+	}
+
+	/**
+	 * Refreshes the plot by getting new data.
+	 */
+	private void refresh() {
+		// The logic for whether it is a session or not is in these methods.
 		mHrDataset = createHrDataset();
 		mRrDataset = createRrDataset();
 		((XYPlot) mChart.getPlot()).setDataset(0, mHrDataset);
@@ -308,7 +349,7 @@ public class PlotActivity extends Activity implements IConstants {
 		String[] tokens;
 		double value;
 		double max;
-		if (strValue == null) {
+		if (strValue == null || strValue.length() == 0) {
 			return Double.NaN;
 		}
 		tokens = strValue.trim().split("\\s+");
@@ -430,7 +471,7 @@ public class PlotActivity extends Activity implements IConstants {
 		plot.mapDatasetToRangeAxis(1, 1);
 		yAxis1.setAutoRangeIncludesZero(true);
 		yAxis1.setAutoRangeMinimumSize(.3);
-//		yAxis1.setTickUnit(new NumberTickUnit(.1));
+		// yAxis1.setTickUnit(new NumberTickUnit(.1));
 		yAxis1.setLabelFont(font);
 		yAxis1.setLabelPaintType(white);
 		yAxis1.setLabelPaintType(white);
@@ -455,33 +496,35 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Updates the chart when data is received.
+	 * Updates the chart when data is received from the BluetoothLeService.
 	 * 
 	 * @param intent
 	 */
 	private void updateChart(Intent intent) {
 		String strValue;
-		String[] tokens;
 		long date = intent.getLongExtra(EXTRA_DATE, Long.MIN_VALUE);
 		if (date == Long.MIN_VALUE) {
 			return;
 		}
 		double value = Double.NaN;
-		double max;
 		if (mHrSeries != null) {
 			strValue = intent.getStringExtra(EXTRA_HR);
-			if (strValue != null) {
-				try {
-					value = Double.parseDouble(strValue);
-				} catch (NumberFormatException ex) {
-					value = Double.NaN;
-				}
+			if (strValue == null || strValue.length() == 0) {
+				return;
+			}
+			try {
+				value = Double.parseDouble(strValue);
+			} catch (NumberFormatException ex) {
+				value = Double.NaN;
 			}
 			mHrSeries.addOrUpdate(new FixedMillisecond(date), value);
 		}
 		if (mRrSeries != null) {
 			value = Double.NaN;
 			strValue = intent.getStringExtra(EXTRA_RR);
+			if (strValue == null || strValue.length() == 0) {
+				return;
+			}
 			value = convertRrStringsToDouble(strValue);
 			mRrSeries.addOrUpdate(new FixedMillisecond(date), value / 1024.);
 		}
@@ -499,13 +542,19 @@ public class PlotActivity extends Activity implements IConstants {
 		int nItems = 0;
 		try {
 			if (mDbAdapter != null) {
-				cursor = mDbAdapter.fetchAllDataStartingAtTime(mPlotStartTime);
+				if (mIsSession) {
+					cursor = mDbAdapter.fetchAllHrRrDateDataForTimes(
+							mPlotSessionStart, mPlotSessionEnd);
+				} else {
+					cursor = mDbAdapter
+							.fetchAllHrRrDateDataStartingAtTime(mPlotStartTime);
+				}
 				int indexDate = cursor.getColumnIndex(COL_DATE);
 				int indexHr = cursor.getColumnIndex(COL_HR);
 
 				// Loop over items
 				cursor.moveToFirst();
-				long date;
+				long date = Long.MIN_VALUE;
 				double hr;
 				while (cursor.isAfterLast() == false) {
 					nItems++;
@@ -524,7 +573,7 @@ public class PlotActivity extends Activity implements IConstants {
 				// Do nothing
 			}
 		}
-		Log.d(TAG, "Dataset 1 created with " + nItems + " items");
+		Log.d(TAG, "HR dataset created with " + nItems + " items");
 
 		// long date = new Date().getTime();
 		// mHrSeries.add(new FixedMillisecond(date -= 1000), 160);
@@ -563,16 +612,23 @@ public class PlotActivity extends Activity implements IConstants {
 		int nItems = 0;
 		try {
 			if (mDbAdapter != null) {
-				cursor = mDbAdapter.fetchAllDataStartingAtTime(mPlotStartTime);
+				if (mIsSession) {
+					cursor = mDbAdapter.fetchAllHrRrDateDataForTimes(
+							mPlotSessionStart, mPlotSessionEnd);
+				} else {
+					cursor = mDbAdapter
+							.fetchAllHrRrDateDataStartingAtTime(mPlotStartTime);
+				}
 				int indexDate = cursor.getColumnIndex(COL_DATE);
 				int indexRr = cursor.getColumnIndex(COL_RR);
 
 				// Loop over items
 				cursor.moveToFirst();
-				long date;
+				long date = Long.MIN_VALUE;
 				double rr;
 				String rrString;
 				while (cursor.isAfterLast() == false) {
+					nItems++;
 					date = cursor.getLong(indexDate);
 					rrString = cursor.getString(indexRr);
 					rr = convertRrStringsToDouble(rrString);
@@ -589,7 +645,7 @@ public class PlotActivity extends Activity implements IConstants {
 				// Do nothing
 			}
 		}
-		Log.d(TAG, "Dataset 2 created with " + nItems + " items");
+		Log.d(TAG, "RR dataset created with " + nItems + " items");
 
 		// long date = new Date().getTime();
 		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 260);
