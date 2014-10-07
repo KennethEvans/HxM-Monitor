@@ -38,13 +38,14 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		getActionBar().setTitle(R.string.title_activity_devices);
+		getActionBar().setDisplayHomeAsUpEnabled(false);
 		mHandler = new Handler();
 
 		// Use this check to determine whether BLE is supported on the device.
 		// Then you can selectively disable BLE-related features.
 		if (!getPackageManager().hasSystemFeature(
 				PackageManager.FEATURE_BLUETOOTH_LE)) {
-			String msg = "Bluetooth LE is not supported on this device";
+			String msg = getString(R.string.ble_not_supported);
 			Utils.errMsg(this, msg);
 			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			finish();
@@ -57,7 +58,7 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 
 		// Checks if Bluetooth is supported on the device
 		if (mBluetoothAdapter == null) {
-			String msg = "Bluetooth is not supported on this device";
+			String msg = getString(R.string.bluetooth_not_supported);
 			Utils.errMsg(this, msg);
 			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			finish();
@@ -166,7 +167,7 @@ public class DeviceScanActivity extends ListActivity implements IConstants {
 					mBluetoothAdapter.stopLeScan(mLeScanCallback);
 					invalidateOptionsMenu();
 				}
-			}, SCAN_PERIOD);
+			}, DEVICE_SCAN_PERIOD);
 
 			boolean res = mBluetoothAdapter.startLeScan(mLeScanCallback);
 			Log.d(TAG, "scanLeDevice: startLeScan result=" + res);

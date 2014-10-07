@@ -19,13 +19,15 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 	private SQLiteDatabase mDb;
 	private final Context mContext;
 	private File mDataDir;
+	/** Database column for the temporary flag. */
+	public static final String COL_TMP = "temporary";
 
 	/** Database creation SQL statement */
 	private static final String DB_CREATE = "create table " + DB_DATA_TABLE
 			+ " (_id integer primary key autoincrement, " + COL_DATE
 			+ " integer not null, " + COL_START_DATE + " integer not null, "
 			+ COL_TMP + " integer not null, " + COL_HR + " integer not null, "
-			+ COL_RR + " text not null, " + COL_ACTIVITY + " real not null,"
+			+ COL_RR + " text not null, " + COL_ACT + " real not null,"
 			+ COL_PA + " real not null);";
 
 	/**
@@ -126,7 +128,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 		values.put(COL_TMP, tmp ? 1 : 0);
 		values.put(COL_HR, hr);
 		values.put(COL_RR, rr);
-		values.put(COL_ACTIVITY, activity);
+		values.put(COL_ACT, activity);
 		values.put(COL_PA, pa);
 
 		return mDb.insert(DB_DATA_TABLE, null, values);
@@ -164,7 +166,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 		}
 		return mDb.query(DB_DATA_TABLE,
 				new String[] { COL_ID, COL_DATE, COL_START_DATE, COL_TMP,
-						COL_HR, COL_RR, COL_ACTIVITY, COL_PA }, filter, null,
+						COL_HR, COL_RR, COL_ACT, COL_PA }, filter, null,
 				null, null, SORT_ASCENDING);
 	}
 
@@ -180,7 +182,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 	public Cursor fetchData(long rowId) throws SQLException {
 		Cursor mCursor = mDb.query(true, DB_DATA_TABLE,
 				new String[] { COL_ID, COL_DATE, COL_START_DATE, COL_HR,
-						COL_RR, COL_ACTIVITY, COL_PA }, COL_ID + "=" + rowId,
+						COL_RR, COL_ACT, COL_PA }, COL_ID + "=" + rowId,
 				null, null, null, null, null);
 		if (mCursor != null) {
 			mCursor.moveToFirst();
@@ -211,7 +213,7 @@ public class HxMMonitorExtendedDbAdapter implements IConstants {
 		values.put(COL_TMP, tmp ? 1 : 0);
 		values.put(COL_HR, hr);
 		values.put(COL_RR, rr);
-		values.put(COL_ACTIVITY, activity);
+		values.put(COL_ACT, activity);
 		values.put(COL_PA, pa);
 
 		return mDb.update(DB_DATA_TABLE, values, COL_ID + "=" + rowId, null) > 0;

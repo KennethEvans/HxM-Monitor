@@ -1,10 +1,13 @@
 package net.kenevans.android.hxmmonitor;
 
+import android.widget.CheckBox;
+
 public class Session {
 	private String name;
 	private long startDate= Long.MIN_VALUE;
 	private long endDate= Long.MIN_VALUE;
 	private boolean checked = false;
+	private CheckBox checkBox;
 
 	public Session(String name, long startDate, long endDate) {
 		this.name = name;
@@ -46,6 +49,14 @@ public class Session {
 
 	public void setChecked(boolean checked) {
 		this.checked = checked;
+	}
+
+	public CheckBox getCheckBox() {
+		return checkBox;
+	}
+
+	public void setCheckBox(CheckBox checkBox) {
+		this.checkBox = checkBox;
 	}
 
 }

@@ -18,7 +18,11 @@ package net.kenevans.android.hxmmonitor;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -33,6 +37,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
+import android.support.v4.app.NotificationCompat;
+import android.support.v4.app.NotificationManagerCompat;
 import android.util.Log;
 
 /**
@@ -53,16 +59,23 @@ public class BluetoothLeService extends Service implements IConstants {
 	private HxMMonitorDbAdapter mDbAdapter;
 	private int mConnectionState = BluetoothProfile.STATE_DISCONNECTED;
 	private int mSessionState = SESSION_IDLE;
-	private int mLastBat;
+	private long mLastHrDate;
 	private int mLastHr;
 	private String mLastRr;
-	private int mLastAct;
-	private int mLastPa;
 	private BluetoothGattCharacteristic mCharBat;
 	private BluetoothGattCharacteristic mCharHr;
 	private BluetoothGattCharacteristic mCharCustom;
 	private boolean mSessionInProgress = false;
-	private boolean mTemporarySession = true;
+	/**
+	 * Timer to change the session back to SESSION_WAITING_HR if it is in
+	 * SESSION_WAITING_CUSTOM too long.
+	 */
+	private Timer mCustomTimeoutTimer;
+	/**
+	 * TimerTask to change the session back to SESSION_WAITING_HR if it is in
+	 * SESSION_WAITING_CUSTOM too long.
+	 */
+	private TimerTask mCustomTimeoutTask;
 	// TODO Is this needed?
 	private long mSessionStartTime;
 	private final IBinder mBinder = new LocalBinder();
@@ -147,16 +160,44 @@ public class BluetoothLeService extends Service implements IConstants {
 		}
 	};
 
-	/**
-	 * Broadcast an error using ACTION_ERROR.
-	 * 
-	 * @param msg
-	 */
-	private void broadcastError(final String msg) {
-		final Intent intent = new Intent(ACTION_ERROR);
-		intent.putExtra(EXTRA_MSG, msg);
-		sendBroadcast(intent);
+	@Override
+	public void onCreate() {
+		super.onCreate();
+		// Post a notification the service is running
+		Intent activityIntent = new Intent(this, DeviceMonitorActivity.class);
+		PendingIntent viewPendingIntent = PendingIntent.getActivity(this, 0,
+				activityIntent, Notification.FLAG_ONGOING_EVENT);
+		NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(
+				this)
+				.setSmallIcon(R.drawable.hxmmonitor)
+				.setContentTitle(getString(R.string.service_notification_title))
+				.setContentText(getString(R.string.service_notification_text))
+				.setContentIntent(viewPendingIntent);
+		NotificationManagerCompat notificationManager = NotificationManagerCompat
+				.from(this);
+		notificationManager
+				.notify(NOTIFICATION_ID, notificationBuilder.build());
 	}
+
+	@Override
+	public void onDestroy() {
+		// Cancel the notification
+		NotificationManagerCompat notificationManager = NotificationManagerCompat
+				.from(this);
+		notificationManager.cancel(NOTIFICATION_ID);
+		super.onDestroy();
+	}
+
+	// /**
+	// * Broadcast an error using ACTION_ERROR.
+	// *
+	// * @param msg
+	// */
+	// private void broadcastError(final String msg) {
+	// final Intent intent = new Intent(ACTION_ERROR);
+	// intent.putExtra(EXTRA_MSG, msg);
+	// sendBroadcast(intent);
+	// }
 
 	private void broadcastUpdate(final String action) {
 		final Intent intent = new Intent(action);
@@ -182,11 +223,13 @@ public class BluetoothLeService extends Service implements IConstants {
 			HeartRateValues values = new HeartRateValues(characteristic, date);
 			mLastHr = values.getHr();
 			mLastRr = values.getRr();
+			mLastHrDate = date;
+			// // DEBUG
 			// Log.d(TAG, String.format("Received heart rate measurement: %d",
 			// mLastHr));
-			if (mDbAdapter != null) {
-				mDbAdapter.createData(date, mSessionStartTime,
-						mTemporarySession, mLastHr, mLastRr);
+			if (mDbAdapter != null && mCharCustom == null) {
+				mDbAdapter.createData(mLastHrDate, mSessionStartTime, mLastHr,
+						mLastRr, 0, 0);
 			}
 			intent.putExtra(EXTRA_HR, String.valueOf(values.getHr() + dateStr));
 			intent.putExtra(EXTRA_RR, values.getRr() + dateStr);
@@ -195,28 +238,37 @@ public class BluetoothLeService extends Service implements IConstants {
 				incrementSessionState();
 			}
 			// Log.d(TAG, String.format("Received HR: %d", values.getHr()));
-		} else if (UUID_BATTERY_LEVEL.equals(characteristic.getUuid())) {
-			final int iVal = characteristic.getIntValue(
-					BluetoothGattCharacteristic.FORMAT_UINT8, 0);
-			mLastBat = iVal;
-			// Log.d(TAG, String.format("Received battery level: %d", iVal));
-			intent.putExtra(EXTRA_BAT, String.valueOf(iVal) + dateStr);
-			intent.putExtra(EXTRA_DATA,
-					String.valueOf("Battery Level: " + iVal));
-			if (mSessionInProgress && mSessionState == SESSION_WAITING_BAT) {
-				incrementSessionState();
-			}
 		} else if (UUID_CUSTOM_MEASUREMENT.equals(characteristic.getUuid())) {
 			HxMCustomValues values = new HxMCustomValues(characteristic, date);
-			mLastAct = values.getActivity();
-			mLastPa = values.getPa();
+			if (mDbAdapter != null) {
+				if (mCharHr == null) {
+					mDbAdapter.createData(date, mSessionStartTime, 0, "",
+							values.getActivity(), values.getPa());
+				} else {
+					mDbAdapter.createData(mLastHrDate, mSessionStartTime,
+							mLastHr, mLastRr, values.getActivity(),
+							values.getPa());
+				}
+			}
+			// // DEBUG
 			// Log.d(TAG,
-			// String.format("Received custom measurement: %d", mLastAct));
+			// String.format("Received custom measurement: %d %d",
+			// values.getActivity(), values.getPa()));
 			intent.putExtra(EXTRA_ACT,
 					String.valueOf(values.getActivity() + dateStr));
 			intent.putExtra(EXTRA_PA, String.valueOf(values.getPa() + dateStr));
 			intent.putExtra(EXTRA_DATA, dateStr + values.getString());
 			if (mSessionInProgress && mSessionState == SESSION_WAITING_CUSTOM) {
+				incrementSessionState();
+			}
+		} else if (UUID_BATTERY_LEVEL.equals(characteristic.getUuid())) {
+			final int iVal = characteristic.getIntValue(
+					BluetoothGattCharacteristic.FORMAT_UINT8, 0);
+			// Log.d(TAG, String.format("Received battery level: %d", iVal));
+			intent.putExtra(EXTRA_BAT, String.valueOf(iVal) + dateStr);
+			intent.putExtra(EXTRA_DATA,
+					String.valueOf("Battery Level: " + iVal));
+			if (mSessionInProgress && mSessionState == SESSION_WAITING_BAT) {
 				incrementSessionState();
 			}
 		} else {
@@ -596,25 +648,33 @@ public class BluetoothLeService extends Service implements IConstants {
 	}
 
 	/**
-	 * Stops a session.
+	 * Starts a session.
 	 * 
 	 * @param charBat
 	 * @param charHr
 	 * @param charCustom
-	 * @param temporary
-	 *            If the session is temporary.
 	 * @return If successful.
 	 */
 	public boolean startSession(BluetoothGattCharacteristic charBat,
 			BluetoothGattCharacteristic charHr,
-			BluetoothGattCharacteristic charCustom, boolean temporary) {
+			BluetoothGattCharacteristic charCustom) {
 		Log.d(TAG, "startSession");
 		boolean res = true;
 		mSessionStartTime = new Date().getTime();
-		mTemporarySession = temporary;
 
 		// // DEBUG Check permissions
 		// checkPermissions(charBat, charHr, charCustom);
+
+		// Cancel a running timer
+		if (mCustomTimeoutTimer != null) {
+			if (mCustomTimeoutTask != null) {
+				mCustomTimeoutTask.cancel();
+			}
+			mCustomTimeoutTimer.purge();
+			mCustomTimeoutTask = null;
+			mCustomTimeoutTimer.cancel();
+			mCustomTimeoutTimer = null;
+		}
 
 		// Stop notifying for existing characteristics
 		if (mSessionInProgress = true && mCharHr != null) {
@@ -639,11 +699,8 @@ public class BluetoothLeService extends Service implements IConstants {
 		mCharBat = charBat;
 		mCharHr = charHr;
 		mCharCustom = charCustom;
-		mLastBat = -1;
 		mLastHr = -1;
 		mLastRr = null;
-		mLastAct = -1;
-		mLastPa = -1;
 		mSessionInProgress = res;
 
 		return res;
@@ -664,23 +721,31 @@ public class BluetoothLeService extends Service implements IConstants {
 		mCharBat = null;
 		mCharHr = null;
 		mCharCustom = null;
-		mLastBat = -1;
 		mLastHr = -1;
 		mLastRr = null;
-		mLastAct = -1;
-		mLastPa = -1;
 		mSessionState = SESSION_IDLE;
 		mSessionInProgress = false;
 	}
 
 	/**
-	 * Performs the logic to set the next session state.
+	 * Performs the logic to set the next session state. The logic is to first
+	 * read the BAT. On receiving a value for BAT, set notification for HR. On
+	 * receiving a value for HR, set notification for Custom. On receiving a
+	 * value for Custom, set notification for HR. The logic is modified if one
+	 * or more of the Characteristics is null. The result is that it appears to
+	 * get both the HR and Custom values for each update from the device. The
+	 * Custom comes within .1 sec of the HR, and loops back to waiting for HR.
+	 * This necessary because Android apparently allows only one request on the
+	 * stack at a time.
 	 */
 	public void incrementSessionState() {
+		// // DEBUG
+		// Log.d(TAG, "incrementSessionState:");
 		if (!mSessionInProgress) {
 			mSessionState = SESSION_IDLE;
 			return;
 		}
+		// // DEBUG
 		// int oldSessionState = mSessionState;
 		switch (mSessionState) {
 		case SESSION_WAITING_BAT:
@@ -694,32 +759,87 @@ public class BluetoothLeService extends Service implements IConstants {
 			// Else leave it as is
 			break;
 		case SESSION_WAITING_HR:
+			// // DEBUG
+			// Log.d(TAG,
+			// "incrementSessionState: SESSION_WAITING_HR mCustomTimeoutTimer="
+			// + mCustomTimeoutTimer);
 			if (mCharCustom != null) {
-				if (mCharHr != null) {
-					setCharacteristicNotification(mCharHr, false);
-					mSessionState = SESSION_WAITING_CUSTOM;
-					readCharacteristic(mCharCustom);
-				} else {
-					mSessionState = SESSION_WAITING_CUSTOM;
-					setCharacteristicNotification(mCharCustom, true);
+				mSessionState = SESSION_WAITING_CUSTOM;
+				setCharacteristicNotification(mCharCustom, true);
+				// Cancel a running timer
+				if (mCustomTimeoutTimer != null) {
+					if (mCustomTimeoutTask != null) {
+						mCustomTimeoutTask.cancel();
+					}
+					mCustomTimeoutTimer.purge();
+					mCustomTimeoutTask = null;
+					mCustomTimeoutTimer.cancel();
+					mCustomTimeoutTimer = null;
+				}
+				// Set a timer to cancel SESSION_WAITING_CUSTOM
+				mCustomTimeoutTask = new TimerTask() {
+					@Override
+					public void run() {
+						mCustomTimeoutTimer = null;
+						Log.d(TAG, "mCustomTimeoutTimer: Timed out: state="
+								+ mSessionState);
+						if (mSessionInProgress
+								&& mSessionState == SESSION_WAITING_CUSTOM) {
+							if (mDbAdapter != null && mCharCustom == null) {
+								mDbAdapter.createData(mLastHrDate,
+										mSessionStartTime, mLastHr, mLastRr, 0,
+										0);
+							}
+							incrementSessionState();
+						}
+					}
+				};
+				// Log.d(TAG, "New timer about to be constructed");
+				try {
+					mCustomTimeoutTimer = new Timer();
+					// // DEBUG
+					// Log.d(TAG, "New timer about to be scheduled");
+					mCustomTimeoutTimer.schedule(mCustomTimeoutTask,
+							CHARACTERISTIC_TIMER_TIMEOUT);
+					// Log.d(TAG, "New timer scheduled");
+				} catch (Exception ex) {
+					Log.e(TAG, "Exception creating timer: " + ex.getMessage());
 				}
 			}
 			// Else leave it as is
 			break;
 		case SESSION_WAITING_CUSTOM:
-			if (mCharHr != null) {
-				if (mCharCustom != null) {
-					setCharacteristicNotification(mCharHr, false);
+			// // DEBUG
+			// Log.d(TAG,
+			// "incrementSessionState: SESSION_WAITING_CUSTOM mCustomTimeoutTimer="
+			// + mCustomTimeoutTimer);
+			if (mCustomTimeoutTimer != null) {
+				// // DEBUG
+				// boolean res = mCustomTimeoutTask.cancel();
+				// int removed = mCustomTimeoutTimer.purge();
+				// mCustomTimeoutTask = null;
+				// mCustomTimeoutTimer.cancel();
+				// Log.d(TAG, "mCustomTimeoutTimer is canceled: removed=" +
+				// removed + " res=" + res);
+				// mCustomTimeoutTimer = null;
+				if (mCustomTimeoutTask != null) {
+					mCustomTimeoutTask.cancel();
 				}
+				mCustomTimeoutTimer.purge();
+				mCustomTimeoutTask = null;
+				mCustomTimeoutTimer.cancel();
+				mCustomTimeoutTimer = null;
+
+			}
+			if (mCharHr != null) {
 				mSessionState = SESSION_WAITING_HR;
 				setCharacteristicNotification(mCharHr, true);
 			}
 			// Else leave it as is
 			break;
 		}
-		// DEBUG
+		// // DEBUG
 		// Log.d(TAG, "incrementSessionState: oldState=" + oldSessionState
 		// + " new State=" + mSessionState);
 	}
-
 }

@@ -7,17 +7,19 @@ import java.util.Locale;
 
 import org.afree.chart.AFreeChart;
 import org.afree.chart.ChartFactory;
+import org.afree.chart.axis.AxisLocation;
 import org.afree.chart.axis.DateAxis;
 import org.afree.chart.axis.NumberAxis;
+import org.afree.chart.axis.NumberTickUnit;
 import org.afree.chart.plot.XYPlot;
 import org.afree.chart.renderer.xy.StandardXYItemRenderer;
 import org.afree.chart.renderer.xy.XYItemRenderer;
 import org.afree.chart.renderer.xy.XYLineAndShapeRenderer;
+import org.afree.chart.title.LegendTitle;
 import org.afree.chart.title.TextTitle;
 import org.afree.data.time.FixedMillisecond;
 import org.afree.data.time.TimeSeries;
 import org.afree.data.time.TimeSeriesCollection;
-import org.afree.data.xy.XYDataset;
 import org.afree.graphics.SolidColor;
 import org.afree.graphics.geom.Dimension;
 import org.afree.graphics.geom.Font;
@@ -50,16 +52,26 @@ public class PlotActivity extends Activity implements IConstants {
 	private static final String TAG = "HxM Plot";
 	private AFreeChartView mView;
 	private AFreeChart mChart;
-	private XYDataset mHrDataset;
-	private XYDataset mRrDataset;
+	private TimeSeriesCollection mHrDataset;
+	private TimeSeriesCollection mRrDataset;
+	private TimeSeriesCollection mActDataset;
+	private TimeSeriesCollection mPaDataset;
 	private TimeSeries mHrSeries;
 	private TimeSeries mRrSeries;
+	private TimeSeries mActSeries;
+	private TimeSeries mPaSeries;
+	private boolean mPlotHr = true;
+	private boolean mPlotRr = true;
+	private boolean mPlotAct = true;
+	private boolean mPlotPa = true;
 	private HxMMonitorDbAdapter mDbAdapter;
 	private File mDataDir;
 	private long mPlotStartTime = Long.MIN_VALUE;
 	private long mPlotSessionStart = Long.MIN_VALUE;
 	private long mPlotSessionEnd = Long.MIN_VALUE;
 	private boolean mIsSession = false;
+	private long mLastRrUpdateTime = Long.MIN_VALUE;
+	private long mLastRrTime = Long.MIN_VALUE;
 
 	/**
 	 * Handles various events fired by the Service.
@@ -114,11 +126,14 @@ public class PlotActivity extends Activity implements IConstants {
 		if (extras != null) {
 			mIsSession = extras.getBoolean(PLOT_SESSION_CODE, false);
 			if (mIsSession) {
-				mPlotSessionStart = extras.getLong(PLOT_SESSION_START_TIME, 0);
-				mPlotSessionEnd = extras.getLong(PLOT_SESSION_END_TIME, 0);
+				mPlotSessionStart = extras.getLong(PLOT_SESSION_START_TIME,
+						Long.MIN_VALUE);
+				mPlotSessionEnd = extras.getLong(PLOT_SESSION_END_TIME,
+						Long.MIN_VALUE);
 			}
 		}
-		if (mIsSession && (mPlotSessionStart == 0 || mPlotSessionEnd == 0)) {
+		if (mIsSession
+				&& (mPlotSessionStart == Long.MIN_VALUE || mPlotSessionEnd == Long.MIN_VALUE)) {
 			Utils.errMsg(this, "Plotting a session but got invalid "
 					+ "values for the start and end times");
 			return;
@@ -136,8 +151,8 @@ public class PlotActivity extends Activity implements IConstants {
 		// Get the plot start time from the default preferences
 		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, Long.MIN_VALUE);
 		if (prefLong == Long.MIN_VALUE) {
-			// Set it to now
-			mPlotStartTime = new Date().getTime();
+			// Set it to now - PLOT_MAXIMUM_AGE
+			mPlotStartTime = new Date().getTime() - PLOT_MAXIMUM_AGE;
 			SharedPreferences.Editor editor = prefs.edit();
 			editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
 			editor.commit();
@@ -181,6 +196,7 @@ public class PlotActivity extends Activity implements IConstants {
 		if (!mIsSession) {
 			Log.d(TAG, "onResume: Starting registerReceiver");
 			registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+			mPlotStartTime = new Date().getTime() - PLOT_MAXIMUM_AGE;
 		}
 	}
 
@@ -217,11 +233,6 @@ public class PlotActivity extends Activity implements IConstants {
 		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
 		switch (id) {
-		case R.id.action_settings:
-			return true;
-		case R.id.menu_start_now:
-			startNow();
-			return true;
 		case R.id.menu_refresh:
 			refresh();
 			return true;
@@ -267,35 +278,37 @@ public class PlotActivity extends Activity implements IConstants {
 		}
 	}
 
-	/**
-	 * Resets the plot start time to now.
-	 */
-	private void startNow() {
-		mIsSession = false;
-		mPlotStartTime = new Date().getTime();
-		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-		Log.d(TAG, "startNow: Starting registerReceiver");
-
-		SharedPreferences prefs = PreferenceManager
-				.getDefaultSharedPreferences(this);
-		SharedPreferences.Editor editor = prefs.edit();
-		editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
-		editor.commit();
-		mHrDataset = createHrDataset();
-		mRrDataset = createRrDataset();
-		((XYPlot) mChart.getPlot()).setDataset(0, mHrDataset);
-		((XYPlot) mChart.getPlot()).setDataset(1, mRrDataset);
-	}
+	// /**
+	// * Resets the plot start time to now.
+	// */
+	// private void startNow() {
+	// mIsSession = false;
+	// mPlotStartTime = new Date().getTime();
+	// mLastRrUpdateTime = Long.MIN_VALUE;
+	// mLastRrTime = INITIAL_RR_START_TIME;
+	// registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
+	// Log.d(TAG, "startNow: Starting registerReceiver");
+	//
+	// SharedPreferences prefs = PreferenceManager
+	// .getDefaultSharedPreferences(this);
+	// SharedPreferences.Editor editor = prefs.edit();
+	// editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
+	// editor.commit();
+	// createDatasets();
+	// ((XYPlot) mChart.getPlot()).setDataset(0, mHrDataset);
+	// ((XYPlot) mChart.getPlot()).setDataset(1, mRrDataset);
+	// }
 
 	/**
 	 * Refreshes the plot by getting new data.
 	 */
 	private void refresh() {
-		// The logic for whether it is a session or not is in these methods.
-		mHrDataset = createHrDataset();
-		mRrDataset = createRrDataset();
-		((XYPlot) mChart.getPlot()).setDataset(0, mHrDataset);
-		((XYPlot) mChart.getPlot()).setDataset(1, mRrDataset);
+		// The logic for whether it is a session or not is in these methods
+		createDatasets();
+		((XYPlot) mChart.getPlot()).setDataset(1, mHrDataset);
+		((XYPlot) mChart.getPlot()).setDataset(2, mRrDataset);
+		((XYPlot) mChart.getPlot()).setDataset(3, mActDataset);
+		((XYPlot) mChart.getPlot()).setDataset(4, mPaDataset);
 	}
 
 	/**
@@ -339,47 +352,69 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Converts the String of RR values from the database to a sing double
-	 * value.
+	 * Parses the RR String and adds items to the series at the appropriate
+	 * times.
 	 * 
-	 * @param strValues
-	 * @return The value or NaN if there is an error.
+	 * @param series
+	 *            The series to use.
+	 * @param updateTime
+	 *            The time of this update.
+	 * @param strValue
+	 *            The RR String from the database.
+	 * @return If the operation was successful.
 	 */
-	private double convertRrStringsToDouble(String strValue) {
+	private boolean addRrValues(TimeSeries series, long updateTime,
+			String strValue) {
+		if (strValue == null) {
+			return false;
+		}
+		if (strValue.length() == 0) {
+			return true;
+		}
 		String[] tokens;
-		double value;
-		double max;
-		if (strValue == null || strValue.length() == 0) {
-			return Double.NaN;
-		}
 		tokens = strValue.trim().split("\\s+");
-		if (tokens.length == 1) {
+		int nTokens = tokens.length;
+		if (nTokens == 0) {
+			return false;
+		}
+		long[] times = new long[nTokens];
+		double[] values = new double[nTokens];
+		long lastRrTime = mLastRrTime;
+		double val = Double.NaN;
+		for (int i = 0; i < nTokens; i++) {
 			try {
-				value = Double.parseDouble(tokens[0]);
+				val = Double.parseDouble(tokens[i]);
 			} catch (NumberFormatException ex) {
-				value = Double.NaN;
+				return false;
 			}
-		} else {
-			// TODO Consider other alternatives
-			max = -Double.MAX_VALUE;
-			for (String string : tokens) {
-				max = -Double.NaN;
-				try {
-					value = Double.parseDouble(string);
-				} catch (NumberFormatException ex) {
-					continue;
-				}
-				if (value > max) {
-					max = value;
-				}
-			}
-			if (max == -Double.MAX_VALUE) {
-				value = Double.NaN;
-			} else {
-				value = max;
+			lastRrTime += val;
+			times[i] = lastRrTime;
+			values[i] = .001 * val * 1024;
+		}
+		// Make all times be >= mLastRrUpdateTime
+		long deltaTime;
+		long firstTime = times[0];
+		if (firstTime < mLastRrUpdateTime) {
+			deltaTime = mLastRrUpdateTime - firstTime;
+			for (int i = 0; i < nTokens; i++) {
+				times[i] += deltaTime;
 			}
 		}
-		return value;
+		// Make all times be <= updateTime. Overrides previous if necessary.
+		long lastTime = times[nTokens - 1];
+		if (times[nTokens - 1] > updateTime) {
+			deltaTime = lastTime - updateTime;
+			for (int i = 0; i < nTokens; i++) {
+				times[i] -= deltaTime;
+			}
+		}
+		// Add to the series
+		for (int i = 0; i < nTokens; i++) {
+			series.addOrUpdate(new FixedMillisecond(times[i]), values[i]);
+		}
+		mLastRrUpdateTime = updateTime;
+		mLastRrTime = times[nTokens - 1];
+		return true;
 	}
 
 	/**
@@ -392,41 +427,53 @@ public class PlotActivity extends Activity implements IConstants {
 	 */
 	private AFreeChart createChart() {
 		Log.d(TAG, "createChart");
-		if (mHrDataset == null) {
-			mHrDataset = createHrDataset();
+		if (mHrDataset == null || mRrDataset == null || mActDataset == null
+				|| mPaDataset == null) {
+			createDatasets();
 		}
+		final boolean doLegend = true;
 		AFreeChart chart = ChartFactory.createTimeSeriesChart(null, // title
 				"Time", // x-axis label
-				"HR", // y-axis label
-				mHrDataset, // data
-				false, // create legend?
+				null, // y-axis label
+				null, // data
+				doLegend, // create legend?
 				true, // generate tooltips?
 				false // generate URLs?
 				);
 
 		SolidColor white = new SolidColor(Color.WHITE);
 		SolidColor black = new SolidColor(Color.BLACK);
-		SolidColor red = new SolidColor(Color.RED);
-		SolidColor blue = new SolidColor(Color.BLUE);
 		SolidColor gray = new SolidColor(Color.GRAY);
 		SolidColor ltgray = new SolidColor(Color.LTGRAY);
+		SolidColor hrColor = new SolidColor(Color.argb(255, 255, 50, 50));
+		SolidColor rrColor = new SolidColor(Color.argb(255, 0, 153, 255));
+		SolidColor actColor = new SolidColor(Color.argb(255, 255, 225, 0));
+		SolidColor paColor = new SolidColor(Color.argb(255, 255, 153, 51));
 
+		Font font = new Font("SansSerif", Typeface.NORMAL, 30);
+		Font titleFont = new Font("SansSerif", Typeface.BOLD, 36);
+
+		float strokeSize = 5f;
+
+		// Chart
+		chart.setTitle("HxM Monitor");
+		TextTitle title = chart.getTitle();
+		title.setFont(titleFont);
+		title.setPaintType(white);
 		chart.setBackgroundPaintType(black);
 		// chart.setBorderPaintType(white);
 		chart.setBorderVisible(false);
 		// chart.setPadding(new RectangleInsets(10.0, 10.0, 10.0, 10.0));
 
-		Font font = new Font("SansSerif", Typeface.NORMAL, 24);
-		Font titleFont = new Font("SansSerif", Typeface.BOLD, 30);
+		// Legend
+		if (doLegend) {
+			LegendTitle legend = chart.getLegend();
+			legend.setItemFont(font);
+			legend.setBackgroundPaintType(black);
+			legend.setItemPaintType(white);
+		}
 
-		chart.setTitle("HxM Monitor");
-		TextTitle title = chart.getTitle();
-		title.setFont(titleFont);
-		title.setPaintType(white);
-
-		// LegendTitle legend = chart.getLegend();
-		// legend.setItemFont(font);
-
+		// Plot
 		XYPlot plot = (XYPlot) chart.getPlot();
 		plot.setBackgroundPaintType(black);
 		plot.setDomainGridlinePaintType(gray);
@@ -436,7 +483,15 @@ public class PlotActivity extends Activity implements IConstants {
 		// TODO Find out what these mean
 		// plot.setDomainCrosshairVisible(true);
 		// plot.setRangeCrosshairVisible(true);
+		XYItemRenderer renderer = plot.getRenderer();
+		if (renderer instanceof XYLineAndShapeRenderer) {
+			XYLineAndShapeRenderer lineShapeRenderer = (XYLineAndShapeRenderer) renderer;
+			lineShapeRenderer.setBaseShapesVisible(true);
+			lineShapeRenderer.setBaseShapesFilled(true);
+			lineShapeRenderer.setDrawSeriesLineAsPath(true);
+		}
 
+		// X axis
 		DateAxis xAxis = (DateAxis) plot.getDomainAxis();
 		xAxis.setDateFormatOverride(new SimpleDateFormat("hh:mm", Locale.US));
 		xAxis.setLabelFont(font);
@@ -445,51 +500,107 @@ public class PlotActivity extends Activity implements IConstants {
 		xAxis.setTickLabelFont(font);
 		xAxis.setTickLabelPaintType(ltgray);
 
-		float strokeSize = 5f;
+		// HR
+		if (mPlotHr) {
+			final int axisNum = 1;
+			SolidColor color = hrColor;
+			NumberAxis axis = new NumberAxis(null);
+			plot.setRangeAxis(axisNum, axis);
+			plot.setDataset(axisNum, mHrDataset);
+			plot.mapDatasetToRangeAxis(axisNum, axisNum);
+			plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_LEFT);
+			XYItemRenderer itemRenderer = new StandardXYItemRenderer();
+			itemRenderer.setSeriesPaintType(0, color);
+			itemRenderer.setBaseStroke(strokeSize);
+			itemRenderer.setSeriesStroke(0, strokeSize);
+			plot.setRenderer(axisNum, itemRenderer);
 
-		NumberAxis yAxis0 = (NumberAxis) plot.getRangeAxis();
-		yAxis0.setAutoRangeIncludesZero(true);
-		yAxis0.setAutoRangeMinimumSize(10);
-		yAxis0.setLabelFont(font);
-		yAxis0.setLabelPaintType(white);
-		yAxis0.setAxisLinePaintType(white);
-		yAxis0.setTickLabelFont(font);
-		yAxis0.setTickLabelPaintType(ltgray);
-		XYItemRenderer renderer0 = new StandardXYItemRenderer();
-		renderer0.setSeriesPaintType(0, red);
-		renderer0.setBaseStroke(strokeSize);
-		renderer0.setSeriesStroke(0, strokeSize);
-		plot.setRenderer(0, renderer0);
-
-		if (mRrDataset == null) {
-			mRrDataset = createRrDataset();
+			axis.setAutoRangeIncludesZero(true);
+			axis.setAutoRangeMinimumSize(10);
+			axis.setTickUnit(new NumberTickUnit(5));
+			// yAxis0.setLabelFont(font);
+			// yAxis0.setLabelPaintType(color);
+			axis.setAxisLinePaintType(color);
+			axis.setTickLabelFont(font);
+			axis.setTickLabelPaintType(color);
 		}
 
-		NumberAxis yAxis1 = new NumberAxis("RR");
-		plot.setRangeAxis(1, yAxis1);
-		plot.setDataset(1, mRrDataset);
-		plot.mapDatasetToRangeAxis(1, 1);
-		yAxis1.setAutoRangeIncludesZero(true);
-		yAxis1.setAutoRangeMinimumSize(.3);
-		// yAxis1.setTickUnit(new NumberTickUnit(.1));
-		yAxis1.setLabelFont(font);
-		yAxis1.setLabelPaintType(white);
-		yAxis1.setLabelPaintType(white);
-		yAxis1.setAxisLinePaintType(white);
-		yAxis1.setTickLabelFont(font);
-		yAxis1.setTickLabelPaintType(ltgray);
-		XYItemRenderer renderer1 = new StandardXYItemRenderer();
-		renderer1.setSeriesPaintType(0, blue);
-		renderer1.setBaseStroke(strokeSize);
-		renderer1.setSeriesStroke(0, strokeSize);
-		plot.setRenderer(1, renderer1);
+		// RR
+		if (mPlotRr) {
+			final int axisNum = 2;
+			SolidColor color = rrColor;
+			NumberAxis axis = new NumberAxis(null);
+			plot.setRangeAxis(axisNum, axis);
+			plot.setDataset(axisNum, mRrDataset);
+			plot.mapDatasetToRangeAxis(axisNum, axisNum);
+			plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_RIGHT);
+			XYItemRenderer itemRenderer = new StandardXYItemRenderer();
+			itemRenderer.setSeriesPaintType(0, color);
+			itemRenderer.setBaseStroke(strokeSize);
+			itemRenderer.setSeriesStroke(0, strokeSize);
+			plot.setRenderer(axisNum, itemRenderer);
 
-		XYItemRenderer r = plot.getRenderer();
-		if (r instanceof XYLineAndShapeRenderer) {
-			XYLineAndShapeRenderer renderer = (XYLineAndShapeRenderer) r;
-			renderer.setBaseShapesVisible(true);
-			renderer.setBaseShapesFilled(true);
-			renderer.setDrawSeriesLineAsPath(true);
+			axis.setAutoRangeIncludesZero(true);
+			axis.setAutoRangeMinimumSize(.25);
+			// axis.setTickUnit(new NumberTickUnit(.1));
+			// yAxis1.setLabelFont(font);
+			// yAxis1.setLabelPaintType(color);
+			axis.setLabelPaintType(color);
+			axis.setAxisLinePaintType(color);
+			axis.setTickLabelFont(font);
+			axis.setTickLabelPaintType(color);
+		}
+
+		// Activity
+		if (mPlotAct) {
+			final int axisNum = 3;
+			SolidColor color = actColor;
+			NumberAxis axis = new NumberAxis(null);
+			plot.setRangeAxis(axisNum, axis);
+			plot.setDataset(axisNum, mActDataset);
+			plot.mapDatasetToRangeAxis(axisNum, axisNum);
+			plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_LEFT);
+			XYItemRenderer itemRenderer = new StandardXYItemRenderer();
+			itemRenderer.setSeriesPaintType(0, color);
+			itemRenderer.setBaseStroke(strokeSize);
+			itemRenderer.setSeriesStroke(0, strokeSize);
+			plot.setRenderer(axisNum, itemRenderer);
+
+			axis.setAutoRangeIncludesZero(true);
+			axis.setAutoRangeMinimumSize(.25);
+			// axis.setTickUnit(new NumberTickUnit(.1));
+			// yAxis1.setLabelFont(font);
+			// yAxis1.setLabelPaintType(color);
+			axis.setLabelPaintType(color);
+			axis.setAxisLinePaintType(color);
+			axis.setTickLabelFont(font);
+			axis.setTickLabelPaintType(color);
+		}
+
+		// PA
+		if (mPlotPa) {
+			final int axisNum = 4;
+			SolidColor color = paColor;
+			NumberAxis axis = new NumberAxis(null);
+			plot.setRangeAxis(axisNum, axis);
+			plot.setDataset(axisNum, mPaDataset);
+			plot.mapDatasetToRangeAxis(axisNum, axisNum);
+			plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_RIGHT);
+			XYItemRenderer itemRenderer = new StandardXYItemRenderer();
+			itemRenderer.setSeriesPaintType(0, color);
+			itemRenderer.setBaseStroke(strokeSize);
+			itemRenderer.setSeriesStroke(0, strokeSize);
+			plot.setRenderer(axisNum, itemRenderer);
+
+			axis.setAutoRangeIncludesZero(true);
+			axis.setAutoRangeMinimumSize(.25);
+			// axis.setTickUnit(new NumberTickUnit(.1));
+			// yAxis1.setLabelFont(font);
+			// yAxis1.setLabelPaintType(color);
+			axis.setLabelPaintType(color);
+			axis.setAxisLinePaintType(color);
+			axis.setTickLabelFont(font);
+			axis.setTickLabelPaintType(color);
 		}
 
 		return chart;
@@ -502,142 +613,168 @@ public class PlotActivity extends Activity implements IConstants {
 	 */
 	private void updateChart(Intent intent) {
 		String strValue;
+		double value = Double.NaN;
+		;
 		long date = intent.getLongExtra(EXTRA_DATE, Long.MIN_VALUE);
 		if (date == Long.MIN_VALUE) {
 			return;
 		}
-		double value = Double.NaN;
-		if (mHrSeries != null) {
+		if (mPlotHr && mHrSeries != null) {
+			value = Double.NaN;
 			strValue = intent.getStringExtra(EXTRA_HR);
-			if (strValue == null || strValue.length() == 0) {
-				return;
+			if (strValue != null && strValue.length() > 0) {
+				try {
+					value = Double.parseDouble(strValue);
+				} catch (NumberFormatException ex) {
+					value = Double.NaN;
+				}
+				mHrSeries.addOrUpdate(new FixedMillisecond(date), value);
 			}
-			try {
-				value = Double.parseDouble(strValue);
-			} catch (NumberFormatException ex) {
-				value = Double.NaN;
-			}
-			mHrSeries.addOrUpdate(new FixedMillisecond(date), value);
 		}
-		if (mRrSeries != null) {
+		if (mPlotRr && mRrSeries != null) {
+
+			if (mLastRrUpdateTime == Long.MIN_VALUE) {
+				mLastRrUpdateTime = date;
+				mLastRrTime = date;
+			}
 			value = Double.NaN;
 			strValue = intent.getStringExtra(EXTRA_RR);
-			if (strValue == null || strValue.length() == 0) {
-				return;
+			if (strValue != null && strValue.length() > 0) {
+				// boolean res = addRrValues(mRrSeries, date, strValue);
+				// Don't check for errors here to avoid error storms
+				addRrValues(mRrSeries, date, strValue);
 			}
-			value = convertRrStringsToDouble(strValue);
-			mRrSeries.addOrUpdate(new FixedMillisecond(date), value / 1024.);
+		}
+		if (mPlotAct && mActSeries != null) {
+			value = Double.NaN;
+			strValue = intent.getStringExtra(EXTRA_ACT);
+			if (strValue != null && strValue.length() > 0) {
+				try {
+					value = Double.parseDouble(strValue);
+				} catch (NumberFormatException ex) {
+					value = Double.NaN;
+				}
+				mActSeries
+						.addOrUpdate(new FixedMillisecond(date), value / 100.);
+			}
+		}
+		if (mPlotPa && mPaSeries != null) {
+			value = Double.NaN;
+			strValue = intent.getStringExtra(EXTRA_PA);
+			if (strValue != null && strValue.length() > 0) {
+				try {
+					value = Double.parseDouble(strValue);
+				} catch (NumberFormatException ex) {
+					value = Double.NaN;
+				}
+				mPaSeries.addOrUpdate(new FixedMillisecond(date), value / 100.);
+			}
 		}
 	}
 
 	/**
-	 * Creates a sample dataset.
-	 *
-	 * @return The dataset.
+	 * Creates the data sets and series.
 	 */
-	private XYDataset createHrDataset() {
-		Log.d(TAG, "Creating HR dataset");
-		mHrSeries = new TimeSeries("HR");
-		Cursor cursor = null;
-		int nItems = 0;
-		try {
-			if (mDbAdapter != null) {
-				if (mIsSession) {
-					cursor = mDbAdapter.fetchAllHrRrDateDataForTimes(
-							mPlotSessionStart, mPlotSessionEnd);
-				} else {
-					cursor = mDbAdapter
-							.fetchAllHrRrDateDataStartingAtTime(mPlotStartTime);
-				}
-				int indexDate = cursor.getColumnIndex(COL_DATE);
-				int indexHr = cursor.getColumnIndex(COL_HR);
-
-				// Loop over items
-				cursor.moveToFirst();
-				long date = Long.MIN_VALUE;
-				double hr;
-				while (cursor.isAfterLast() == false) {
-					nItems++;
-					date = cursor.getLong(indexDate);
-					hr = cursor.getInt(indexHr);
-					mHrSeries.addOrUpdate(new FixedMillisecond(date), hr);
-					cursor.moveToNext();
-				}
+	private void createDatasets() {
+		Log.d(TAG, "Creating datasets");
+		if (mPlotHr) {
+			mHrSeries = new TimeSeries("HR");
+			if (!mIsSession) {
+				mHrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
 			}
-		} catch (Exception ex) {
-			Utils.excMsg(this, "Error creating HR dataset", ex);
-		} finally {
-			try {
-				cursor.close();
-			} catch (Exception ex) {
-				// Do nothing
-			}
+		} else {
+			mHrSeries = null;
 		}
-		Log.d(TAG, "HR dataset created with " + nItems + " items");
-
-		// long date = new Date().getTime();
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 160);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 161);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 165);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 170);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 180);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 200);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 201);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 205);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 210);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 215);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 217);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 214);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 212);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 210);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 208);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 205);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 203);
-		// mHrSeries.add(new FixedMillisecond(date -= 1000), 200);
-
-		TimeSeriesCollection dataset = new TimeSeriesCollection();
-		dataset.addSeries(mHrSeries);
-		return dataset;
-	}
-
-	/**
-	 * Creates a sample dataset.
-	 *
-	 * @return The dataset.
-	 */
-	private XYDataset createRrDataset() {
-		Log.d(TAG, "Creating RR datase");
-		mRrSeries = new TimeSeries("RR");
+		if (mPlotRr) {
+			mRrSeries = new TimeSeries("RR");
+			if (!mIsSession) {
+				mRrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+			}
+		} else {
+			mRrSeries = null;
+		}
+		if (mPlotAct) {
+			mActSeries = new TimeSeries("ACT");
+			if (!mIsSession) {
+				mActSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+			}
+		} else {
+			mActSeries = null;
+		}
+		if (mPlotPa) {
+			mPaSeries = new TimeSeries("PA");
+			if (!mIsSession) {
+				mPaSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+			}
+		} else {
+			mPaSeries = null;
+		}
+		if (!mIsSession) {
+			mHrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+			mRrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+		}
+		mLastRrTime = Long.MIN_VALUE;
+		mLastRrUpdateTime = Long.MIN_VALUE;
 		Cursor cursor = null;
-		int nItems = 0;
+		int nHrItems = 0, nRrItems = 0, nActItems = 0, nPaItems = 0;
+		int nErrors = 0;
+		boolean res;
 		try {
 			if (mDbAdapter != null) {
 				if (mIsSession) {
-					cursor = mDbAdapter.fetchAllHrRrDateDataForTimes(
+					cursor = mDbAdapter.fetchAllHrRrActPaDateDataForTimes(
 							mPlotSessionStart, mPlotSessionEnd);
 				} else {
 					cursor = mDbAdapter
-							.fetchAllHrRrDateDataStartingAtTime(mPlotStartTime);
+							.fetchAllHrRrActPaDateDataStartingAtTime(mPlotStartTime);
 				}
 				int indexDate = cursor.getColumnIndex(COL_DATE);
-				int indexRr = cursor.getColumnIndex(COL_RR);
+				int indexHr = mPlotHr ? cursor.getColumnIndex(COL_HR) : -1;
+				int indexRr = mPlotRr ? cursor.getColumnIndex(COL_RR) : -1;
+				int indexAct = mPlotAct ? cursor.getColumnIndex(COL_ACT) : -1;
+				int indexPa = mPlotPa ? cursor.getColumnIndex(COL_PA) : -1;
 
 				// Loop over items
 				cursor.moveToFirst();
 				long date = Long.MIN_VALUE;
-				double rr;
+				double hr, act, pa;
 				String rrString;
 				while (cursor.isAfterLast() == false) {
-					nItems++;
 					date = cursor.getLong(indexDate);
-					rrString = cursor.getString(indexRr);
-					rr = convertRrStringsToDouble(rrString);
-					mRrSeries.addOrUpdate(new FixedMillisecond(date), rr);
+					if (indexHr > -1) {
+						hr = cursor.getInt(indexHr);
+						mHrSeries.addOrUpdate(new FixedMillisecond(date), hr);
+						nHrItems++;
+					}
+					if (indexRr > -1) {
+						rrString = cursor.getString(indexRr);
+						if (nRrItems == 0) {
+							mLastRrUpdateTime = date;
+							mLastRrTime = date - INITIAL_RR_START_TIME;
+						}
+						res = addRrValues(mRrSeries, date, rrString);
+						nRrItems++;
+						if (!res) {
+							nErrors++;
+						}
+					}
+					if (indexAct > -1) {
+						act = cursor.getInt(indexAct);
+						mActSeries.addOrUpdate(new FixedMillisecond(date),
+								act / 100.);
+						nActItems++;
+					}
+					if (indexPa > -1) {
+						pa = cursor.getInt(indexPa);
+						mPaSeries.addOrUpdate(new FixedMillisecond(date),
+								pa / 100.);
+						nPaItems++;
+					}
 					cursor.moveToNext();
 				}
 			}
 		} catch (Exception ex) {
-			Utils.excMsg(this, "Error creating RR dataset", ex);
+			Utils.excMsg(this, "Error creating datasets", ex);
 		} finally {
 			try {
 				cursor.close();
@@ -645,31 +782,30 @@ public class PlotActivity extends Activity implements IConstants {
 				// Do nothing
 			}
 		}
-		Log.d(TAG, "RR dataset created with " + nItems + " items");
-
-		// long date = new Date().getTime();
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 260);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 261);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 265);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 270);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 280);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 200);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 201);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 205);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 210);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 215);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 217);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 214);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 212);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 210);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 208);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 205);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 203);
-		// mRrSeries.add(new FixedMillisecond(date -= 1000), 1 / 200);
-
-		TimeSeriesCollection dataset = new TimeSeriesCollection();
-		dataset.addSeries(mRrSeries);
-		return dataset;
+		if (nErrors > 0) {
+			Utils.errMsg(this, nErrors + " creating RR dataset");
+		}
+		if (mPlotHr) {
+			Log.d(TAG, "HR dataset created with " + nHrItems + " items");
+			mHrDataset = new TimeSeriesCollection();
+			mHrDataset.addSeries(mHrSeries);
+		}
+		if (mPlotRr) {
+			Log.d(TAG, "RR dataset created with " + nRrItems
+					+ " items nErrors=" + nErrors);
+			mRrDataset = new TimeSeriesCollection();
+			mRrDataset.addSeries(mRrSeries);
+		}
+		if (mPlotAct) {
+			Log.d(TAG, "ACT dataset created with " + nActItems + " items");
+			mActDataset = new TimeSeriesCollection();
+			mActDataset.addSeries(mActSeries);
+		}
+		if (mPlotPa) {
+			Log.d(TAG, "PA dataset created with " + nPaItems + " items");
+			mPaDataset = new TimeSeriesCollection();
+			mPaDataset.addSeries(mPaSeries);
+		}
 	}
 
 }

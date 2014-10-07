@@ -36,6 +36,12 @@ public interface IConstants {
 	/** Prefix for session names. Will be followed by a date and time. */
 	public static final String SESSION_NAME_PREFIX = "HxM-";
 
+	/** Notification ID for managing notifications. */
+	public static final int NOTIFICATION_ID = 1;
+
+	/** Prefix for session names. Will be followed by a date and time. */
+	public static final long INITIAL_RR_START_TIME = 0;
+
 	// Base
 	/** Base string for standard UUIDS. These UUIDs differ in characters 4-7. */
 	public static final String BASE_UUID = "00000000-0000-1000-8000-00805f9b34fb";
@@ -75,19 +81,10 @@ public interface IConstants {
 
 	/** Directory on the SD card where the database is stored */
 	public static final String SD_CARD_DB_DIRECTORY = "HxM Monitor";
-	/**
-	 * Name of the file that will be restored. It would typically be a file that
-	 * was previously saved and then renamed.
-	 */
-	public static final String RESTORE_FILE_NAME = "restore.txt";
 
 	// Preferences
 	public static final String PREF_DATA_DIRECTORY = "dataDirectory";
 	public static final String PREF_PLOT_START_TIME = "plotStartTime";
-
-	// Information
-	/** Key for information URL sent to InfoActivity. */
-	public static final String INFO_URL = "InformationURL";
 
 	// Session state
 	public static final int SESSION_IDLE = 0;
@@ -95,11 +92,13 @@ public interface IConstants {
 	public static final int SESSION_WAITING_HR = 2;
 	public static final int SESSION_WAITING_CUSTOM = 3;
 
-	// Timer
+	// Timers
 	/** Timer timeout for accumulating characteristics (ms). */
 	public static final long CHARACTERISTIC_TIMER_TIMEOUT = 100;
 	/** Timer interval for accumulating characteristics (ms). */
 	public static final long CHARACTERISTIC_TIMER_INTERVAL = 1;
+	/** Timer timeout for getting custom value (ms). */
+	public static final long CUSTOM_NOTIFY_TIMER_TIMEOUT = 500;
 
 	// Database
 	/** Simple name of the database. */
@@ -121,11 +120,28 @@ public interface IConstants {
 	/** Database column for the R-R. */
 	public static final String COL_RR = "rr";
 	/** Database column for the activity. */
-	public static final String COL_ACTIVITY = "activity";
+	public static final String COL_ACT = "activity";
 	/** Database column for the activity. */
 	public static final String COL_PA = "peakacceleration";
-	/** Database column for the temporary flag. */
-	public static final String COL_TMP = "temporary";
+	// /** Database column for the temporary flag. */
+	// public static final String COL_TMP = "temporary";
+	/** Prefix for the file name for saving the database. */
+	public static final String SAVE_DATABASE_FILENAME_PREFIX = "HxMDatabase";
+	/** Suffix for the file name for saving the database. */
+	public static final String SAVE_DATABASE_FILENAME_SUFFIX = ".csv";
+	/** Template for creating the file name for saving the database. */
+	public static final String SAVE_DATABASE_FILENAME_TEMPLATE = SAVE_DATABASE_FILENAME_PREFIX
+			+ ".%s" + SAVE_DATABASE_FILENAME_SUFFIX;
+	/**
+	 * Name of the file that will be restored. It would typically be a file that
+	 * was previously saved and then renamed.
+	 */
+	public static final String RESTORE_FILE_NAME = "restore"
+			+ SAVE_DATABASE_FILENAME_SUFFIX;
+	/** Delimiter for saving session files. */
+	public static final String SAVE_SESSION_DELIM = ",";
+	/** Delimiter for saving the database. */
+	public static final String SAVE_DATABASE_DELIM = ",";
 
 	/** SQL sort command for date ascending */
 	public static final String SORT_ASCENDING = COL_DATE + " ASC";
@@ -133,7 +149,7 @@ public interface IConstants {
 	public static final String SORT_DESCENDING = COL_DATE + " DESC";
 
 	/** Default scan period for device scan. */
-	public static final long SCAN_PERIOD = 10000;
+	public static final long DEVICE_SCAN_PERIOD = 10000;
 
 	// Messages
 	/** Request code for selecting a device. */
@@ -147,11 +163,7 @@ public interface IConstants {
 	/** Request code for the session manager. */
 	public static final int REQUEST_SESSION_MANAGER_CODE = 14;
 
-	/** The intent code for device name. */
-	public static final String DEVICE_NAME_CODE = PACKAGE_NAME + "deviceName";
-	/** The intent code for device address. */
-	public static final String DEVICE_ADDRESS_CODE = PACKAGE_NAME
-			+ "deviceAddress";
+	// Intent codes
 	/** The intent code for extra data. */
 	public final static String EXTRA_DATA = PACKAGE_NAME + ".extraData";
 	/** The intent code for UUID. */
@@ -171,7 +183,11 @@ public interface IConstants {
 	/** The intent code for a message. */
 	public final static String EXTRA_MSG = PACKAGE_NAME + ".extraMessage";
 
-	// Intent codes
+	/** The intent code for device name. */
+	public static final String DEVICE_NAME_CODE = PACKAGE_NAME + "deviceName";
+	/** The intent code for device address. */
+	public static final String DEVICE_ADDRESS_CODE = PACKAGE_NAME
+			+ "deviceAddress";
 	/** Intent code for a message. */
 	public static final String MSG_CODE = "MessageCode";
 	/** Intent code for plotting a session of current. */
@@ -185,36 +201,37 @@ public interface IConstants {
 	/** Result code for an error. */
 	public static final int RESULT_ERROR = 1001;
 
-	/** The static long formatter to use for formatting dates. */
-	public static final SimpleDateFormat longFormatter = new SimpleDateFormat(
-			"MMM dd, yyyy HH:mm:ss Z", Locale.US);
-	// public static final SimpleDateFormat longFormatter = new
-	// SimpleDateFormat(
-	// "hh:mm a MMM dd, yyyy", Locale.US);
+	// Plotting
+	/** Maximum item age for real-time plot, in ms. */
+	public static final int PLOT_MAXIMUM_AGE = 300000;
+
+	// Formatters
+	/** The static formatter to use for formatting dates for file names. */
+	public static final SimpleDateFormat fileNameFormatter = new SimpleDateFormat(
+			"yyyy-MM-dd-HH-mm-ss", Locale.US);
 
 	/** The static formatter to use for formatting dates to ms level. */
 	public static final SimpleDateFormat sessionSaveFormatter = new SimpleDateFormat(
 			"yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
 
-	// public static final SimpleDateFormat sessionSaveFormatter = new
+	// /** The static long formatter to use for formatting dates. */
+	// public static final SimpleDateFormat longFormatter = new
 	// SimpleDateFormat(
-	// "yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
+	// "MMM dd, yyyy HH:mm:ss Z", Locale.US);
 
 	/** The static formatter to use for formatting dates. */
 	public static final SimpleDateFormat mediumFormatter = new SimpleDateFormat(
 			"MMM dd, yyyy HH:mm:ss", Locale.US);
 
-	/** The static short formatter to use for formatting dates. */
-	public static final SimpleDateFormat shortFormatter = new SimpleDateFormat(
-			"M/d/yy h:mm a", Locale.US);
-
-	/** The static second time formatter to use for formatting dates. */
-	public static final SimpleDateFormat secondTimeFormater = new SimpleDateFormat(
-			"hh:mm:ss", Locale.US);
-
-	/** The static formatter to use for formatting dates for file names. */
-	public static final SimpleDateFormat fileNameFormatter = new SimpleDateFormat(
-			"yyyy-MM-dd-HH-mm-ss", Locale.US);
+	// /** The static short formatter to use for formatting dates. */
+	// public static final SimpleDateFormat shortFormatter = new
+	// SimpleDateFormat(
+	// "M/d/yy h:mm a", Locale.US);
+	//
+	// /** The static second time formatter to use for formatting dates. */
+	// public static final SimpleDateFormat secondTimeFormater = new
+	// SimpleDateFormat(
+	// "hh:mm:ss", Locale.US);
 
 	/**
 	 * The static millisecond time formatter to use for formatting dates. Don't

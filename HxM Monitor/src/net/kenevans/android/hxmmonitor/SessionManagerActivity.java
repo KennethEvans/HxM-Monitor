@@ -1,20 +1,27 @@
 package net.kenevans.android.hxmmonitor;
 
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileFilter;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
 
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ListActivity;
+import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -33,11 +40,12 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 	private SessionListAdapter mSessionListAdapter;
 	private HxMMonitorDbAdapter mDbAdapter;
 	private File mDataDir;
+	private RestoreTask mRestoreTask;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		// setContentView(R.layout.activity_session_manager);
+		getActionBar().setDisplayHomeAsUpEnabled(false);
 
 		// Set result OK in case the user backs out
 		setResult(Activity.RESULT_OK);
@@ -129,19 +137,31 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			plot();
 			return true;
 		case R.id.menu_discard:
-			discard();
+			discardSession();
 			return true;
 		case R.id.menu_merge:
-			merge();
+			mergeSessions();
 			return true;
 		case R.id.menu_split:
-			split();
+			splitSessions();
 			return true;
 		case R.id.menu_save:
-			save();
+			saveSession();
 			return true;
 		case R.id.menu_refresh:
 			refresh();
+			return true;
+		case R.id.menu_check_all:
+			setAllSessionsChecked(true);
+			return true;
+		case R.id.menu_check_none:
+			setAllSessionsChecked(false);
+			return true;
+		case R.id.menu_save_database:
+			saveDatabase();
+			return true;
+		case R.id.menu_restore_database:
+			checkRestoreDatabase();
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -193,21 +213,21 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 	/**
 	 * Merges the selected sessions.
 	 */
-	public void merge() {
+	public void mergeSessions() {
 		Utils.infoMsg(this, "Not implented yet");
 	}
 
 	/**
 	 * Splits the selected sessions.
 	 */
-	public void split() {
+	public void splitSessions() {
 		Utils.infoMsg(this, "Not implented yet");
 	}
 
 	/**
 	 * Saves the selected sessions.
 	 */
-	public void save() {
+	public void saveSession() {
 		ArrayList<Session> checkedSessions = mSessionListAdapter
 				.getCheckedSessions();
 		if (checkedSessions == null || checkedSessions.size() == 0) {
@@ -218,7 +238,6 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			Utils.errMsg(this, "Cannot determine directory for save");
 			return;
 		}
-		final String DELIM = ",";
 		int nErrors = 0;
 		String errMsg = "Error saving sessions:\n";
 		String fileNames = "Saved to:\n";
@@ -237,14 +256,16 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 				file = new File(mDataDir, fileName);
 				writer = new FileWriter(file);
 				out = new BufferedWriter(writer);
-				cursor = mDbAdapter.fetchAllHrRrDateDataForTimes(startDate,
-						endDate);
+				cursor = mDbAdapter.fetchAllHrRrActPaDateDataForTimes(
+						startDate, endDate);
 				int indexDate = cursor.getColumnIndex(COL_DATE);
 				int indexHr = cursor.getColumnIndex(COL_HR);
 				int indexRr = cursor.getColumnIndex(COL_RR);
+				int indexAct = cursor.getColumnIndex(COL_ACT);
+				int indexPa = cursor.getColumnIndex(COL_PA);
 				// Loop over items
 				cursor.moveToFirst();
-				String dateStr, hrStr, rrStr, line;
+				String dateStr, hrStr, rrStr, actStr, paStr, line;
 				long dateNum = Long.MIN_VALUE;
 				while (cursor.isAfterLast() == false) {
 					dateStr = "<Unknown>";
@@ -258,10 +279,20 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 						hrStr = cursor.getString(indexHr);
 					}
 					rrStr = "<Unknown>";
-					if (indexHr > -1) {
+					if (indexRr > -1) {
 						rrStr = cursor.getString(indexRr);
 					}
-					line = dateStr + DELIM + hrStr + DELIM + rrStr + "\n";
+					actStr = "<Unknown>";
+					if (indexAct > -1) {
+						actStr = cursor.getString(indexAct);
+					}
+					paStr = "<Unknown>";
+					if (indexPa > -1) {
+						paStr = cursor.getString(indexPa);
+					}
+					line = dateStr + SAVE_SESSION_DELIM + hrStr
+							+ SAVE_SESSION_DELIM + rrStr + SAVE_SESSION_DELIM
+							+ actStr + SAVE_SESSION_DELIM + paStr + "\n";
 					out.write(line);
 					cursor.moveToNext();
 				}
@@ -298,9 +329,9 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 	 * Prompts to discards the selected sessions. The method doDiscard will do
 	 * the actual discarding, if the user confirms.
 	 * 
-	 * @see #doDiscard()
+	 * @see #doDiscardSession()
 	 */
-	public void discard() {
+	public void discardSession() {
 		ArrayList<Session> checkedSessions = mSessionListAdapter
 				.getCheckedSessions();
 		if (checkedSessions == null || checkedSessions.size() == 0) {
@@ -318,7 +349,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 							@Override
 							public void onClick(DialogInterface dialog,
 									int which) {
-								doDiscard();
+								doDiscardSession();
 							}
 						}).setNegativeButton(R.string.cancel, null).show();
 	}
@@ -326,7 +357,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 	/**
 	 * Discards the selected sessions.
 	 */
-	public void doDiscard() {
+	public void doDiscardSession() {
 		ArrayList<Session> checkedSessions = mSessionListAdapter
 				.getCheckedSessions();
 		if (checkedSessions == null || checkedSessions.size() == 0) {
@@ -338,8 +369,215 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			startDate = session.getStartDate();
 			endDate = session.getEndDate();
 			mDbAdapter.deleteAllDataForTimes(startDate, endDate);
-			refresh();
 		}
+		refresh();
+	}
+
+	/**
+	 * Saves the database as a CSV file with a .txt extension.
+	 */
+	private void saveDatabase() {
+		BufferedWriter out = null;
+		Cursor cursor = null;
+		try {
+			if (mDataDir == null) {
+				Utils.errMsg(this, "Cannot determine directory for save");
+				return;
+			}
+			String format = "yyyy-MM-dd-HHmmss";
+			SimpleDateFormat df = new SimpleDateFormat(format, Locale.US);
+			Date now = new Date();
+			String fileName = String.format(SAVE_DATABASE_FILENAME_TEMPLATE,
+					df.format(now), now.getTime());
+			File file = new File(mDataDir, fileName);
+			FileWriter writer = new FileWriter(file);
+			out = new BufferedWriter(writer);
+			cursor = mDbAdapter.fetchAllData(null);
+			int indexDate = cursor.getColumnIndex(COL_DATE);
+			int indexStartDate = cursor.getColumnIndex(COL_START_DATE);
+			int indexHr = cursor.getColumnIndex(COL_HR);
+			int indexRr = cursor.getColumnIndex(COL_RR);
+			int indexAct = cursor.getColumnIndex(COL_ACT);
+			int indexPa = cursor.getColumnIndex(COL_PA);
+			// Loop over items
+			cursor.moveToFirst();
+			String rr, info = "";
+			long dateNum, startDateNum;
+			int hr, act, pa;
+			while (cursor.isAfterLast() == false) {
+				dateNum = startDateNum = Long.MIN_VALUE;
+				hr = act = pa = 0;
+				rr = " ";
+				if (indexDate > -1) {
+					try {
+						dateNum = cursor.getLong(indexDate);
+					} catch (Exception ex) {
+						// Do nothing
+					}
+				}
+				if (indexStartDate > -1) {
+					try {
+						startDateNum = cursor.getLong(indexStartDate);
+					} catch (Exception ex) {
+						// Do nothing
+					}
+				}
+				if (indexHr > -1) {
+					try {
+						hr = cursor.getInt(indexHr);
+					} catch (Exception ex) {
+						// Do nothing
+					}
+				}
+				if (indexRr > -1) {
+					try {
+						rr = cursor.getString(indexRr);
+					} catch (Exception ex) {
+						// Do nothing
+					}
+					// Need to do this, or it isn't recognized as a token
+					if (rr.length() == 0) {
+						rr = " ";
+					}
+				}
+				if (indexAct > -1) {
+					try {
+						act = cursor.getInt(indexAct);
+					} catch (Exception ex) {
+						// Do nothing
+					}
+				}
+				if (indexPa > -1) {
+					try {
+						pa = cursor.getInt(indexPa);
+					} catch (Exception ex) {
+						// Do nothing
+					}
+				}
+				info = String.format(Locale.US, "%d%s%d%s%d%s%s%s%d%s%d%s\n",
+						dateNum, SAVE_DATABASE_DELIM, startDateNum,
+						SAVE_DATABASE_DELIM, hr, SAVE_DATABASE_DELIM, rr,
+						SAVE_DATABASE_DELIM, act, SAVE_DATABASE_DELIM, pa,
+						SAVE_DATABASE_DELIM);
+				out.write(info);
+				cursor.moveToNext();
+			}
+			Utils.infoMsg(this, "Wrote " + file.getPath());
+		} catch (Exception ex) {
+			Utils.excMsg(this, "Error saving database", ex);
+		} finally {
+			try {
+				cursor.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+			try {
+				out.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+	}
+
+	/**
+	 * Does the preliminary checking for restoring data, prompts if it is OK to
+	 * delete the current data, and call restoreData to actually do the delete
+	 * and restore.
+	 */
+	private void checkRestoreDatabase() {
+		if (mDataDir == null) {
+			Utils.errMsg(this, "Cannot find data directory");
+			return;
+		}
+
+		// Find the .txt files in the data directory
+		final File[] files = mDataDir.listFiles(new FileFilter() {
+			@Override
+			public boolean accept(File file) {
+				if (file.isDirectory()) {
+					return false;
+				}
+				String name = file.getName();
+				if (name.startsWith(SAVE_DATABASE_FILENAME_PREFIX)
+						&& name.endsWith(SAVE_DATABASE_FILENAME_SUFFIX)) {
+					return true;
+				}
+				return false;
+			}
+		});
+		if (files == null || files.length == 0) {
+			Utils.errMsg(this,
+					"There are no saved database files in the data directory");
+			return;
+		}
+
+		// Sort them by date with newest first
+		Arrays.sort(files, new Comparator<File>() {
+			public int compare(File f1, File f2) {
+				return Long.valueOf(f2.lastModified()).compareTo(
+						f1.lastModified());
+			}
+		});
+
+		// Prompt for the file to use
+		final CharSequence[] items = new CharSequence[files.length];
+		for (int i = 0; i < files.length; i++) {
+			items[i] = files[i].getName();
+		}
+		AlertDialog.Builder builder = new AlertDialog.Builder(this);
+		builder.setTitle(getText(R.string.select_restore_file));
+		builder.setSingleChoiceItems(items, 0,
+				new DialogInterface.OnClickListener() {
+					public void onClick(DialogInterface dialog, final int item) {
+						dialog.dismiss();
+						if (item < 0 || item >= files.length) {
+							Utils.errMsg(SessionManagerActivity.this,
+									"Invalid item");
+							return;
+						}
+						// Confirm the user wants to delete all the current data
+						new AlertDialog.Builder(SessionManagerActivity.this)
+								.setIcon(android.R.drawable.ic_dialog_alert)
+								.setTitle(R.string.confirm)
+								.setMessage(R.string.delete_prompt)
+								.setPositiveButton(R.string.ok,
+										new DialogInterface.OnClickListener() {
+											@Override
+											public void onClick(
+													DialogInterface dialog,
+													int which) {
+												dialog.dismiss();
+												restoreDatabase(files[item]);
+											}
+
+										})
+								.setNegativeButton(R.string.cancel, null)
+								.show();
+					}
+				});
+		AlertDialog alert = builder.create();
+		alert.show();
+	}
+
+	/**
+	 * Deletes the existing data without prompting and restores the new data.
+	 */
+	private void restoreDatabase(File file) {
+		if (!file.exists()) {
+			Utils.errMsg(this, "Cannot find:\n" + file.getPath());
+			return;
+		}
+		if (mRestoreTask != null) {
+			// Don't do anything if we are updating
+			Log.d(TAG,
+					this.getClass().getSimpleName()
+							+ ": restoreDatabase: restoreTask is not null for "
+							+ file.getName());
+			return;
+		}
+
+		mRestoreTask = new RestoreTask(file);
+		mRestoreTask.execute();
 	}
 
 	/**
@@ -349,6 +587,177 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 		// Initialize the list view adapter
 		mSessionListAdapter = new SessionListAdapter();
 		setListAdapter(mSessionListAdapter);
+	}
+
+	/**
+	 * Class to handle getting the bitmap from the web using a progress bar that
+	 * can be cancelled.<br>
+	 * <br>
+	 * Call with <b>Bitmap bitmap = new MyUpdateTask().execute(String)<b>
+	 */
+	private class RestoreTask extends AsyncTask<Void, Void, Boolean> {
+		private ProgressDialog dialog;
+		private File file;
+		private int mErrors;
+		private int mLineNumber;
+		private String mExceptionMsg;
+
+		public RestoreTask(File file) {
+			super();
+			this.file = file;
+		}
+
+		@Override
+		protected void onPreExecute() {
+			dialog = new ProgressDialog(SessionManagerActivity.this);
+			dialog.setMessage(getString(R.string.restoring_database_progress_text));
+			dialog.setCancelable(false);
+			dialog.setIndeterminate(true);
+			dialog.show();
+		}
+
+		@Override
+		protected Boolean doInBackground(Void... dummy) {
+			Thread.currentThread().setPriority(Thread.MAX_PRIORITY);
+			BufferedReader in = null;
+			try {
+				// Delete all the data and recreate the table
+				mDbAdapter.recreateDataTable();
+
+				// Read the file and get the data to restore
+				in = new BufferedReader(new FileReader(file));
+				String rr;
+				long dateNum, startDateNum;
+				int hr, act, pa;
+				String[] tokens = null;
+				String line = null;
+				while ((line = in.readLine()) != null) {
+					dateNum = startDateNum = Long.MIN_VALUE;
+					hr = act = pa = 0;
+					rr = " ";
+					mLineNumber++;
+					tokens = line.trim().split(SAVE_DATABASE_DELIM);
+					// Skip blank lines
+					if (tokens.length == 0) {
+						continue;
+					}
+					// Skip lines starting with #
+					if (tokens[0].trim().startsWith("#")) {
+						continue;
+					}
+					hr = pa = act = 0;
+					rr = "";
+					if (tokens.length < 4) {
+						// Utils.errMsg(this, "Found " + tokens.length
+						// + " tokens for line " + lineNum
+						// + "\nShould be 5 or more tokens");
+						mErrors++;
+						Log.d(TAG, "tokens.length=" + tokens.length
+								+ " @ line " + mLineNumber);
+						Log.d(TAG, line);
+						continue;
+					}
+					try {
+						dateNum = Long.parseLong(tokens[0]);
+					} catch (Exception ex) {
+						Log.d(TAG, "Long.parseLong falied for dateNum @ line "
+								+ mLineNumber);
+					}
+					try {
+						startDateNum = Long.parseLong(tokens[1]);
+					} catch (Exception ex) {
+						Log.d(TAG,
+								"Long.parseLong falied for startDateNum @ line "
+										+ mLineNumber);
+					}
+					try {
+						hr = Integer.parseInt(tokens[2]);
+					} catch (Exception ex) {
+						Log.d(TAG, "Integer.parseInt falied for hr @ line "
+								+ mLineNumber);
+					}
+					rr = tokens[3].trim();
+					if (tokens.length >= 5) {
+						try {
+							act = Integer.parseInt(tokens[4]);
+						} catch (Exception ex) {
+							Log.d(TAG,
+									"Integer.parseInt falied for act @ line "
+											+ mLineNumber);
+						}
+					}
+					if (tokens.length >= 6) {
+						try {
+							pa = Integer.parseInt(tokens[5]);
+						} catch (Exception ex) {
+							Log.d(TAG, "Integer.parseInt falied for pa @ line "
+									+ mLineNumber);
+						}
+					}
+					// Write the row
+					long id = mDbAdapter.createData(dateNum, startDateNum, hr,
+							rr, act, pa);
+					if (id < 0) {
+						mErrors++;
+					}
+				}
+			} catch (Exception ex) {
+				mExceptionMsg = "Got Exception restoring at line "
+						+ mLineNumber + "\n" + ex.getMessage();
+			} finally {
+				try {
+					if (in != null) {
+						in.close();
+					}
+				} catch (Exception ex) {
+					// Do nothing
+				}
+			}
+			return true;
+		}
+
+		@Override
+		protected void onPostExecute(Boolean result) {
+			if (mExceptionMsg != null) {
+
+			}
+			Log.d(TAG, this.getClass().getSimpleName()
+					+ ": onPostExecute: result=" + result);
+			if (dialog != null) {
+				dialog.dismiss();
+			}
+			mRestoreTask = null;
+			String info;
+			if (mErrors == 0) {
+				info = "Restored " + mLineNumber + " lines from "
+						+ file.getPath();
+			} else {
+				info = "Got " + mErrors + " errors processing " + mLineNumber
+						+ " lines from " + file.getPath();
+				if (mExceptionMsg != null) {
+					info += "\n" + mExceptionMsg;
+				}
+			}
+			Utils.infoMsg(SessionManagerActivity.this, info);
+			refresh();
+		}
+	}
+
+	/**
+	 * Sets all the sessions to checked or not.
+	 * 
+	 * @param checked
+	 */
+	public void setAllSessionsChecked(Boolean checked) {
+		ArrayList<Session> sessions = mSessionListAdapter.getSessions();
+		CheckBox cb = null;
+		for (Session session : sessions) {
+			session.setChecked(checked);
+			cb = session.getCheckBox();
+			if (cb != null) {
+				cb.setChecked(checked);
+			}
+		}
 	}
 
 	/**
@@ -388,8 +797,9 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 
 					int indexStartDate = cursor
 							.getColumnIndexOrThrow(COL_START_DATE);
-					int indexEndDate = cursor.getColumnIndex(COL_END_DATE);
-					// int indexTmp = cursor.getColumnIndex(COL_TMP);
+					int indexEndDate = cursor
+							.getColumnIndexOrThrow(COL_END_DATE);
+					// int indexTmp = cursor.getColumnIndexOrThrow(COL_TMP);
 
 					// Loop over items
 					cursor.moveToFirst();
@@ -468,6 +878,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 
 		@Override
 		public View getView(int i, View view, ViewGroup viewGroup) {
+			// // DEBUG
+			// Log.d(TAG, "getView: " + i);
 			ViewHolder viewHolder = null;
 			// General ListView optimization code.
 			if (view == null) {
@@ -490,6 +902,11 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 								Session session = (Session) cb.getTag();
 								boolean checked = cb.isChecked();
 								session.setChecked(checked);
+								// // DEBUG
+								// Log.d(TAG,
+								// "sessionCheckbox.onClickListener: "
+								// + session.getName() + " "
+								// + session.isChecked());
 							}
 						});
 			} else {
@@ -497,6 +914,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			}
 
 			Session session = mSessions.get(i);
+			// Set the name
 			final String sessionName = session.getName();
 			if (sessionName != null && sessionName.length() > 0) {
 				viewHolder.sessionCheckbox.setText(sessionName);
@@ -529,9 +947,20 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 				viewHolder.sessionDuration.setText("");
 			}
 			// Set the tag for the CheckBox to the session and set its state
-			viewHolder.sessionCheckbox.setSelected(session.isChecked());
+			viewHolder.sessionCheckbox.setChecked(session.isChecked());
 			viewHolder.sessionCheckbox.setTag(session);
+			// And set the associated checkBox for the session
+			session.setCheckBox(viewHolder.sessionCheckbox);
 			return view;
+		}
+
+		/**
+		 * Get a list of checked sessions.
+		 * 
+		 * @return
+		 */
+		public ArrayList<Session> getSessions() {
+			return mSessions;
 		}
 
 		/**

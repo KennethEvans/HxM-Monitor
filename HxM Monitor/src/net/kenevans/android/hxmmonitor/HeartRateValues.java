@@ -63,7 +63,7 @@ public class HeartRateValues implements IConstants {
 				offset += 2;
 				rrString += " " + iVal;
 			}
-			rr = rrString;
+			rr = rrString.trim();
 			string += "\nR-R: " + rrString;
 		} else {
 			string += "\nR-R: NA";

@@ -8,6 +8,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
+import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
@@ -48,6 +49,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	private BluetoothLeService mBluetoothLeService;
 	private boolean mConnected = false;
 	private HxMMonitorDbAdapter mDbAdapter;
+	private boolean mDoBat = true;
+	private boolean mDoHr = true;
+	private boolean mDoCustom = true;
 	private File mDataDir;
 	private BluetoothGattCharacteristic mCharBat;
 	private BluetoothGattCharacteristic mCharHr;
@@ -139,7 +143,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		// selectively disable BLE-related features.
 		if (!getPackageManager().hasSystemFeature(
 				PackageManager.FEATURE_BLUETOOTH_LE)) {
-			String msg = "Bluetooth LE is not supported on this device";
+			String msg = getString(R.string.ble_not_supported);
 			Utils.errMsg(this, msg);
 			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			return;
@@ -152,7 +156,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 
 		// Checks if Bluetooth is supported on the device
 		if (adapter == null) {
-			String msg = "Bluetooth is not supported on this device";
+			String msg = getString(R.string.bluetooth_not_supported);
 			Utils.errMsg(this, msg);
 			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
 			return;
@@ -177,7 +181,6 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		mStatus = (TextView) findViewById(R.id.status_value);
 		resetDataViews();
 
-		getActionBar().setDisplayHomeAsUpEnabled(true);
 		Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
 		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
@@ -526,11 +529,25 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				|| characteristic.getUuid().equals(UUID_BATTERY_LEVEL)
 				|| characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
 			if (characteristic.getUuid().equals(UUID_HEART_RATE_MEASUREMENT)) {
+				if (mDoHr) {
+					mCharHr = characteristic;
+				} else {
+					mCharHr = null;
+				}
 				mCharHr = characteristic;
 			} else if (characteristic.getUuid().equals(UUID_BATTERY_LEVEL)) {
+				if (mDoBat) {
+					mCharBat = characteristic;
+				} else {
+					mCharBat = null;
+				}
 				mCharBat = characteristic;
 			} else if (characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
-				mCharCustom = characteristic;
+				if (mDoCustom) {
+					mCharCustom = characteristic;
+				} else {
+					mCharCustom = null;
+				}
 			}
 			// Start a timer to wait for all characteristics to be accumulated
 			if (mTimer == null) {
@@ -540,13 +557,15 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 						CHARACTERISTIC_TIMER_INTERVAL) {
 					@Override
 					public void onTick(long millisUntilFinished) {
-						if (mCharCustom != null && mCharBat != null
-								&& mCharHr != null
+						if ((!mDoCustom || mCharCustom != null)
+								&& (!mDoHr || mCharHr != null)
+								&& (!mDoBat || mCharBat != null)
 								&& mBluetoothLeService != null) {
 							boolean res = mBluetoothLeService.startSession(
-									mCharBat, mCharHr, null, true);
+									mCharBat, mCharHr, mCharCustom);
 							if (res) {
 								mTimer.cancel();
+								mTimer = null;
 								Log.d(TAG,
 										"onTick: New session started with all characteristics");
 							} else {
@@ -559,7 +578,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 					@Override
 					public void onFinish() {
 						boolean res = mBluetoothLeService.startSession(
-								mCharBat, mCharHr, null, true);
+								mCharBat, mCharHr, mCharCustom);
 						if (!res) {
 							runOnUiThread(new Runnable() {
 								public void run() {
@@ -576,26 +595,12 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 									+ (mCharCustom != null ? "found" : "null"));
 						}
 						this.cancel();
+						mTimer = null;
 					}
 				};
 				mTimer.start();
 			}
 		}
-		// if (!characteristic.getUuid().equals(UUID_HEART_RATE_MEASUREMENT)) {
-		// return;
-		// }
-		// // First try to read it
-		// final int property = characteristic.getProperties();
-		// if ((property | BluetoothGattCharacteristic.PROPERTY_READ) > 0) {
-		// Log.d(TAG, "  PROPERTY_READ");
-		// mBluetoothLeService.readCharacteristic(characteristic);
-		// }
-		// // Then set up a notification if possible
-		// if ((property | BluetoothGattCharacteristic.PROPERTY_NOTIFY) > 0) {
-		// Log.d(TAG, "  PROPERTY_NOTIFY");
-		// mBluetoothLeService.setCharacteristicNotification(characteristic,
-		// true);
-		// }
 	}
 
 	/**
@@ -667,8 +672,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				}
 			}
 		}
-		if (!hrFound || !batFound || !customFound || mCharHr == null
-				|| mCharBat == null || mCharCustom == null) {
+		if (!hrFound || !batFound || !customFound || (mDoHr && mCharHr == null)
+				|| (mDoBat && mCharBat == null)
+				|| (mDoCustom && mCharCustom == null)) {
 			String info = "Services and Characteristics not found:" + "\n";
 			if (!hrFound) {
 				info += "  Heart Rate" + "\n";
@@ -680,7 +686,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				info += "    Battery Level" + "\n";
 			} else if (!customFound) {
 				info += "  HxM2 Custom Data Service" + "\n";
-			} else if (mCharCustom == null) {
+			} else if (mDoCustom && mCharCustom == null) {
 				info += "    Custom Measurement" + "\n";
 			}
 			Utils.warnMsg(this, info);
