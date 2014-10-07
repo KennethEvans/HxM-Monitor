@@ -83,8 +83,15 @@ public interface IConstants {
 	public static final String SD_CARD_DB_DIRECTORY = "HxM Monitor";
 
 	// Preferences
-	public static final String PREF_DATA_DIRECTORY = "dataDirectory";
-	public static final String PREF_PLOT_START_TIME = "plotStartTime";
+	public static final String PREF_DATA_DIRECTORY = "dataDirectoryPreference";
+	public static final String PREF_PLOT_START_TIME = "plotStartTimePreference";
+	public static final String PREF_MONITOR_HR = "monitorHRPreference";
+	public static final String PREF_MONITOR_CUSTOM = "monitorCustomPreference";
+	public static final String PREF_PLOT_HR = "plotHrPreference";
+	public static final String PREF_PLOT_RR = "plotRrPreference";
+	public static final String PREF_PLOT_ACT = "plotActPreference";
+	public static final String PREF_PLOT_PA = "plotPaPreference";
+	public static final String PREF_PLOT_INTERVAL = "plotIntervalPreference";
 
 	// Session state
 	public static final int SESSION_IDLE = 0;

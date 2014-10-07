@@ -136,6 +136,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_device_monitor);
+		
+		// Initialize the preferences if not already done
+		PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
 
 		// Use this check to determine whether BLE is supported on the device.
 		// Then you can

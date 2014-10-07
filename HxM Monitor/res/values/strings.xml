@@ -64,6 +64,26 @@
     <string name="menu_restoring">Restoring</string>
     <string name="menu_settings">Settings</string>
     
+    <!-- Preferences -->
+    <string name="monitor_preferences">Monitor Settings</string>
+    <string name="title_hr_preference">HR</string>
+    <string name="summary_hr_preference">Monitor the HR service</string>
+    <string name="title_custom_preference">Custom</string>
+    <string name="summary_custom_preference">Monitor the HxM Custom service</string>
+    
+    <string name="plot_preferences">Plot Settings</string>
+    <string name="title_plot_hr_preference">HR</string>
+    <string name="summary_plot_hr_preference">Plot the HR</string>
+    <string name="title_plot_rr_preference">RR</string>
+    <string name="summary_plot_rr_preference">Plot the RR</string>
+    <string name="title_plot_act_preference">Activity</string>
+    <string name="summary_plot_act_preference">Plot the Activity (Custom)</string>
+    <string name="title_plot_pa_preference">Peak Acceleration</string>
+    <string name="summary_plot_pa_preference">Plot the Peak Acceleration (Custom)</string>
+    <string name="title_plot_interval_preference">Real-Time Plot Interval</string>
+    <string name="summary_plot_interval_preference">The length of the real-time plot interval</string>
+    <string name="dialog_title_plot_interval_preference">Enter the interval in min</string>
+    
     <!-- Utils -->
     <string name="error">Error</string>
     <string name="exception">Exception</string>
