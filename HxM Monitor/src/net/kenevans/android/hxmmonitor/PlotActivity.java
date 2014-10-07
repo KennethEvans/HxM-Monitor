@@ -88,10 +88,10 @@ public class PlotActivity extends Activity implements IConstants {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			final String action = intent.getAction();
-			if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+			if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
 				// Log.d(TAG, "onReceive: " + action);
 				updateChart(intent);
-			} else if (BluetoothLeService.ACTION_ERROR.equals(action)) {
+			} else if (HxMBleService.ACTION_ERROR.equals(action)) {
 				Log.d(TAG, "onReceive: " + action);
 				displayError(intent);
 			}
@@ -105,11 +105,11 @@ public class PlotActivity extends Activity implements IConstants {
 	 */
 	private static IntentFilter makeGattUpdateIntentFilter() {
 		final IntentFilter intentFilter = new IntentFilter();
-		// intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
-		// intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+		// intentFilter.addAction(HxMBleService.ACTION_GATT_CONNECTED);
+		// intentFilter.addAction(HxMBleService.ACTION_GATT_DISCONNECTED);
 		// intentFilter
-		// .addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
-		intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+		// .addAction(HxMBleService.ACTION_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(HxMBleService.ACTION_DATA_AVAILABLE);
 		return intentFilter;
 	}
 
@@ -607,7 +607,7 @@ public class PlotActivity extends Activity implements IConstants {
 	}
 
 	/**
-	 * Updates the chart when data is received from the BluetoothLeService.
+	 * Updates the chart when data is received from the HxMBleService.
 	 * 
 	 * @param intent
 	 */

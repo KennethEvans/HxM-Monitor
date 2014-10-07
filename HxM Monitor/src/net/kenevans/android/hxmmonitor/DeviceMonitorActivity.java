@@ -33,7 +33,7 @@ import android.widget.Toast;
 /**
  * For a given BLE device, this Activity provides the user interface to connect,
  * display data, and display GATT services and characteristics supported by the
- * device. The Activity communicates with {@code BluetoothLeService}, which in
+ * device. The Activity communicates with {@code HxMBleService}, which in
  * turn interacts with the Bluetooth LE API.
  */
 public class DeviceMonitorActivity extends Activity implements IConstants {
@@ -46,7 +46,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	private TextView mStatus;
 	private String mDeviceName;
 	private String mDeviceAddress;
-	private BluetoothLeService mBluetoothLeService;
+	private HxMBleService mHxMBleService;
 	private boolean mConnected = false;
 	private HxMMonitorDbAdapter mDbAdapter;
 	private boolean mDoBat = true;
@@ -67,27 +67,27 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				IBinder service) {
 			Log.d(TAG, "onServiceConnected: " + mDeviceName + " "
 					+ mDeviceAddress);
-			mBluetoothLeService = ((BluetoothLeService.LocalBinder) service)
+			mHxMBleService = ((HxMBleService.LocalBinder) service)
 					.getService();
-			if (!mBluetoothLeService.initialize()) {
+			if (!mHxMBleService.initialize()) {
 				String msg = "Unable to initialize Bluetooth";
 				Log.e(TAG, msg);
 				Utils.errMsg(DeviceMonitorActivity.this, msg);
 				return;
 			}
 			if (mDbAdapter != null) {
-				mBluetoothLeService.startDatabase(mDbAdapter);
+				mHxMBleService.startDatabase(mDbAdapter);
 			}
 			// Automatically connects to the device upon successful start-up
 			// initialization.
-			boolean res = mBluetoothLeService.connect(mDeviceAddress);
-			Log.d(TAG, "Connect mBluetoothLeService result=" + res);
+			boolean res = mHxMBleService.connect(mDeviceAddress);
+			Log.d(TAG, "Connect mHxMBleService result=" + res);
 		}
 
 		@Override
 		public void onServiceDisconnected(ComponentName componentName) {
 			Log.d(TAG, "onServiceDisconnected");
-			mBluetoothLeService = null;
+			mHxMBleService = null;
 		}
 	};
 
@@ -106,27 +106,27 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			final String action = intent.getAction();
-			if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+			if (HxMBleService.ACTION_GATT_CONNECTED.equals(action)) {
 				Log.d(TAG, "onReceive: " + action);
 				mConnected = true;
 				updateConnectionState(R.string.connected);
 				invalidateOptionsMenu();
-			} else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+			} else if (HxMBleService.ACTION_GATT_DISCONNECTED
 					.equals(action)) {
 				Log.d(TAG, "onReceive: " + action);
 				mConnected = false;
 				resetDataViews();
 				updateConnectionState(R.string.disconnected);
 				invalidateOptionsMenu();
-			} else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
+			} else if (HxMBleService.ACTION_GATT_SERVICES_DISCOVERED
 					.equals(action)) {
 				Log.d(TAG, "onReceive: " + action);
-				onServicesDiscovered(mBluetoothLeService
+				onServicesDiscovered(mHxMBleService
 						.getSupportedGattServices());
-			} else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+			} else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
 				// Log.d(TAG, "onReceive: " + action);
 				displayData(intent);
-			} else if (BluetoothLeService.ACTION_ERROR.equals(action)) {
+			} else if (HxMBleService.ACTION_ERROR.equals(action)) {
 				// Log.d(TAG, "onReceive: " + action);
 				displayError(intent);
 			}
@@ -181,7 +181,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		mStatus = (TextView) findViewById(R.id.status_value);
 		resetDataViews();
 
-		Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
+		Intent gattServiceIntent = new Intent(this, HxMBleService.class);
 		bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
 		// Open the database
@@ -196,8 +196,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	@Override
 	protected void onResume() {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onResume: mConnected="
-				+ mConnected + " mBluetoothLeService="
-				+ (mBluetoothLeService == null ? "null" : "not null"));
+				+ mConnected + " mHxMBleService="
+				+ (mHxMBleService == null ? "null" : "not null"));
 		super.onResume();
 		Log.d(TAG, "Starting registerReceiver");
 		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
@@ -209,22 +209,22 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		// } else {
 		// Log.d(TAG, "After registerReceiver: intent is not null");
 		// final String action = intent.getAction();
-		// if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+		// if (HxMBleService.ACTION_GATT_CONNECTED.equals(action)) {
 		// Log.d(TAG, "  intent.getAction: ACTION_GATT_CONNECTED");
-		// } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+		// } else if (HxMBleService.ACTION_GATT_DISCONNECTED
 		// .equals(action)) {
 		// Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
-		// } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+		// } else if (HxMBleService.ACTION_GATT_DISCONNECTED
 		// .equals(action)) {
 		// Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
-		// } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+		// } else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
 		// Log.d(TAG, "  intent.getAction: ACTION_DATA_AVAILABLE");
 		// }
 		// }
-		if (mBluetoothLeService != null) {
-			Log.d(TAG, "Starting mBluetoothLeService.connect");
-			final boolean res = mBluetoothLeService.connect(mDeviceAddress);
-			Log.d(TAG, "mBluetoothLeService.connect: result=" + res);
+		if (mHxMBleService != null) {
+			Log.d(TAG, "Starting mHxMBleService.connect");
+			final boolean res = mHxMBleService.connect(mDeviceAddress);
+			Log.d(TAG, "mHxMBleService.connect: result=" + res);
 		}
 	}
 
@@ -239,7 +239,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	protected void onDestroy() {
 		super.onDestroy();
 		unbindService(mServiceConnection);
-		mBluetoothLeService = null;
+		mHxMBleService = null;
 		if (mDbAdapter != null) {
 			mDbAdapter.close();
 			mDbAdapter = null;
@@ -263,10 +263,10 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
 		case R.id.menu_connect:
-			mBluetoothLeService.connect(mDeviceAddress);
+			mHxMBleService.connect(mDeviceAddress);
 			return true;
 		case R.id.menu_disconnect:
-			mBluetoothLeService.disconnect();
+			mHxMBleService.disconnect();
 			return true;
 		case android.R.id.home:
 			onBackPressed();
@@ -560,8 +560,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 						if ((!mDoCustom || mCharCustom != null)
 								&& (!mDoHr || mCharHr != null)
 								&& (!mDoBat || mCharBat != null)
-								&& mBluetoothLeService != null) {
-							boolean res = mBluetoothLeService.startSession(
+								&& mHxMBleService != null) {
+							boolean res = mHxMBleService.startSession(
 									mCharBat, mCharHr, mCharCustom);
 							if (res) {
 								mTimer.cancel();
@@ -577,7 +577,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 
 					@Override
 					public void onFinish() {
-						boolean res = mBluetoothLeService.startSession(
+						boolean res = mHxMBleService.startSession(
 								mCharBat, mCharHr, mCharCustom);
 						if (!res) {
 							runOnUiThread(new Runnable() {
@@ -610,11 +610,11 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	 */
 	private static IntentFilter makeGattUpdateIntentFilter() {
 		final IntentFilter intentFilter = new IntentFilter();
-		intentFilter.addAction(BluetoothLeService.ACTION_GATT_CONNECTED);
-		intentFilter.addAction(BluetoothLeService.ACTION_GATT_DISCONNECTED);
+		intentFilter.addAction(HxMBleService.ACTION_GATT_CONNECTED);
+		intentFilter.addAction(HxMBleService.ACTION_GATT_DISCONNECTED);
 		intentFilter
-				.addAction(BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED);
-		intentFilter.addAction(BluetoothLeService.ACTION_DATA_AVAILABLE);
+				.addAction(HxMBleService.ACTION_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(HxMBleService.ACTION_DATA_AVAILABLE);
 		return intentFilter;
 	}
 

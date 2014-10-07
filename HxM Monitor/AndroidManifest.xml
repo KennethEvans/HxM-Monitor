@@ -51,7 +51,7 @@
         </activity>
 
         <service
-            android:name=".BluetoothLeService"
+            android:name=".HxMBleService"
             android:enabled="true" >
         </service>
     </application>

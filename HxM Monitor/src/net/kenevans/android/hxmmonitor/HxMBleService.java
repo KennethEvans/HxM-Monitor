@@ -49,7 +49,7 @@ import android.util.Log;
  * @author evans
  *
  */
-public class BluetoothLeService extends Service implements IConstants {
+public class HxMBleService extends Service implements IConstants {
 	private final static String TAG = "HxM BLEService";
 
 	private BluetoothManager mBluetoothManager;
@@ -302,8 +302,8 @@ public class BluetoothLeService extends Service implements IConstants {
 	}
 
 	public class LocalBinder extends Binder {
-		BluetoothLeService getService() {
-			return BluetoothLeService.this;
+		HxMBleService getService() {
+			return HxMBleService.this;
 		}
 	}
 
