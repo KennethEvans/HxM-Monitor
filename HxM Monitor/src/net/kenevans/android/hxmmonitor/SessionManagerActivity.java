@@ -205,8 +205,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 				PlotActivity.class);
 		// Plot the session
 		intent.putExtra(PLOT_SESSION_CODE, true);
-		intent.putExtra(PLOT_SESSION_START_TIME, startDate);
-		intent.putExtra(PLOT_SESSION_END_TIME, endDate);
+		intent.putExtra(PLOT_SESSION_START_TIME_CODE, startDate);
+		intent.putExtra(PLOT_SESSION_END_TIME_CODE, endDate);
 		startActivityForResult(intent, REQUEST_PLOT_CODE);
 	}
 

@@ -126,9 +126,9 @@ public class PlotActivity extends Activity implements IConstants {
 		if (extras != null) {
 			mIsSession = extras.getBoolean(PLOT_SESSION_CODE, false);
 			if (mIsSession) {
-				mPlotSessionStart = extras.getLong(PLOT_SESSION_START_TIME,
+				mPlotSessionStart = extras.getLong(PLOT_SESSION_START_TIME_CODE,
 						Long.MIN_VALUE);
-				mPlotSessionEnd = extras.getLong(PLOT_SESSION_END_TIME,
+				mPlotSessionEnd = extras.getLong(PLOT_SESSION_END_TIME_CODE,
 						Long.MIN_VALUE);
 			}
 		}

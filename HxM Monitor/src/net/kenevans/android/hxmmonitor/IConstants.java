@@ -162,6 +162,8 @@ public interface IConstants {
 	public static final int REQUEST_PLOT_CODE = 13;
 	/** Request code for the session manager. */
 	public static final int REQUEST_SESSION_MANAGER_CODE = 14;
+	/** Request code for settings. */
+	public static final int REQUEST_SETTINGS_CODE = 15;
 
 	// Intent codes
 	/** The intent code for extra data. */
@@ -193,9 +195,11 @@ public interface IConstants {
 	/** Intent code for plotting a session of current. */
 	public static final String PLOT_SESSION_CODE = "PlotSessionCode";
 	/** Intent code for plotting session start time. */
-	public static final String PLOT_SESSION_START_TIME = "PlotSessionStartTime";
+	public static final String PLOT_SESSION_START_TIME_CODE = "PlotSessionStartTimeCode";
 	/** Intent code for plotting session end time. */
-	public static final String PLOT_SESSION_END_TIME = "PlotSessionEndTime";
+	public static final String PLOT_SESSION_END_TIME_CODE = "PlotSessionEndTimeCode";
+	/** Intent code for showing settings. */
+	public static final String SETTINGS_CODE = "SettingsCode";
 
 	// Result codes
 	/** Result code for an error. */

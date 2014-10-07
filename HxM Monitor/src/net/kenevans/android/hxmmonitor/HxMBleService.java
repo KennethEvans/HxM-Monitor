@@ -648,6 +648,58 @@ public class HxMBleService extends Service implements IConstants {
 	}
 
 	/**
+	 * Starts the timer for managing Custom notification, stopping any one
+	 * already running..
+	 */
+	private void startCustomTimer() {
+		if (mCustomTimeoutTimer != null) {
+			stopCustomTimer();
+		}
+		mCustomTimeoutTask = new TimerTask() {
+			@Override
+			public void run() {
+				mCustomTimeoutTimer = null;
+				Log.d(TAG, "mCustomTimeoutTimer: Timed out: state="
+						+ mSessionState);
+				if (mSessionInProgress
+						&& mSessionState == SESSION_WAITING_CUSTOM) {
+					if (mDbAdapter != null && mCharCustom == null) {
+						mDbAdapter.createData(mLastHrDate, mSessionStartTime,
+								mLastHr, mLastRr, 0, 0);
+					}
+					incrementSessionState();
+				}
+			}
+		};
+		// Log.d(TAG, "New timer about to be constructed");
+		try {
+			mCustomTimeoutTimer = new Timer();
+			// // DEBUG
+			// Log.d(TAG, "New timer about to be scheduled");
+			mCustomTimeoutTimer.schedule(mCustomTimeoutTask,
+					CHARACTERISTIC_TIMER_TIMEOUT);
+			// Log.d(TAG, "New timer scheduled");
+		} catch (Exception ex) {
+			Log.e(TAG, "Exception creating timer: " + ex.getMessage());
+		}
+	}
+
+	/**
+	 * Stops the timer for managing Custom notification.
+	 */
+	private void stopCustomTimer() {
+		if (mCustomTimeoutTimer != null) {
+			if (mCustomTimeoutTask != null) {
+				mCustomTimeoutTask.cancel();
+			}
+			mCustomTimeoutTimer.purge();
+			mCustomTimeoutTask = null;
+			mCustomTimeoutTimer.cancel();
+			mCustomTimeoutTimer = null;
+		}
+	}
+
+	/**
 	 * Starts a session.
 	 * 
 	 * @param charBat
@@ -666,15 +718,7 @@ public class HxMBleService extends Service implements IConstants {
 		// checkPermissions(charBat, charHr, charCustom);
 
 		// Cancel a running timer
-		if (mCustomTimeoutTimer != null) {
-			if (mCustomTimeoutTask != null) {
-				mCustomTimeoutTask.cancel();
-			}
-			mCustomTimeoutTimer.purge();
-			mCustomTimeoutTask = null;
-			mCustomTimeoutTimer.cancel();
-			mCustomTimeoutTimer = null;
-		}
+		stopCustomTimer();
 
 		// Stop notifying for existing characteristics
 		if (mSessionInProgress = true && mCharHr != null) {
@@ -699,8 +743,9 @@ public class HxMBleService extends Service implements IConstants {
 		mCharBat = charBat;
 		mCharHr = charHr;
 		mCharCustom = charCustom;
-		mLastHr = -1;
-		mLastRr = null;
+		mLastHr = 0;
+		mLastRr = "";
+		mLastHrDate = new Date().getTime();
 		mSessionInProgress = res;
 
 		return res;
@@ -711,6 +756,8 @@ public class HxMBleService extends Service implements IConstants {
 	 */
 	public void stopSession() {
 		Log.d(TAG, "stopSession");
+		// Stop the custom timer
+		stopCustomTimer();
 		// Stop notifying for existing characteristics
 		if (mSessionInProgress = true && mCharHr != null) {
 			setCharacteristicNotification(mCharHr, false);
@@ -766,45 +813,9 @@ public class HxMBleService extends Service implements IConstants {
 			if (mCharCustom != null) {
 				mSessionState = SESSION_WAITING_CUSTOM;
 				setCharacteristicNotification(mCharCustom, true);
-				// Cancel a running timer
-				if (mCustomTimeoutTimer != null) {
-					if (mCustomTimeoutTask != null) {
-						mCustomTimeoutTask.cancel();
-					}
-					mCustomTimeoutTimer.purge();
-					mCustomTimeoutTask = null;
-					mCustomTimeoutTimer.cancel();
-					mCustomTimeoutTimer = null;
-				}
-				// Set a timer to cancel SESSION_WAITING_CUSTOM
-				mCustomTimeoutTask = new TimerTask() {
-					@Override
-					public void run() {
-						mCustomTimeoutTimer = null;
-						Log.d(TAG, "mCustomTimeoutTimer: Timed out: state="
-								+ mSessionState);
-						if (mSessionInProgress
-								&& mSessionState == SESSION_WAITING_CUSTOM) {
-							if (mDbAdapter != null && mCharCustom == null) {
-								mDbAdapter.createData(mLastHrDate,
-										mSessionStartTime, mLastHr, mLastRr, 0,
-										0);
-							}
-							incrementSessionState();
-						}
-					}
-				};
-				// Log.d(TAG, "New timer about to be constructed");
-				try {
-					mCustomTimeoutTimer = new Timer();
-					// // DEBUG
-					// Log.d(TAG, "New timer about to be scheduled");
-					mCustomTimeoutTimer.schedule(mCustomTimeoutTask,
-							CHARACTERISTIC_TIMER_TIMEOUT);
-					// Log.d(TAG, "New timer scheduled");
-				} catch (Exception ex) {
-					Log.e(TAG, "Exception creating timer: " + ex.getMessage());
-				}
+				// Start a timer to go back to HR if no custom notifications
+				// received
+				startCustomTimer();
 			}
 			// Else leave it as is
 			break;
@@ -813,25 +824,8 @@ public class HxMBleService extends Service implements IConstants {
 			// Log.d(TAG,
 			// "incrementSessionState: SESSION_WAITING_CUSTOM mCustomTimeoutTimer="
 			// + mCustomTimeoutTimer);
-			if (mCustomTimeoutTimer != null) {
-				// // DEBUG
-				// boolean res = mCustomTimeoutTask.cancel();
-				// int removed = mCustomTimeoutTimer.purge();
-				// mCustomTimeoutTask = null;
-				// mCustomTimeoutTimer.cancel();
-				// Log.d(TAG, "mCustomTimeoutTimer is canceled: removed=" +
-				// removed + " res=" + res);
-				// mCustomTimeoutTimer = null;
-				if (mCustomTimeoutTask != null) {
-					mCustomTimeoutTask.cancel();
-				}
-				mCustomTimeoutTimer.purge();
-				mCustomTimeoutTask = null;
-				mCustomTimeoutTimer.cancel();
-				mCustomTimeoutTimer = null;
-
-			}
 			if (mCharHr != null) {
+				stopCustomTimer();
 				mSessionState = SESSION_WAITING_HR;
 				setCharacteristicNotification(mCharHr, true);
 			}

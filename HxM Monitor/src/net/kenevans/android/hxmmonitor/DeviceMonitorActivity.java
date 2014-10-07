@@ -8,7 +8,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
-import android.bluetooth.BluetoothGattDescriptor;
 import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
@@ -280,6 +279,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		case R.id.menu_plot:
 			plot();
 			return true;
+		case R.id.menu_settings:
+			settings();
+			return true;
 		}
 		return super.onOptionsItemSelected(item);
 	}
@@ -414,6 +416,17 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		// Plot the current data, not a session
 		intent.putExtra(PLOT_SESSION_CODE, false);
 		startActivityForResult(intent, REQUEST_PLOT_CODE);
+	}
+
+	/**
+	 * Calls the settings activity.
+	 */
+	public void settings() {
+		Intent intent = new Intent(DeviceMonitorActivity.this,
+				SettingsActivity.class);
+		// Plot the current data, not a session
+		intent.putExtra(SETTINGS_CODE, false);
+		startActivityForResult(intent, REQUEST_SETTINGS_CODE);
 	}
 
 	/**
