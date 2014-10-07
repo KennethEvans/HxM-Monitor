@@ -6,6 +6,7 @@
     <string name="title_activity_devices">BLE Device Scan</string>
     <string name="title_activity_device_scan">Select BLE Device</string>
     <string name="title_activity_plot">HxM Monitor</string>
+    <string name="title_activity_settings">Settings</string>
     <string name="device_monitor_name">HxM Monitor</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
@@ -61,6 +62,7 @@
     <string name="menu_save_database">Save Database</string>
     <string name="menu_restore_database">Restore Database</string>
     <string name="menu_restoring">Restoring</string>
+    <string name="menu_settings">Settings</string>
     
     <!-- Utils -->
     <string name="error">Error</string>
