@@ -64,6 +64,7 @@ public class PlotActivity extends Activity implements IConstants {
 	private boolean mPlotRr = true;
 	private boolean mPlotAct = true;
 	private boolean mPlotPa = true;
+	private int mPlotInterval = PLOT_MAXIMUM_AGE;
 	private HxMMonitorDbAdapter mDbAdapter;
 	private File mDataDir;
 	private long mPlotStartTime = Long.MIN_VALUE;
@@ -126,8 +127,8 @@ public class PlotActivity extends Activity implements IConstants {
 		if (extras != null) {
 			mIsSession = extras.getBoolean(PLOT_SESSION_CODE, false);
 			if (mIsSession) {
-				mPlotSessionStart = extras.getLong(PLOT_SESSION_START_TIME_CODE,
-						Long.MIN_VALUE);
+				mPlotSessionStart = extras.getLong(
+						PLOT_SESSION_START_TIME_CODE, Long.MIN_VALUE);
 				mPlotSessionEnd = extras.getLong(PLOT_SESSION_END_TIME_CODE,
 						Long.MIN_VALUE);
 			}
@@ -151,8 +152,8 @@ public class PlotActivity extends Activity implements IConstants {
 		// Get the plot start time from the default preferences
 		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, Long.MIN_VALUE);
 		if (prefLong == Long.MIN_VALUE) {
-			// Set it to now - PLOT_MAXIMUM_AGE
-			mPlotStartTime = new Date().getTime() - PLOT_MAXIMUM_AGE;
+			// Set it to now - mPlotInterval
+			mPlotStartTime = new Date().getTime() - mPlotInterval;
 			SharedPreferences.Editor editor = prefs.edit();
 			editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
 			editor.commit();
@@ -184,6 +185,33 @@ public class PlotActivity extends Activity implements IConstants {
 				+ mView + " mHrDataset=" + mHrDataset + " mHrSeries="
 				+ mHrSeries);
 		super.onResume();
+		// Get the settings
+		SharedPreferences prefs = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		mPlotHr = prefs.getBoolean(PREF_PLOT_HR, true);
+		mPlotRr = prefs.getBoolean(PREF_PLOT_RR, true);
+		mPlotAct = prefs.getBoolean(PREF_PLOT_ACT, true);
+		mPlotPa = prefs.getBoolean(PREF_PLOT_PA, true);
+		String stringVal = prefs.getString(PREF_PLOT_INTERVAL, null);
+		if (stringVal == null) {
+			mPlotInterval = PLOT_MAXIMUM_AGE;
+		} else {
+			try {
+				mPlotInterval = 60000 * Integer.parseInt(stringVal);
+			} catch (Exception ex) {
+				mPlotInterval = PLOT_MAXIMUM_AGE;
+			}
+		}
+		// Log.d(TAG, "mPlotHR=" + mPlotHr + " mPlotRr=" + mPlotRr +
+		// " mPlotAct="
+		// + mPlotAct + " mPlotPa=" + mPlotPa);
+		// // // DEBUG
+		// Map<String, ?> map = prefs.getAll();
+		// String info = "Shared Preferences\n";
+		// for (Map.Entry<String, ?> entry : map.entrySet()) {
+		// info += entry.getKey() + "=" + entry.getValue() + "\n";
+		// }
+		// Log.d(TAG, info);
 		if (mView != null) {
 			if (mChart == null) {
 				mChart = createChart();
@@ -196,7 +224,7 @@ public class PlotActivity extends Activity implements IConstants {
 		if (!mIsSession) {
 			Log.d(TAG, "onResume: Starting registerReceiver");
 			registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-			mPlotStartTime = new Date().getTime() - PLOT_MAXIMUM_AGE;
+			mPlotStartTime = new Date().getTime() - mPlotInterval;
 		}
 	}
 
@@ -680,7 +708,7 @@ public class PlotActivity extends Activity implements IConstants {
 		if (mPlotHr) {
 			mHrSeries = new TimeSeries("HR");
 			if (!mIsSession) {
-				mHrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+				mHrSeries.setMaximumItemAge(mPlotInterval);
 			}
 		} else {
 			mHrSeries = null;
@@ -688,7 +716,7 @@ public class PlotActivity extends Activity implements IConstants {
 		if (mPlotRr) {
 			mRrSeries = new TimeSeries("RR");
 			if (!mIsSession) {
-				mRrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+				mRrSeries.setMaximumItemAge(mPlotInterval);
 			}
 		} else {
 			mRrSeries = null;
@@ -696,7 +724,7 @@ public class PlotActivity extends Activity implements IConstants {
 		if (mPlotAct) {
 			mActSeries = new TimeSeries("ACT");
 			if (!mIsSession) {
-				mActSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+				mActSeries.setMaximumItemAge(mPlotInterval);
 			}
 		} else {
 			mActSeries = null;
@@ -704,14 +732,14 @@ public class PlotActivity extends Activity implements IConstants {
 		if (mPlotPa) {
 			mPaSeries = new TimeSeries("PA");
 			if (!mIsSession) {
-				mPaSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+				mPaSeries.setMaximumItemAge(mPlotInterval);
 			}
 		} else {
 			mPaSeries = null;
 		}
 		if (!mIsSession) {
-			mHrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
-			mRrSeries.setMaximumItemAge(PLOT_MAXIMUM_AGE);
+			mHrSeries.setMaximumItemAge(mPlotInterval);
+			mRrSeries.setMaximumItemAge(mPlotInterval);
 		}
 		mLastRrTime = Long.MIN_VALUE;
 		mLastRrUpdateTime = Long.MIN_VALUE;

@@ -32,8 +32,8 @@ import android.widget.Toast;
 /**
  * For a given BLE device, this Activity provides the user interface to connect,
  * display data, and display GATT services and characteristics supported by the
- * device. The Activity communicates with {@code HxMBleService}, which in
- * turn interacts with the Bluetooth LE API.
+ * device. The Activity communicates with {@code HxMBleService}, which in turn
+ * interacts with the Bluetooth LE API.
  */
 public class DeviceMonitorActivity extends Activity implements IConstants {
 	private TextView mConnectionState;
@@ -66,8 +66,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				IBinder service) {
 			Log.d(TAG, "onServiceConnected: " + mDeviceName + " "
 					+ mDeviceAddress);
-			mHxMBleService = ((HxMBleService.LocalBinder) service)
-					.getService();
+			mHxMBleService = ((HxMBleService.LocalBinder) service).getService();
 			if (!mHxMBleService.initialize()) {
 				String msg = "Unable to initialize Bluetooth";
 				Log.e(TAG, msg);
@@ -110,8 +109,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				mConnected = true;
 				updateConnectionState(R.string.connected);
 				invalidateOptionsMenu();
-			} else if (HxMBleService.ACTION_GATT_DISCONNECTED
-					.equals(action)) {
+			} else if (HxMBleService.ACTION_GATT_DISCONNECTED.equals(action)) {
 				Log.d(TAG, "onReceive: " + action);
 				mConnected = false;
 				resetDataViews();
@@ -120,8 +118,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			} else if (HxMBleService.ACTION_GATT_SERVICES_DISCOVERED
 					.equals(action)) {
 				Log.d(TAG, "onReceive: " + action);
-				onServicesDiscovered(mHxMBleService
-						.getSupportedGattServices());
+				onServicesDiscovered(mHxMBleService.getSupportedGattServices());
 			} else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
 				// Log.d(TAG, "onReceive: " + action);
 				displayData(intent);
@@ -136,7 +133,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_device_monitor);
-		
+
 		// Initialize the preferences if not already done
 		PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
 
@@ -201,9 +198,18 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				+ mConnected + " mHxMBleService="
 				+ (mHxMBleService == null ? "null" : "not null"));
 		super.onResume();
+		// Get the settings
+		SharedPreferences prefs = PreferenceManager
+				.getDefaultSharedPreferences(this);
+		mDoHr = prefs.getBoolean(PREF_MONITOR_HR, true);
+		mDoCustom = prefs.getBoolean(PREF_MONITOR_CUSTOM, true);
+		mDoBat = prefs.getBoolean(PREF_READ_BATTERY, true);
+		// DEBUG
+		Log.d(TAG, "  mDoHr=" + mDoHr + " mDoCustom=" + mDoCustom + " mDoBat="
+				+ mDoBat);
 		Log.d(TAG, "Starting registerReceiver");
 		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-		// Debug
+		// DEBUG
 		// Intent intent = registerReceiver(mGattUpdateReceiver,
 		// makeGattUpdateIntentFilter());
 		// if (intent == null) {
@@ -283,7 +289,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			plot();
 			return true;
 		case R.id.menu_settings:
-			settings();
+			showSettings();
 			return true;
 		}
 		return super.onOptionsItemSelected(item);
@@ -294,14 +300,18 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		switch (requestCode) {
 		case REQUEST_SELECT_DEVICE_CODE:
 			if (resultCode == Activity.RESULT_OK) {
-				String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
-				String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
+				mDeviceName = data.getStringExtra(DEVICE_NAME_CODE);
+				mDeviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
 				// Use this instead of getPreferences to be application-wide
 				SharedPreferences.Editor editor = PreferenceManager
 						.getDefaultSharedPreferences(this).edit();
-				editor.putString(DEVICE_NAME_CODE, deviceName);
-				editor.putString(DEVICE_ADDRESS_CODE, deviceAddress);
+				editor.putString(DEVICE_NAME_CODE, mDeviceName);
+				editor.putString(DEVICE_ADDRESS_CODE, mDeviceAddress);
 				editor.commit();
+				((TextView) findViewById(R.id.device_name))
+						.setText(mDeviceName);
+				((TextView) findViewById(R.id.device_address))
+						.setText(mDeviceAddress);
 			}
 			break;
 		case REQUEST_PLOT_CODE:
@@ -322,6 +332,14 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				// Utils.errMsg(this, "Canceled");
 				// }
 			}
+			break;
+		case REQUEST_SETTINGS_CODE:
+			// Get the settings
+			SharedPreferences prefs = PreferenceManager
+					.getDefaultSharedPreferences(this);
+			mDoHr = prefs.getBoolean(PREF_MONITOR_HR, true);
+			mDoCustom = prefs.getBoolean(PREF_MONITOR_CUSTOM, true);
+			mDoBat = prefs.getBoolean(PREF_READ_BATTERY, true);
 			break;
 		}
 		super.onActivityResult(requestCode, resultCode, data);
@@ -424,7 +442,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	/**
 	 * Calls the settings activity.
 	 */
-	public void settings() {
+	public void showSettings() {
 		Intent intent = new Intent(DeviceMonitorActivity.this,
 				SettingsActivity.class);
 		// Plot the current data, not a session
@@ -575,15 +593,20 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 					public void onTick(long millisUntilFinished) {
 						if ((!mDoCustom || mCharCustom != null)
 								&& (!mDoHr || mCharHr != null)
-								&& (!mDoBat || mCharBat != null)
+								&& (!mDoCustom || mCharBat != null)
 								&& mHxMBleService != null) {
-							boolean res = mHxMBleService.startSession(
-									mCharBat, mCharHr, mCharCustom);
+							boolean res = mHxMBleService.startSession(mCharBat,
+									mCharHr, mCharCustom);
 							if (res) {
 								mTimer.cancel();
 								mTimer = null;
 								Log.d(TAG,
 										"onTick: New session started with all characteristics");
+								Log.d(TAG, "  mCharHr=" + mCharHr
+										+ " mCharCustom=" + mCharCustom
+										+ " mCharBat=" + mCharBat);
+								Log.d(TAG, "  mDoHr=" + mDoHr + " mDoCustom="
+										+ mDoCustom + " mDoBat=" + mDoBat);
 							} else {
 								Log.d(TAG,
 										"onTick: Session failed to start new session with all characteristics");
@@ -593,8 +616,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 
 					@Override
 					public void onFinish() {
-						boolean res = mHxMBleService.startSession(
-								mCharBat, mCharHr, mCharCustom);
+						boolean res = mHxMBleService.startSession(mCharBat,
+								mCharHr, mCharCustom);
 						if (!res) {
 							runOnUiThread(new Runnable() {
 								public void run() {
@@ -628,8 +651,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		final IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(HxMBleService.ACTION_GATT_CONNECTED);
 		intentFilter.addAction(HxMBleService.ACTION_GATT_DISCONNECTED);
-		intentFilter
-				.addAction(HxMBleService.ACTION_GATT_SERVICES_DISCOVERED);
+		intentFilter.addAction(HxMBleService.ACTION_GATT_SERVICES_DISCOVERED);
 		intentFilter.addAction(HxMBleService.ACTION_DATA_AVAILABLE);
 		return intentFilter;
 	}

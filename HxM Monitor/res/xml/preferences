@@ -12,6 +12,11 @@
                 android:defaultValue="true"
                 android:title="@string/title_custom_preference"
                 android:summary="@string/summary_custom_preference" />
+        <CheckBoxPreference
+                android:key="readBatteryPreference"
+                android:defaultValue="true"
+                android:title="@string/title_battery_preference"
+                android:summary="@string/summary_battery_preference" />
     </PreferenceCategory>
 
     <PreferenceCategory

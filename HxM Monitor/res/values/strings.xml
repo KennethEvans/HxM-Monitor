@@ -70,6 +70,8 @@
     <string name="summary_hr_preference">Monitor the HR service</string>
     <string name="title_custom_preference">Custom</string>
     <string name="summary_custom_preference">Monitor the HxM Custom service</string>
+    <string name="title_battery_preference">Battery</string>
+    <string name="summary_battery_preference">Read the Battery value on connection</string>
     
     <string name="plot_preferences">Plot Settings</string>
     <string name="title_plot_hr_preference">HR</string>

@@ -87,6 +87,7 @@ public interface IConstants {
 	public static final String PREF_PLOT_START_TIME = "plotStartTimePreference";
 	public static final String PREF_MONITOR_HR = "monitorHRPreference";
 	public static final String PREF_MONITOR_CUSTOM = "monitorCustomPreference";
+	public static final String PREF_READ_BATTERY = "readBatteryPreference";
 	public static final String PREF_PLOT_HR = "plotHrPreference";
 	public static final String PREF_PLOT_RR = "plotRrPreference";
 	public static final String PREF_PLOT_ACT = "plotActPreference";
