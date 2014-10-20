@@ -21,6 +21,10 @@
           android:title="@string/menu_select_device"
           android:orderInCategory="3"
           android:showAsAction="never"/>
+    <item android:id="@+id/menu_read_battery_level"
+          android:title="@string/menu_read_battery_level"
+          android:orderInCategory="4"
+          android:showAsAction="never"/>
     <item android:id="@+id/menu_settings"
           android:title="@string/menu_settings"
           android:orderInCategory="50"

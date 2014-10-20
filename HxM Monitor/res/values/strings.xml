@@ -65,7 +65,8 @@
     <string name="menu_restore_database">Restore Database</string>
     <string name="menu_restoring">Restoring</string>
     <string name="menu_settings">Settings</string>
-
+    <string name="menu_read_battery_level">Get Battery level</string>
+    
     <!-- Preferences -->
     <string name="monitor_preferences">Monitor Settings</string>
     <string name="title_hr_preference">HR</string>

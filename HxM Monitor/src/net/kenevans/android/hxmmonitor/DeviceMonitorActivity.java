@@ -210,7 +210,6 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		Log.d(TAG, "Starting registerReceiver");
 		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
 		if (mHxMBleService != null) {
-//			setEnabledFlags();
 			Log.d(TAG, "Starting mHxMBleService.connect");
 			final boolean res = mHxMBleService.connect(mDeviceAddress);
 			Log.d(TAG, "mHxMBleService.connect: result=" + res);
@@ -268,6 +267,9 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			return true;
 		case R.id.menu_plot:
 			plot();
+			return true;
+		case R.id.menu_read_battery_level:
+			readBatteryLevel();
 			return true;
 		case R.id.menu_settings:
 			showSettings();
@@ -423,6 +425,12 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		}
 	}
 
+	public void readBatteryLevel() {
+		if (mHxMBleService != null) {
+			mHxMBleService.readBatteryLevel();
+		}
+	}
+
 	/**
 	 * Calls the plot activity.
 	 */
@@ -563,18 +571,18 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	boolean startSession() {
 		Log.d(TAG, "DeviceMonitorActivity.startSession: mDoBat=" + mDoBat
 				+ " mDoHr=" + mDoHr + " mDoCustom=" + mDoCustom);
-		Log.d(TAG, "  mCharBat=" + mCharBat + " mCharHr=" + mCharHr + " mCharCustom="
-				+ mCharCustom);
-		boolean res = mHxMBleService.startSession(mCharBat, mCharHr, mCharCustom,
-				mDoBat, mDoHr, mDoCustom);
+		Log.d(TAG, "  mCharBat=" + mCharBat + " mCharHr=" + mCharHr
+				+ " mCharCustom=" + mCharCustom);
+		boolean res = mHxMBleService.startSession(mCharBat, mCharHr,
+				mCharCustom, mDoBat, mDoHr, mDoCustom);
 		String msg = "Doing";
-		if(mDoBat) {
+		if (mDoBat) {
 			msg += " BAT";
 		}
-		if(mDoHr) {
+		if (mDoHr) {
 			msg += " HR";
 		}
-		if(mDoCustom) {
+		if (mDoCustom) {
 			msg += " CUSTOM";
 		}
 		mStatus.setText(msg);
@@ -614,7 +622,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			// Start a timer to wait for all characteristics to be accumulated
 			// Unless already started
 			if (mTimer == null) {
-				Log.d(TAG, "onCharacteristicFound: new CancelableCountDownTimer created");
+				Log.d(TAG,
+						"onCharacteristicFound: new CancelableCountDownTimer created");
 				mTimer = new CancelableCountDownTimer(
 						CHARACTERISTIC_TIMER_TIMEOUT,
 						CHARACTERISTIC_TIMER_INTERVAL) {
