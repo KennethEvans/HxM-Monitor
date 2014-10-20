@@ -67,12 +67,11 @@ public class PlotActivity extends Activity implements IConstants {
 	private int mPlotInterval = PLOT_MAXIMUM_AGE;
 	private HxMMonitorDbAdapter mDbAdapter;
 	private File mDataDir;
-	private long mPlotStartTime = Long.MIN_VALUE;
-	private long mPlotSessionStart = Long.MIN_VALUE;
-	private long mPlotSessionEnd = Long.MIN_VALUE;
+	private long mPlotStartTime = INVALID_DATE;
+	private long mPlotSessionStart = INVALID_DATE;
 	private boolean mIsSession = false;
-	private long mLastRrUpdateTime = Long.MIN_VALUE;
-	private long mLastRrTime = Long.MIN_VALUE;
+	private long mLastRrUpdateTime = INVALID_DATE;
+	private long mLastRrTime = INVALID_DATE;
 
 	/**
 	 * Handles various events fired by the Service.
@@ -128,15 +127,13 @@ public class PlotActivity extends Activity implements IConstants {
 			mIsSession = extras.getBoolean(PLOT_SESSION_CODE, false);
 			if (mIsSession) {
 				mPlotSessionStart = extras.getLong(
-						PLOT_SESSION_START_TIME_CODE, Long.MIN_VALUE);
-				mPlotSessionEnd = extras.getLong(PLOT_SESSION_END_TIME_CODE,
-						Long.MIN_VALUE);
+						PLOT_SESSION_START_TIME_CODE, INVALID_DATE);
 			}
 		}
 		if (mIsSession
-				&& (mPlotSessionStart == Long.MIN_VALUE || mPlotSessionEnd == Long.MIN_VALUE)) {
+				&& (mPlotSessionStart == INVALID_DATE)) {
 			Utils.errMsg(this, "Plotting a session but got invalid "
-					+ "values for the start and end times");
+					+ "values for the start time");
 			return;
 		}
 
@@ -150,8 +147,8 @@ public class PlotActivity extends Activity implements IConstants {
 		}
 
 		// Get the plot start time from the default preferences
-		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, Long.MIN_VALUE);
-		if (prefLong == Long.MIN_VALUE) {
+		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, INVALID_DATE);
+		if (prefLong == INVALID_DATE) {
 			// Set it to now - mPlotInterval
 			mPlotStartTime = new Date().getTime() - mPlotInterval;
 			SharedPreferences.Editor editor = prefs.edit();
@@ -312,7 +309,7 @@ public class PlotActivity extends Activity implements IConstants {
 	// private void startNow() {
 	// mIsSession = false;
 	// mPlotStartTime = new Date().getTime();
-	// mLastRrUpdateTime = Long.MIN_VALUE;
+	// mLastRrUpdateTime = INVALID_DATE;
 	// mLastRrTime = INITIAL_RR_START_TIME;
 	// registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
 	// Log.d(TAG, "startNow: Starting registerReceiver");
@@ -393,10 +390,17 @@ public class PlotActivity extends Activity implements IConstants {
 	 */
 	private boolean addRrValues(TimeSeries series, long updateTime,
 			String strValue) {
-		if (strValue == null) {
+		if(series == null  || strValue == null) {
 			return false;
 		}
 		if (strValue.length() == 0) {
+			// Do nothing
+			return true;
+		}
+		if(strValue.equals(INVALID_STRING)) {
+			mLastRrUpdateTime = updateTime;
+			mLastRrTime = updateTime - INITIAL_RR_START_TIME;
+			series.addOrUpdate(new FixedMillisecond(updateTime), Double.NaN);
 			return true;
 		}
 		String[] tokens;
@@ -643,8 +647,8 @@ public class PlotActivity extends Activity implements IConstants {
 		String strValue;
 		double value = Double.NaN;
 		;
-		long date = intent.getLongExtra(EXTRA_DATE, Long.MIN_VALUE);
-		if (date == Long.MIN_VALUE) {
+		long date = intent.getLongExtra(EXTRA_DATE, INVALID_DATE);
+		if (date == INVALID_DATE) {
 			return;
 		}
 		if (mPlotHr && mHrSeries != null) {
@@ -656,12 +660,15 @@ public class PlotActivity extends Activity implements IConstants {
 				} catch (NumberFormatException ex) {
 					value = Double.NaN;
 				}
+				if (value == INVALID_INT) {
+					value = Double.NaN;
+				}
 				mHrSeries.addOrUpdate(new FixedMillisecond(date), value);
 			}
 		}
 		if (mPlotRr && mRrSeries != null) {
 
-			if (mLastRrUpdateTime == Long.MIN_VALUE) {
+			if (mLastRrUpdateTime == INVALID_DATE) {
 				mLastRrUpdateTime = date;
 				mLastRrTime = date;
 			}
@@ -682,6 +689,9 @@ public class PlotActivity extends Activity implements IConstants {
 				} catch (NumberFormatException ex) {
 					value = Double.NaN;
 				}
+				if (value == INVALID_INT) {
+					value = Double.NaN;
+				}
 				mActSeries
 						.addOrUpdate(new FixedMillisecond(date), value / 100.);
 			}
@@ -693,6 +703,9 @@ public class PlotActivity extends Activity implements IConstants {
 				try {
 					value = Double.parseDouble(strValue);
 				} catch (NumberFormatException ex) {
+					value = Double.NaN;
+				}
+				if (value == INVALID_INT) {
 					value = Double.NaN;
 				}
 				mPaSeries.addOrUpdate(new FixedMillisecond(date), value / 100.);
@@ -741,8 +754,8 @@ public class PlotActivity extends Activity implements IConstants {
 			mHrSeries.setMaximumItemAge(mPlotInterval);
 			mRrSeries.setMaximumItemAge(mPlotInterval);
 		}
-		mLastRrTime = Long.MIN_VALUE;
-		mLastRrUpdateTime = Long.MIN_VALUE;
+		mLastRrTime = INVALID_DATE;
+		mLastRrUpdateTime = INVALID_DATE;
 		Cursor cursor = null;
 		int nHrItems = 0, nRrItems = 0, nActItems = 0, nPaItems = 0;
 		int nErrors = 0;
@@ -750,11 +763,11 @@ public class PlotActivity extends Activity implements IConstants {
 		try {
 			if (mDbAdapter != null) {
 				if (mIsSession) {
-					cursor = mDbAdapter.fetchAllHrRrActPaDateDataForTimes(
-							mPlotSessionStart, mPlotSessionEnd);
+					cursor = mDbAdapter.fetchAllHrRrActPaDateDataForStartDate(
+							mPlotSessionStart);
 				} else {
 					cursor = mDbAdapter
-							.fetchAllHrRrActPaDateDataStartingAtTime(mPlotStartTime);
+							.fetchAllHrRrActPaDateDataStartingAtDate(mPlotStartTime);
 				}
 				int indexDate = cursor.getColumnIndex(COL_DATE);
 				int indexHr = mPlotHr ? cursor.getColumnIndex(COL_HR) : -1;
@@ -764,13 +777,16 @@ public class PlotActivity extends Activity implements IConstants {
 
 				// Loop over items
 				cursor.moveToFirst();
-				long date = Long.MIN_VALUE;
+				long date = INVALID_DATE;
 				double hr, act, pa;
 				String rrString;
 				while (cursor.isAfterLast() == false) {
 					date = cursor.getLong(indexDate);
 					if (indexHr > -1) {
 						hr = cursor.getInt(indexHr);
+						if (hr == INVALID_INT) {
+							hr = Double.NaN;
+						}
 						mHrSeries.addOrUpdate(new FixedMillisecond(date), hr);
 						nHrItems++;
 					}
@@ -788,12 +804,18 @@ public class PlotActivity extends Activity implements IConstants {
 					}
 					if (indexAct > -1) {
 						act = cursor.getInt(indexAct);
+						if (act == INVALID_INT) {
+							act = Double.NaN;
+						}
 						mActSeries.addOrUpdate(new FixedMillisecond(date),
 								act / 100.);
 						nActItems++;
 					}
 					if (indexPa > -1) {
 						pa = cursor.getInt(indexPa);
+						if (pa == INVALID_INT) {
+							pa = Double.NaN;
+						}
 						mPaSeries.addOrUpdate(new FixedMillisecond(date),
 								pa / 100.);
 						nPaItems++;

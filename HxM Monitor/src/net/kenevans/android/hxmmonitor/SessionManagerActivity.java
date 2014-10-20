@@ -12,6 +12,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -20,6 +21,8 @@ import android.app.ProgressDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -137,7 +140,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			plot();
 			return true;
 		case R.id.menu_discard:
-			discardSession();
+			promptToDiscardSession();
 			return true;
 		case R.id.menu_merge:
 			mergeSessions();
@@ -146,7 +149,10 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			splitSessions();
 			return true;
 		case R.id.menu_save:
-			saveSession();
+			saveSessions();
+			return true;
+		case R.id.menu_save_gpx:
+			saveSessionsAsGpx();
 			return true;
 		case R.id.menu_refresh:
 			refresh();
@@ -200,13 +206,14 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 		}
 		Session session = checkedSessions.get(0);
 		long startDate = session.getStartDate();
-		long endDate = session.getEndDate();
+		// long endDate = session.getEndDate();
 		Intent intent = new Intent(SessionManagerActivity.this,
 				PlotActivity.class);
 		// Plot the session
 		intent.putExtra(PLOT_SESSION_CODE, true);
 		intent.putExtra(PLOT_SESSION_START_TIME_CODE, startDate);
-		intent.putExtra(PLOT_SESSION_END_TIME_CODE, endDate);
+		// // This is not currently used
+		// intent.putExtra(PLOT_SESSION_END_TIME_CODE, endDate);
 		startActivityForResult(intent, REQUEST_PLOT_CODE);
 	}
 
@@ -227,11 +234,11 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 	/**
 	 * Saves the selected sessions.
 	 */
-	public void saveSession() {
+	public void saveSessions() {
 		ArrayList<Session> checkedSessions = mSessionListAdapter
 				.getCheckedSessions();
 		if (checkedSessions == null || checkedSessions.size() == 0) {
-			Utils.errMsg(this, "There are no sessions to discard");
+			Utils.errMsg(this, "There are no sessions to save");
 			return;
 		}
 		if (mDataDir == null) {
@@ -244,20 +251,18 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 		BufferedWriter out = null;
 		Cursor cursor = null;
 		String fileName = null;
-		long startDate = Long.MIN_VALUE;
-		long endDate = Long.MIN_VALUE;
+		long startDate = INVALID_DATE;
 		File file = null;
 		FileWriter writer = null;
 		for (Session session : checkedSessions) {
 			startDate = session.getStartDate();
-			endDate = session.getEndDate();
 			fileName = session.getName() + ".csv";
 			try {
 				file = new File(mDataDir, fileName);
 				writer = new FileWriter(file);
 				out = new BufferedWriter(writer);
-				cursor = mDbAdapter.fetchAllHrRrActPaDateDataForTimes(
-						startDate, endDate);
+				cursor = mDbAdapter
+						.fetchAllHrRrActPaDateDataForStartDate(startDate);
 				int indexDate = cursor.getColumnIndex(COL_DATE);
 				int indexHr = cursor.getColumnIndex(COL_HR);
 				int indexRr = cursor.getColumnIndex(COL_RR);
@@ -266,27 +271,27 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 				// Loop over items
 				cursor.moveToFirst();
 				String dateStr, hrStr, rrStr, actStr, paStr, line;
-				long dateNum = Long.MIN_VALUE;
+				long dateNum = INVALID_DATE;
 				while (cursor.isAfterLast() == false) {
-					dateStr = "<Unknown>";
+					dateStr = INVALID_STRING;
 					if (indexDate > -1) {
 						dateNum = cursor.getLong(indexDate);
 						dateStr = sessionSaveFormatter
 								.format(new Date(dateNum));
 					}
-					hrStr = "<Unknown>";
+					hrStr = INVALID_STRING;
 					if (indexHr > -1) {
 						hrStr = cursor.getString(indexHr);
 					}
-					rrStr = "<Unknown>";
+					rrStr = INVALID_STRING;
 					if (indexRr > -1) {
 						rrStr = cursor.getString(indexRr);
 					}
-					actStr = "<Unknown>";
+					actStr = INVALID_STRING;
 					if (indexAct > -1) {
 						actStr = cursor.getString(indexAct);
 					}
-					paStr = "<Unknown>";
+					paStr = INVALID_STRING;
 					if (indexPa > -1) {
 						paStr = cursor.getString(indexPa);
 					}
@@ -326,12 +331,109 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 	}
 
 	/**
+	 * Saves the selected sessions as GPX files.
+	 */
+	public void saveSessionsAsGpx() {
+		ArrayList<Session> checkedSessions = mSessionListAdapter
+				.getCheckedSessions();
+		if (checkedSessions == null || checkedSessions.size() == 0) {
+			Utils.errMsg(this, "There are no sessions to save");
+			return;
+		}
+		if (mDataDir == null) {
+			Utils.errMsg(this, "Cannot determine directory for save");
+			return;
+		}
+		int nErrors = 0;
+		String errMsg = "Error saving sessions:\n";
+		String fileNames = "Saved to:\n";
+		BufferedWriter out = null;
+		Cursor cursor = null;
+		String fileName = null;
+		long startDate = INVALID_DATE;
+		File file = null;
+		FileWriter writer = null;
+		String name = "HxM Monitor";
+		SimpleDateFormat formatter = new SimpleDateFormat(
+				"yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
+		formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
+		try {
+			PackageManager pm = getPackageManager();
+			PackageInfo po = pm.getPackageInfo(this.getPackageName(), 0);
+			name = "HxM Monitor" + " " + po.versionName;
+		} catch (Exception ex) {
+			name = "HxM Monitor";
+		}
+		for (Session session : checkedSessions) {
+			startDate = session.getStartDate();
+			fileName = session.getName() + ".gpx";
+			try {
+				file = new File(mDataDir, fileName);
+				writer = new FileWriter(file);
+				out = new BufferedWriter(writer);
+				// Write the beginning lines
+				out.write(String.format(GPXUtils.GPX_FILE_START_LINES, name,
+						formatter.format(new Date())));
+				cursor = mDbAdapter.fetchAllHrDateDataForStartDate(startDate);
+				int indexDate = cursor.getColumnIndex(COL_DATE);
+				int indexHr = cursor.getColumnIndex(COL_HR);
+				// Loop over items
+				cursor.moveToFirst();
+				String hrStr, line;
+				long dateNum = INVALID_DATE;
+				while (cursor.isAfterLast() == false) {
+					if (indexDate > -1) {
+						dateNum = cursor.getLong(indexDate);
+					}
+					hrStr = INVALID_STRING;
+					if (indexHr > -1) {
+						hrStr = cursor.getString(indexHr);
+					}
+					if (hrStr.equals(INVALID_STRING)) {
+						continue;
+					}
+					line = String.format(GPXUtils.GPX_FILE_TRACK_LINES,
+							formatter.format(new Date(dateNum)), hrStr);
+					out.write(line);
+					cursor.moveToNext();
+				}
+				out.write(GPXUtils.GPX_FILE_END_LINES);
+				fileNames += "  " + file.getName() + "\n";
+			} catch (Exception ex) {
+				nErrors++;
+				errMsg += "  " + session.getName();
+			} finally {
+				try {
+					cursor.close();
+				} catch (Exception ex) {
+					// Do nothing
+				}
+				try {
+					out.close();
+				} catch (Exception ex) {
+					// Do nothing
+				}
+			}
+		}
+		String msg = "Directory:\n" + mDataDir + "\n";
+		if (nErrors > 0) {
+			msg += errMsg;
+		}
+		msg += fileNames;
+		if (nErrors > 0) {
+			Utils.errMsg(this, msg);
+		} else {
+			Utils.infoMsg(this, msg);
+		}
+	}
+
+	/**
 	 * Prompts to discards the selected sessions. The method doDiscard will do
 	 * the actual discarding, if the user confirms.
 	 * 
 	 * @see #doDiscardSession()
 	 */
-	public void discardSession() {
+	public void promptToDiscardSession() {
 		ArrayList<Session> checkedSessions = mSessionListAdapter
 				.getCheckedSessions();
 		if (checkedSessions == null || checkedSessions.size() == 0) {
@@ -349,13 +451,14 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 							@Override
 							public void onClick(DialogInterface dialog,
 									int which) {
+								dialog.dismiss();
 								doDiscardSession();
 							}
 						}).setNegativeButton(R.string.cancel, null).show();
 	}
 
 	/**
-	 * Discards the selected sessions.
+	 * Does the actual work of discarding the selected sessions.
 	 */
 	public void doDiscardSession() {
 		ArrayList<Session> checkedSessions = mSessionListAdapter
@@ -364,11 +467,10 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			Utils.errMsg(this, "There are no sessions to discard");
 			return;
 		}
-		long startDate = Long.MIN_VALUE, endDate = Long.MIN_VALUE;
+		long startDate = INVALID_DATE;
 		for (Session session : checkedSessions) {
 			startDate = session.getStartDate();
-			endDate = session.getEndDate();
-			mDbAdapter.deleteAllDataForTimes(startDate, endDate);
+			mDbAdapter.deleteAllDataForStartDate(startDate);
 		}
 		refresh();
 	}
@@ -405,8 +507,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			long dateNum, startDateNum;
 			int hr, act, pa;
 			while (cursor.isAfterLast() == false) {
-				dateNum = startDateNum = Long.MIN_VALUE;
-				hr = act = pa = 0;
+				dateNum = startDateNum = INVALID_DATE;
+				hr = act = pa = INVALID_INT;
 				rr = " ";
 				if (indexDate > -1) {
 					try {
@@ -632,8 +734,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 				String[] tokens = null;
 				String line = null;
 				while ((line = in.readLine()) != null) {
-					dateNum = startDateNum = Long.MIN_VALUE;
-					hr = act = pa = 0;
+					dateNum = startDateNum = INVALID_DATE;
+					hr = act = pa = INVALID_INT;
 					rr = " ";
 					mLineNumber++;
 					tokens = line.trim().split(SAVE_DATABASE_DELIM);
@@ -803,8 +905,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 
 					// Loop over items
 					cursor.moveToFirst();
-					long startDate = Long.MIN_VALUE;
-					long endDate = Long.MIN_VALUE;
+					long startDate = INVALID_DATE;
+					long endDate = INVALID_DATE;
 					String name;
 					while (cursor.isAfterLast() == false) {
 						nItems++;

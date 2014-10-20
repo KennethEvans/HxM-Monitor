@@ -3,10 +3,10 @@ package net.kenevans.android.hxmmonitor;
 import android.bluetooth.BluetoothGattCharacteristic;
 
 public class HxMCustomValues implements IConstants {
-	long date;
-	private int activity = -1;
-	private int pa = -1;
-	private String string;
+	long date = INVALID_DATE;
+	private int activity = INVALID_INT;
+	private int pa = INVALID_INT;
+	private String info;
 
 	public HxMCustomValues(BluetoothGattCharacteristic characteristic, long date) {
 		this.date = date;
@@ -21,17 +21,17 @@ public class HxMCustomValues implements IConstants {
 			activity = characteristic.getIntValue(
 					BluetoothGattCharacteristic.FORMAT_UINT16, offset);
 			offset += 2;
-			string += "Activity: " + activity;
+			info += "Activity: " + activity;
 		} else {
-			string += "Activity: NA";
+			info += "Activity: NA";
 		}
 		if ((flag & 0x02) != 0) {
 			pa = characteristic.getIntValue(
 					BluetoothGattCharacteristic.FORMAT_UINT16, offset);
 			offset += 2;
-			string += "\nPeak Acceleration: " + pa;
+			info += "\nPeak Acceleration: " + pa;
 		} else {
-			string += "\nPeak Acceleration: NA";
+			info += "\nPeak Acceleration: NA";
 		}
 		// // DEBUG
 		// final byte[] data = characteristic.getValue();
@@ -40,7 +40,7 @@ public class HxMCustomValues implements IConstants {
 		// for (byte byteChar : data) {
 		// stringBuilder.append(String.format("%02X ", byteChar));
 		// }
-		// string += "\n" + stringBuilder.toString();
+		// info += "\n" + stringBuilder.toString();
 		// }
 	}
 
@@ -72,12 +72,12 @@ public class HxMCustomValues implements IConstants {
 	}
 
 	/**
-	 * Gets a string representation of the data in the characteristic.
+	 * Gets info on the data in the characteristic.
 	 * 
 	 * @return
 	 */
-	public String getString() {
-		return string;
+	public String getInfo() {
+		return info;
 	}
 
 }

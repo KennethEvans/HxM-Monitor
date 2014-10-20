@@ -209,27 +209,8 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				+ mDoBat);
 		Log.d(TAG, "Starting registerReceiver");
 		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-		// DEBUG
-		// Intent intent = registerReceiver(mGattUpdateReceiver,
-		// makeGattUpdateIntentFilter());
-		// if (intent == null) {
-		// Log.d(TAG, "After registerReceiver: intent is null");
-		// } else {
-		// Log.d(TAG, "After registerReceiver: intent is not null");
-		// final String action = intent.getAction();
-		// if (HxMBleService.ACTION_GATT_CONNECTED.equals(action)) {
-		// Log.d(TAG, "  intent.getAction: ACTION_GATT_CONNECTED");
-		// } else if (HxMBleService.ACTION_GATT_DISCONNECTED
-		// .equals(action)) {
-		// Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
-		// } else if (HxMBleService.ACTION_GATT_DISCONNECTED
-		// .equals(action)) {
-		// Log.d(TAG, "  intent.getAction: ACTION_GATT_DISCONNECTED");
-		// } else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
-		// Log.d(TAG, "  intent.getAction: ACTION_DATA_AVAILABLE");
-		// }
-		// }
 		if (mHxMBleService != null) {
+//			setEnabledFlags();
 			Log.d(TAG, "Starting mHxMBleService.connect");
 			final boolean res = mHxMBleService.connect(mDeviceAddress);
 			Log.d(TAG, "mHxMBleService.connect: result=" + res);
@@ -323,7 +304,7 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				if (msg != null) {
 					Utils.errMsg(this, msg);
 				} else {
-					Utils.errMsg(this, "Error reading file");
+					Utils.errMsg(this, "Unknown error plotting");
 				}
 				// } else if (resultCode == RESULT_CANCELED) {
 				// if (msg != null) {
@@ -334,12 +315,26 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			}
 			break;
 		case REQUEST_SETTINGS_CODE:
+			Log.d(TAG, "onActivityResult: REQUEST_SETTINGS_CODE resultCode="
+					+ resultCode);
 			// Get the settings
 			SharedPreferences prefs = PreferenceManager
 					.getDefaultSharedPreferences(this);
-			mDoHr = prefs.getBoolean(PREF_MONITOR_HR, true);
-			mDoCustom = prefs.getBoolean(PREF_MONITOR_CUSTOM, true);
-			mDoBat = prefs.getBoolean(PREF_READ_BATTERY, true);
+			boolean doBat = prefs.getBoolean(PREF_READ_BATTERY, true);
+			boolean doHr = prefs.getBoolean(PREF_MONITOR_HR, true);
+			boolean doCustom = prefs.getBoolean(PREF_MONITOR_CUSTOM, true);
+			if (doHr == mDoHr && doCustom == mDoCustom && doBat == mDoBat) {
+				// No changes
+				break;
+			}
+			mDoBat = doBat;
+			mDoHr = doHr;
+			mDoCustom = doCustom;
+			// resetDataViews();
+			// if (mHxMBleService != null &&
+			// mHxMBleService.getSessionInProgress()) {
+			// setEnabledFlags();
+			// }
 			break;
 		}
 		super.onActivityResult(requestCode, resultCode, data);
@@ -445,7 +440,6 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 	public void showSettings() {
 		Intent intent = new Intent(DeviceMonitorActivity.this,
 				SettingsActivity.class);
-		// Plot the current data, not a session
 		intent.putExtra(SETTINGS_CODE, false);
 		startActivityForResult(intent, REQUEST_SETTINGS_CODE);
 	}
@@ -539,6 +533,54 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		}
 	}
 
+	// /**
+	// * Sets the enabled flags in the service from the values of mDoBat, mDoHr,
+	// * and mDoCustom.
+	// */
+	// private void setEnabledFlags() {
+	// Log.d(TAG, this.getClass().getSimpleName() + ".setEnabledFlags");
+	// if (mHxMBleService != null && mHxMBleService.getSessionInProgress()) {
+	// int flags = DO_NOTHING;
+	// if (mDoBat) {
+	// flags |= DO_BAT;
+	// }
+	// if (mDoHr) {
+	// flags |= DO_HR;
+	// }
+	// if (mDoCustom) {
+	// flags |= DO_CUSTOM;
+	// }
+	// mHxMBleService.setEnabledFlags(flags);
+	// }
+	// }
+
+	/**
+	 * Starts a session using the proper starting Characteristics depending on
+	 * mDoBat, mDoHr, and mDoCustom.
+	 * 
+	 * @return Whether the service started the session successfully.
+	 */
+	boolean startSession() {
+		Log.d(TAG, "DeviceMonitorActivity.startSession: mDoBat=" + mDoBat
+				+ " mDoHr=" + mDoHr + " mDoCustom=" + mDoCustom);
+		Log.d(TAG, "  mCharBat=" + mCharBat + " mCharHr=" + mCharHr + " mCharCustom="
+				+ mCharCustom);
+		boolean res = mHxMBleService.startSession(mCharBat, mCharHr, mCharCustom,
+				mDoBat, mDoHr, mDoCustom);
+		String msg = "Doing";
+		if(mDoBat) {
+			msg += " BAT";
+		}
+		if(mDoHr) {
+			msg += " HR";
+		}
+		if(mDoCustom) {
+			msg += " CUSTOM";
+		}
+		mStatus.setText(msg);
+		return res;
+	}
+
 	/**
 	 * Resets the data view to show default values
 	 */
@@ -563,78 +605,55 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 				|| characteristic.getUuid().equals(UUID_BATTERY_LEVEL)
 				|| characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
 			if (characteristic.getUuid().equals(UUID_HEART_RATE_MEASUREMENT)) {
-				if (mDoHr) {
-					mCharHr = characteristic;
-				} else {
-					mCharHr = null;
-				}
 				mCharHr = characteristic;
 			} else if (characteristic.getUuid().equals(UUID_BATTERY_LEVEL)) {
-				if (mDoBat) {
-					mCharBat = characteristic;
-				} else {
-					mCharBat = null;
-				}
 				mCharBat = characteristic;
 			} else if (characteristic.getUuid().equals(UUID_CUSTOM_MEASUREMENT)) {
-				if (mDoCustom) {
-					mCharCustom = characteristic;
-				} else {
-					mCharCustom = null;
-				}
+				mCharCustom = characteristic;
 			}
 			// Start a timer to wait for all characteristics to be accumulated
+			// Unless already started
 			if (mTimer == null) {
-				Log.d(TAG, "onCharacteristicFound: new Timer created");
+				Log.d(TAG, "onCharacteristicFound: new CancelableCountDownTimer created");
 				mTimer = new CancelableCountDownTimer(
 						CHARACTERISTIC_TIMER_TIMEOUT,
 						CHARACTERISTIC_TIMER_INTERVAL) {
 					@Override
 					public void onTick(long millisUntilFinished) {
-						if ((!mDoCustom || mCharCustom != null)
-								&& (!mDoHr || mCharHr != null)
-								&& (!mDoCustom || mCharBat != null)
-								&& mHxMBleService != null) {
-							boolean res = mHxMBleService.startSession(mCharBat,
-									mCharHr, mCharCustom);
+						if (mCharCustom != null && mCharHr != null
+								&& mCharBat != null) {
+							boolean res = startSession();
 							if (res) {
 								mTimer.cancel();
 								mTimer = null;
+								// DEBUG
 								Log.d(TAG,
-										"onTick: New session started with all characteristics");
-								Log.d(TAG, "  mCharHr=" + mCharHr
-										+ " mCharCustom=" + mCharCustom
-										+ " mCharBat=" + mCharBat);
-								Log.d(TAG, "  mDoHr=" + mDoHr + " mDoCustom="
-										+ mDoCustom + " mDoBat=" + mDoBat);
+										"onTick: New session has been started with all characteristics found");
 							} else {
 								Log.d(TAG,
-										"onTick: Session failed to start new session with all characteristics");
+										"onTick: Failed to start new session with all characteristics found");
 							}
 						}
 					}
 
 					@Override
 					public void onFinish() {
-						boolean res = mHxMBleService.startSession(mCharBat,
-								mCharHr, mCharCustom);
+						this.cancel();
+						mTimer = null;
+						// Start it anyway
+						boolean res = startSession();
+						Log.d(TAG,
+								"onFinish: New session has been started anyway");
 						if (!res) {
 							runOnUiThread(new Runnable() {
 								public void run() {
+									Log.d(TAG,
+											"onFinish: Failed to start new session anyway");
 									Utils.errMsg(DeviceMonitorActivity.this,
-											"Failed to start new session");
+											"onFinish: Failed to start new session");
 								}
 							});
-						} else {
-							Log.d(TAG, "onTick: New session started: mCharHr="
-									+ (mCharHr != null ? "found" : "null")
-									+ " mCharBat="
-									+ (mCharBat != null ? "found" : "null")
-									+ " mCharCustom="
-									+ (mCharCustom != null ? "found" : "null"));
 						}
-						this.cancel();
-						mTimer = null;
 					}
 				};
 				mTimer.start();

@@ -29,6 +29,7 @@
     <string name="view_info">View Info</string>
     <string name="scan_prompt">The current device may not be found in the scan, since it is still connected.  Continue?</string>
     <string name="session_delete_prompt">Deleting %d sessions.  This cannot be undone.  Continue?</string>
+    <string name="session_bad_times_delete_prompt" formatted="false">%s:\nThe end date %d is before the start date %d.\nOK to delete just the end date?\n(You may have to redo any remaining sessions)</string>
     <string name="cancel">Cancel</string>
     <string name="confirm">Confirm</string>
     <string name="unknown_device">Unknown Device</string>
@@ -37,7 +38,7 @@
     <string name="select_restore_file">Select File to Restore</string>
     <string name="delete_prompt">All existing data will be deleted and it may take a while</string>
     <string name="restoring_database_progress_text">Restoring&#8230;\n(Can take a long time)</string>
-    
+
     <!-- Service -->
     <string name="service_notification_title">HxM Monitor</string>
     <string name="service_notification_text">"HxM BLE Service is running"</string>
@@ -54,7 +55,8 @@
     <string name="menu_discard">Discard</string>
     <string name="menu_merge">Merge</string>
     <string name="menu_split">Split</string>
-    <string name="menu_save">Save Session</string>
+    <string name="menu_save">Save Sessions</string>
+    <string name="menu_save_gpx">Save Sessions As GPX</string>
     <string name="menu_session_manager">Session Manager</string>
     <string name="menu_start_now">Start Now</string>
     <string name="menu_check_all">Check All</string>
@@ -63,16 +65,15 @@
     <string name="menu_restore_database">Restore Database</string>
     <string name="menu_restoring">Restoring</string>
     <string name="menu_settings">Settings</string>
-    
+
     <!-- Preferences -->
     <string name="monitor_preferences">Monitor Settings</string>
     <string name="title_hr_preference">HR</string>
-    <string name="summary_hr_preference">Monitor the HR service</string>
+    <string name="summary_hr_preference">Do HR (next connection)</string>
     <string name="title_custom_preference">Custom</string>
-    <string name="summary_custom_preference">Monitor the HxM Custom service</string>
+    <string name="summary_custom_preference">Do Custom (next connection)</string>
     <string name="title_battery_preference">Battery</string>
-    <string name="summary_battery_preference">Read the Battery value on connection</string>
-    
+    <string name="summary_battery_preference">Do Battery (next connection)</string>
     <string name="plot_preferences">Plot Settings</string>
     <string name="title_plot_hr_preference">HR</string>
     <string name="summary_plot_hr_preference">Plot the HR</string>
@@ -85,7 +86,7 @@
     <string name="title_plot_interval_preference">Real-Time Plot Interval</string>
     <string name="summary_plot_interval_preference">The length of the real-time plot interval</string>
     <string name="dialog_title_plot_interval_preference">Enter the interval in min</string>
-    
+
     <!-- Utils -->
     <string name="error">Error</string>
     <string name="exception">Exception</string>

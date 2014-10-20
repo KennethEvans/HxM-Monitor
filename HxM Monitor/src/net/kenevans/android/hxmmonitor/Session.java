@@ -2,10 +2,10 @@ package net.kenevans.android.hxmmonitor;
 
 import android.widget.CheckBox;
 
-public class Session {
+public class Session implements IConstants {
 	private String name;
-	private long startDate= Long.MIN_VALUE;
-	private long endDate= Long.MIN_VALUE;
+	private long startDate = INVALID_DATE;
+	private long endDate = INVALID_DATE;
 	private boolean checked = false;
 	private CheckBox checkBox;
 

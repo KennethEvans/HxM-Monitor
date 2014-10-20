@@ -85,7 +85,7 @@ public interface IConstants {
 	// Preferences
 	public static final String PREF_DATA_DIRECTORY = "dataDirectoryPreference";
 	public static final String PREF_PLOT_START_TIME = "plotStartTimePreference";
-	public static final String PREF_MONITOR_HR = "monitorHRPreference";
+	public static final String PREF_MONITOR_HR = "monitorHrPreference";
 	public static final String PREF_MONITOR_CUSTOM = "monitorCustomPreference";
 	public static final String PREF_READ_BATTERY = "readBatteryPreference";
 	public static final String PREF_PLOT_HR = "plotHrPreference";
@@ -94,11 +94,27 @@ public interface IConstants {
 	public static final String PREF_PLOT_PA = "plotPaPreference";
 	public static final String PREF_PLOT_INTERVAL = "plotIntervalPreference";
 
-	// Session state
+	// Session
 	public static final int SESSION_IDLE = 0;
 	public static final int SESSION_WAITING_BAT = 1;
 	public static final int SESSION_WAITING_HR = 2;
 	public static final int SESSION_WAITING_CUSTOM = 3;
+
+	/** Flag for specifying to do Battery Level. */
+	public static final int DO_NOTHING = 0;
+	/** Flag for specifying to do Battery Level. */
+	public static final int DO_BAT = 1;
+	/** Flag for specifying to do HR. */
+	public static final int DO_HR = 2;
+	/** Flag for specifying to do Custom. */
+	public static final int DO_CUSTOM = 4;
+
+	/** Value for a database date value indicating invalid. */
+	public static final long INVALID_DATE = Long.MIN_VALUE;
+	/** Value for a database int indicating invalid. */
+	public static final int INVALID_INT = -1;
+	/** Value for a database String indicating invalid. */
+	public static final String INVALID_STRING = "Invalid";
 
 	// Timers
 	/** Timer timeout for accumulating characteristics (ms). */
@@ -192,22 +208,24 @@ public interface IConstants {
 	public final static String EXTRA_BAT = PACKAGE_NAME + ".extraBattery";
 	/** The intent code for a message. */
 	public final static String EXTRA_MSG = PACKAGE_NAME + ".extraMessage";
-
 	/** The intent code for device name. */
-	public static final String DEVICE_NAME_CODE = PACKAGE_NAME + "deviceName";
+	public static final String DEVICE_NAME_CODE = PACKAGE_NAME + ".deviceName";
 	/** The intent code for device address. */
 	public static final String DEVICE_ADDRESS_CODE = PACKAGE_NAME
 			+ "deviceAddress";
 	/** Intent code for a message. */
-	public static final String MSG_CODE = "MessageCode";
+	public static final String MSG_CODE = PACKAGE_NAME + ".MessageCode";
 	/** Intent code for plotting a session of current. */
-	public static final String PLOT_SESSION_CODE = "PlotSessionCode";
+	public static final String PLOT_SESSION_CODE = PACKAGE_NAME
+			+ ".PlotSessionCode";
 	/** Intent code for plotting session start time. */
-	public static final String PLOT_SESSION_START_TIME_CODE = "PlotSessionStartTimeCode";
+	public static final String PLOT_SESSION_START_TIME_CODE = PACKAGE_NAME
+			+ ".PlotSessionStartTimeCode";
 	/** Intent code for plotting session end time. */
-	public static final String PLOT_SESSION_END_TIME_CODE = "PlotSessionEndTimeCode";
+	public static final String PLOT_SESSION_END_TIME_CODE = PACKAGE_NAME
+			+ ".PlotSessionEndTimeCode";
 	/** Intent code for showing settings. */
-	public static final String SETTINGS_CODE = "SettingsCode";
+	public static final String SETTINGS_CODE = PACKAGE_NAME + ".SettingsCode";
 
 	// Result codes
 	/** Result code for an error. */
@@ -226,10 +244,9 @@ public interface IConstants {
 	public static final SimpleDateFormat sessionSaveFormatter = new SimpleDateFormat(
 			"yyyy-MM-dd HH:mm:ss.SSS", Locale.US);
 
-	// /** The static long formatter to use for formatting dates. */
-	// public static final SimpleDateFormat longFormatter = new
-	// SimpleDateFormat(
-	// "MMM dd, yyyy HH:mm:ss Z", Locale.US);
+	/** The static long formatter to use for formatting dates. */
+	public static final SimpleDateFormat longFormatter = new SimpleDateFormat(
+			"MMM dd, yyyy HH:mm:ss Z", Locale.US);
 
 	/** The static formatter to use for formatting dates. */
 	public static final SimpleDateFormat mediumFormatter = new SimpleDateFormat(

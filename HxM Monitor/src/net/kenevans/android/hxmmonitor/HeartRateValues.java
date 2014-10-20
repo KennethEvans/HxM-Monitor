@@ -4,11 +4,11 @@ import android.bluetooth.BluetoothGattCharacteristic;
 
 public class HeartRateValues implements IConstants {
 	long date;
-	private int hr = -1;
-	int sensorContact = -1;
-	int ee = -1;
-	private String rr;
-	private String string;
+	private int hr = INVALID_INT;
+	int sensorContact = INVALID_INT;
+	int ee = INVALID_INT;
+	private String rr = INVALID_STRING;
+	private String info;
 
 	public HeartRateValues(BluetoothGattCharacteristic characteristic, long date) {
 		this.date = date;
@@ -75,9 +75,9 @@ public class HeartRateValues implements IConstants {
 		// for (byte byteChar : data) {
 		// stringBuilder.append(String.format("%02X ", byteChar));
 		// }
-		// string += "\n" + stringBuilder.toString();
+		// info += "\n" + stringBuilder.toString();
 		// }
-		this.string = string;
+		this.info = string;
 	}
 
 	/**
@@ -126,12 +126,12 @@ public class HeartRateValues implements IConstants {
 	}
 
 	/**
-	 * Gets a string representation of the data in the characteristic.
+	 * Gets info on the data in the characteristic.
 	 * 
 	 * @return
 	 */
-	public String getString() {
-		return string;
+	public String getInfo() {
+		return info;
 	}
 
 }
