@@ -76,6 +76,7 @@ import android.view.View;
 
 public class AFreeChartView extends View implements ChartChangeListener,
 		ChartProgressListener {
+	private static final String TAG = "HxM Plot";
 
 	/** The user interface thread handler. */
 	private Handler mHandler;
@@ -944,38 +945,54 @@ public class AFreeChartView extends View implements ChartChangeListener,
 		// end distance
 		double endDistance = Math.sqrt(Math.pow(ev.getX(0) - ev.getX(1), 2)
 				+ Math.pow(ev.getY(0) - ev.getY(1), 2));
+		double angle = Math.atan2(Math.abs(ev.getY(0) - ev.getY(1)),
+				Math.abs(ev.getX(0) - ev.getX(1)));
 
 		// zoom process
-		zoom(point, this.multiTouchStartInfo.getDistance(), endDistance);
+		zoom(point, this.multiTouchStartInfo.getDistance(), endDistance, angle);
 
 		// reset start point
 		setMultiTouchStartInfo(ev);
 	}
 
 	/**
-	 * zoom
+	 * Zooms the plot. The factor is the ratio of startDistance / endDistance.
+	 * If the angle < pi/4 radians (45 degrees), it zooms the domain axis,
+	 * otherwise the range axis.
 	 * 
+	 * @param source
+	 *            The source point (in Java 2d coordinates).
 	 * @param startDistance
+	 *            Distance between first and second index points at the start.
 	 * @param endDistance
+	 *            Distance between first and second index points at the end.
+	 * @param angle
+	 *            An angle between 0 and pi/2 radians (90 degrees).
 	 */
-	private void zoom(PointF source, double startDistance, double endDistance) {
+	private void zoom(PointF source, double startDistance, double endDistance,
+			double angle) {
 
 		Plot plot = this.chart.getPlot();
 		PlotRenderingInfo info = this.info.getPlotInfo();
 
 		if (plot instanceof Zoomable) {
 			float scaleDistance = (float) (startDistance / endDistance);
+			Log.d(TAG, "zoom: scaleDistance=" + scaleDistance + " angle="
+					+ Math.toDegrees(angle));
 
 			if (this.mScale * scaleDistance < 10.0f
 					&& this.mScale * scaleDistance > 0.1f) {
 				this.mScale *= scaleDistance;
 				Zoomable z = (Zoomable) plot;
-				z.zoomDomainAxes(scaleDistance, info, source, false);
-				z.zoomRangeAxes(scaleDistance, info, source, false);
+				if (angle < Math.PI / 4) {
+					z.zoomDomainAxes(scaleDistance, info, source, false);
+				} else {
+					z.zoomRangeAxes(scaleDistance, info, source, false);
+				}
 			}
 		}
 
-		// repaint
+		// Cause repaint
 		invalidate();
 	}
 
