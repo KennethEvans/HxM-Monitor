@@ -84,26 +84,6 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 		refresh();
 	}
 
-	// @Override
-	// protected void onActivityResult(int requestCode, int resultCode, Intent
-	// data) {
-	// switch (requestCode) {
-	// case REQUEST_SELECT_DEVICE_CODE:
-	// if (resultCode == Activity.RESULT_OK) {
-	// String deviceName = data.getStringExtra(DEVICE_NAME_CODE);
-	// String deviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
-	// // Use this instead of getPreferences to be application-wide
-	// SharedPreferences.Editor editor = PreferenceManager
-	// .getDefaultSharedPreferences(this).edit();
-	// editor.putString(DEVICE_NAME_CODE, deviceName);
-	// editor.putString(DEVICE_ADDRESS_CODE, deviceAddress);
-	// editor.commit();
-	// }
-	// break;
-	// }
-	// super.onActivityResult(requestCode, resultCode, data);
-	// }
-
 	@Override
 	protected void onPause() {
 		Log.d(TAG, this.getClass().getSimpleName() + ": onPause");
@@ -179,11 +159,6 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 		if (session == null) {
 			return;
 		}
-		// final Intent data = new Intent();
-		// // data.putExtra(DEVICE_NAME_CODE, session.getName());
-		// // data.putExtra(DEVICE_ADDRESS_CODE, session.getAddress());
-		// setResult(RESULT_OK, data);
-		// finish();
 	}
 
 	/**
