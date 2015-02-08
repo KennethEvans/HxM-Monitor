@@ -56,6 +56,7 @@
     <string name="menu_merge">Merge</string>
     <string name="menu_split">Split</string>
     <string name="menu_save">Save Sessions</string>
+    <string name="menu_save_combined">Save As Combined Session</string>
     <string name="menu_save_gpx">Save Sessions As GPX</string>
     <string name="menu_session_manager">Session Manager</string>
     <string name="menu_start_now">Start Now</string>
@@ -66,7 +67,7 @@
     <string name="menu_restoring">Restoring</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_read_battery_level">Get Battery level</string>
-    
+
     <!-- Preferences -->
     <string name="monitor_preferences">Monitor Settings</string>
     <string name="title_hr_preference">HR</string>

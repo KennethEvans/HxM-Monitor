@@ -9,6 +9,7 @@ import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
@@ -122,14 +123,11 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 		case R.id.menu_discard:
 			promptToDiscardSession();
 			return true;
-		case R.id.menu_merge:
-			mergeSessions();
-			return true;
-		case R.id.menu_split:
-			splitSessions();
-			return true;
 		case R.id.menu_save:
 			saveSessions();
+			return true;
+		case R.id.menu_save_combined:
+			saveCombinedSessions();
 			return true;
 		case R.id.menu_save_gpx:
 			saveSessionsAsGpx();
@@ -221,10 +219,10 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 			return;
 		}
 		int nErrors = 0;
+		int nWriteErrors = 0;
 		String errMsg = "Error saving sessions:\n";
 		String fileNames = "Saved to:\n";
 		BufferedWriter out = null;
-		Cursor cursor = null;
 		String fileName = null;
 		long startDate = INVALID_DATE;
 		File file = null;
@@ -236,56 +234,17 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 				file = new File(mDataDir, fileName);
 				writer = new FileWriter(file);
 				out = new BufferedWriter(writer);
-				cursor = mDbAdapter
-						.fetchAllHrRrActPaDateDataForStartDate(startDate);
-				int indexDate = cursor.getColumnIndex(COL_DATE);
-				int indexHr = cursor.getColumnIndex(COL_HR);
-				int indexRr = cursor.getColumnIndex(COL_RR);
-				int indexAct = cursor.getColumnIndex(COL_ACT);
-				int indexPa = cursor.getColumnIndex(COL_PA);
-				// Loop over items
-				cursor.moveToFirst();
-				String dateStr, hrStr, rrStr, actStr, paStr, line;
-				long dateNum = INVALID_DATE;
-				while (cursor.isAfterLast() == false) {
-					dateStr = INVALID_STRING;
-					if (indexDate > -1) {
-						dateNum = cursor.getLong(indexDate);
-						dateStr = sessionSaveFormatter
-								.format(new Date(dateNum));
-					}
-					hrStr = INVALID_STRING;
-					if (indexHr > -1) {
-						hrStr = cursor.getString(indexHr);
-					}
-					rrStr = INVALID_STRING;
-					if (indexRr > -1) {
-						rrStr = cursor.getString(indexRr);
-					}
-					actStr = INVALID_STRING;
-					if (indexAct > -1) {
-						actStr = cursor.getString(indexAct);
-					}
-					paStr = INVALID_STRING;
-					if (indexPa > -1) {
-						paStr = cursor.getString(indexPa);
-					}
-					line = dateStr + SAVE_SESSION_DELIM + hrStr
-							+ SAVE_SESSION_DELIM + rrStr + SAVE_SESSION_DELIM
-							+ actStr + SAVE_SESSION_DELIM + paStr + "\n";
-					out.write(line);
-					cursor.moveToNext();
+				// Write the session data
+				nWriteErrors = writeSessionDataToCvsFile(startDate, out);
+				if (nWriteErrors > 0) {
+					nErrors += nWriteErrors;
+					errMsg += "  " + session.getName();
 				}
 				fileNames += "  " + file.getName() + "\n";
 			} catch (Exception ex) {
 				nErrors++;
 				errMsg += "  " + session.getName();
 			} finally {
-				try {
-					cursor.close();
-				} catch (Exception ex) {
-					// Do nothing
-				}
 				try {
 					out.close();
 				} catch (Exception ex) {
@@ -303,6 +262,149 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 		} else {
 			Utils.infoMsg(this, msg);
 		}
+	}
+
+	/**
+	 * Saves the selected sessions as a combined session.
+	 */
+	public void saveCombinedSessions() {
+		ArrayList<Session> checkedSessions = mSessionListAdapter
+				.getCheckedSessions();
+		if (checkedSessions == null || checkedSessions.size() == 0) {
+			Utils.errMsg(this, "There are no sessions to combine and save");
+			return;
+		}
+		if (mDataDir == null) {
+			Utils.errMsg(this, "Cannot determine directory for combined save");
+			return;
+		}
+		// Need to sort in order of increasing startTime
+		Collections.sort(checkedSessions, new Comparator<Session>() {
+			@Override
+			public int compare(Session lhs, Session rhs) {
+				if (lhs.getStartDate() == rhs.getStartDate()) {
+					return 0;
+				} else if (lhs.getStartDate() > rhs.getStartDate()) {
+					return 1;
+				} else {
+					return -1;
+				}
+			}
+		});
+		int nErrors = 0;
+		int nWriteErrors = 0;
+		String errMsg = "Error saving combined sessions:\n";
+		String fileNames = "Saved to:\n";
+		BufferedWriter out = null;
+		// Use the name of the first session
+		String fileName = checkedSessions.get(0).getName() + "-Combined.csv";
+		long startDate = INVALID_DATE;
+		File file = null;
+		FileWriter writer = null;
+		try {
+			file = new File(mDataDir, fileName);
+			writer = new FileWriter(file);
+			out = new BufferedWriter(writer);
+			boolean first = true;
+			for (Session session : checkedSessions) {
+				startDate = session.getStartDate();
+				// Write a blank line to separate sessions
+				if (first) {
+					first = false;
+				} else {
+					out.write("\n");
+				}
+				// Write the session data
+				nWriteErrors = writeSessionDataToCvsFile(startDate, out);
+				if (nWriteErrors > 0) {
+					nErrors += nWriteErrors;
+					errMsg += "  " + session.getName();
+				}
+			}
+			fileNames += "  " + file.getName() + "\n";
+		} catch (Exception ex) {
+			nErrors++;
+			errMsg += "  " + "Writing combined file";
+		} finally {
+			try {
+				out.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+		String msg = "Directory:\n" + mDataDir + "\n";
+		if (nErrors > 0) {
+			msg += errMsg;
+		}
+		msg += fileNames;
+		if (nErrors > 0) {
+			Utils.errMsg(this, msg);
+		} else {
+			Utils.infoMsg(this, msg);
+		}
+	}
+
+	/**
+	 * Writes the session data for the given startDate to the given
+	 * BufferedWriter.
+	 * 
+	 * @param startDate
+	 * @param out
+	 * @return
+	 */
+	private int writeSessionDataToCvsFile(long startDate, BufferedWriter out) {
+		Cursor cursor = null;
+		int nErrors = 0;
+		try {
+			cursor = mDbAdapter
+					.fetchAllHrRrActPaDateDataForStartDate(startDate);
+			int indexDate = cursor.getColumnIndex(COL_DATE);
+			int indexHr = cursor.getColumnIndex(COL_HR);
+			int indexRr = cursor.getColumnIndex(COL_RR);
+			int indexAct = cursor.getColumnIndex(COL_ACT);
+			int indexPa = cursor.getColumnIndex(COL_PA);
+			// Loop over items
+			cursor.moveToFirst();
+			String dateStr, hrStr, rrStr, actStr, paStr, line;
+			long dateNum = INVALID_DATE;
+			while (cursor.isAfterLast() == false) {
+				dateStr = INVALID_STRING;
+				if (indexDate > -1) {
+					dateNum = cursor.getLong(indexDate);
+					dateStr = sessionSaveFormatter.format(new Date(dateNum));
+				}
+				hrStr = INVALID_STRING;
+				if (indexHr > -1) {
+					hrStr = cursor.getString(indexHr);
+				}
+				rrStr = INVALID_STRING;
+				if (indexRr > -1) {
+					rrStr = cursor.getString(indexRr);
+				}
+				actStr = INVALID_STRING;
+				if (indexAct > -1) {
+					actStr = cursor.getString(indexAct);
+				}
+				paStr = INVALID_STRING;
+				if (indexPa > -1) {
+					paStr = cursor.getString(indexPa);
+				}
+				line = dateStr + SAVE_SESSION_DELIM + hrStr
+						+ SAVE_SESSION_DELIM + rrStr + SAVE_SESSION_DELIM
+						+ actStr + SAVE_SESSION_DELIM + paStr + "\n";
+				out.write(line);
+				cursor.moveToNext();
+			}
+		} catch (Exception ex) {
+			nErrors++;
+		} finally {
+			try {
+				cursor.close();
+			} catch (Exception ex) {
+				// Do nothing
+			}
+		}
+		return nErrors;
 	}
 
 	/**
@@ -715,7 +817,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 					mLineNumber++;
 					tokens = line.trim().split(SAVE_DATABASE_DELIM);
 					// Skip blank lines
-					if (tokens.length == 0) {
+					if (line.trim().length() == 0) {
 						continue;
 					}
 					// Skip lines starting with #
