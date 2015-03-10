@@ -128,8 +128,6 @@ public class PlotActivity extends Activity implements IConstants {
 			if (mIsSession) {
 				mPlotSessionStart = extras.getLong(
 						PLOT_SESSION_START_TIME_CODE, INVALID_DATE);
-			} else {
-				mPlotStartTime = new Date().getTime() - mPlotInterval;
 			}
 		}
 		if (mIsSession && (mPlotSessionStart == INVALID_DATE)) {
@@ -188,17 +186,8 @@ public class PlotActivity extends Activity implements IConstants {
 				mPlotInterval = PLOT_MAXIMUM_AGE;
 			}
 		}
-		// Log.d(TAG, "mPlotHR=" + mPlotHr + " mPlotRr=" + mPlotRr +
-		// " mPlotAct="
-		// + mPlotAct + " mPlotPa=" + mPlotPa);
-		// // // DEBUG
-		// Map<String, ?> map = prefs.getAll();
-		// String info = "Shared Preferences\n";
-		// for (Map.Entry<String, ?> entry : map.entrySet()) {
-		// info += entry.getKey() + "=" + entry.getValue() + "\n";
-		// }
-		// Log.d(TAG, info);
 		if (mView != null) {
+			// Create the chart
 			if (mChart == null) {
 				mChart = createChart();
 				mView.setChart(mChart);
@@ -207,12 +196,15 @@ public class PlotActivity extends Activity implements IConstants {
 			Log.d(TAG, getClass().getSimpleName() + ".onResume: mView is null");
 			returnResult(RESULT_ERROR, "mView is null");
 		}
+		// If mSession is true it uses mPlotSessionStart, set in onCreate
+		// If mSession is false it uses mPlotStartTime, set here
 		if (!mIsSession) {
 			Log.d(TAG, "onResume: Starting registerReceiver");
 			registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
 			mPlotStartTime = new Date().getTime() - mPlotInterval;
-			refresh();
 		}
+		// Create the datasets and fill them
+		refresh();
 	}
 
 	@Override
@@ -428,10 +420,6 @@ public class PlotActivity extends Activity implements IConstants {
 	 */
 	private AFreeChart createChart() {
 		Log.d(TAG, "createChart");
-		if (mHrDataset == null || mRrDataset == null || mActDataset == null
-				|| mPaDataset == null) {
-			createDatasets();
-		}
 		final boolean doLegend = true;
 		AFreeChart chart = ChartFactory.createTimeSeriesChart(null, // title
 				"Time", // x-axis label
