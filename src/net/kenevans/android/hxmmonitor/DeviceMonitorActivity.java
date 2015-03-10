@@ -78,8 +78,17 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			}
 			// Automatically connects to the device upon successful start-up
 			// initialization.
-			boolean res = mHxMBleService.connect(mDeviceAddress);
-			Log.d(TAG, "Connect mHxMBleService result=" + res);
+			SharedPreferences prefs = PreferenceManager
+					.getDefaultSharedPreferences(DeviceMonitorActivity.this);
+			boolean manuallyDisconnected = prefs.getBoolean(
+					PREF_MANUALLY_DISCONNECTED, false);
+			if (!manuallyDisconnected) {
+				boolean res = mHxMBleService.connect(mDeviceAddress);
+				Log.d(TAG, "Connect mHxMBleService result=" + res);
+				if (res) {
+					setManuallyDisconnected(false);
+				}
+			}
 		}
 
 		@Override
@@ -204,15 +213,21 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		mDoHr = prefs.getBoolean(PREF_MONITOR_HR, true);
 		mDoCustom = prefs.getBoolean(PREF_MONITOR_CUSTOM, true);
 		mDoBat = prefs.getBoolean(PREF_READ_BATTERY, true);
+		boolean manuallyDisconnected = prefs.getBoolean(
+				PREF_MANUALLY_DISCONNECTED, false);
 		// DEBUG
 		Log.d(TAG, "  mDoHr=" + mDoHr + " mDoCustom=" + mDoCustom + " mDoBat="
 				+ mDoBat);
 		Log.d(TAG, "Starting registerReceiver");
 		registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-		if (mHxMBleService != null) {
+		if (!manuallyDisconnected && mDeviceAddress != null
+				&& mHxMBleService != null) {
 			Log.d(TAG, "Starting mHxMBleService.connect");
 			final boolean res = mHxMBleService.connect(mDeviceAddress);
 			Log.d(TAG, "mHxMBleService.connect: result=" + res);
+			if (res) {
+				setManuallyDisconnected(false);
+			}
 		}
 	}
 
@@ -252,9 +267,11 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 		switch (item.getItemId()) {
 		case R.id.menu_connect:
 			mHxMBleService.connect(mDeviceAddress);
+			setManuallyDisconnected(false);
 			return true;
 		case R.id.menu_disconnect:
 			mHxMBleService.disconnect();
+			setManuallyDisconnected(true);
 			return true;
 		case android.R.id.home:
 			onBackPressed();
@@ -517,6 +534,19 @@ public class DeviceMonitorActivity extends Activity implements IConstants {
 			// Don't use Utils here as there may be many
 			// Utils.excMsg(this, "Error displaying message", ex);
 		}
+	}
+
+	/**
+	 * Sets the PREF_MANUALLY_DISCONNECTED preference in PreferenceManager
+	 * .getDefaultSharedPreferences.
+	 * 
+	 * @param state
+	 */
+	private void setManuallyDisconnected(boolean state) {
+		SharedPreferences.Editor editor = PreferenceManager
+				.getDefaultSharedPreferences(this).edit();
+		editor.putBoolean(PREF_MANUALLY_DISCONNECTED, state);
+		editor.commit();
 	}
 
 	/**

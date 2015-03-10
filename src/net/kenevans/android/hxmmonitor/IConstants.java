@@ -93,6 +93,7 @@ public interface IConstants {
 	public static final String PREF_PLOT_ACT = "plotActPreference";
 	public static final String PREF_PLOT_PA = "plotPaPreference";
 	public static final String PREF_PLOT_INTERVAL = "plotIntervalPreference";
+	public static final String PREF_MANUALLY_DISCONNECTED = "manuallyDisconnected";
 
 	// Session
 	public static final int SESSION_IDLE = 0;
