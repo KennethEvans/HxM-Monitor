@@ -128,10 +128,11 @@ public class PlotActivity extends Activity implements IConstants {
 			if (mIsSession) {
 				mPlotSessionStart = extras.getLong(
 						PLOT_SESSION_START_TIME_CODE, INVALID_DATE);
+			} else {
+				mPlotStartTime = new Date().getTime() - mPlotInterval;
 			}
 		}
-		if (mIsSession
-				&& (mPlotSessionStart == INVALID_DATE)) {
+		if (mIsSession && (mPlotSessionStart == INVALID_DATE)) {
 			Utils.errMsg(this, "Plotting a session but got invalid "
 					+ "values for the start time");
 			return;
@@ -144,18 +145,6 @@ public class PlotActivity extends Activity implements IConstants {
 		if (prefString == null) {
 			Utils.errMsg(this, "Cannot find the name of the data directory");
 			return;
-		}
-
-		// Get the plot start time from the default preferences
-		long prefLong = prefs.getLong(PREF_PLOT_START_TIME, INVALID_DATE);
-		if (prefLong == INVALID_DATE) {
-			// Set it to now - mPlotInterval
-			mPlotStartTime = new Date().getTime() - mPlotInterval;
-			SharedPreferences.Editor editor = prefs.edit();
-			editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
-			editor.commit();
-		} else {
-			mPlotStartTime = prefLong;
 		}
 
 		// Open the database
@@ -222,6 +211,7 @@ public class PlotActivity extends Activity implements IConstants {
 			Log.d(TAG, "onResume: Starting registerReceiver");
 			registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
 			mPlotStartTime = new Date().getTime() - mPlotInterval;
+			refresh();
 		}
 	}
 
@@ -303,27 +293,6 @@ public class PlotActivity extends Activity implements IConstants {
 		}
 	}
 
-	// /**
-	// * Resets the plot start time to now.
-	// */
-	// private void startNow() {
-	// mIsSession = false;
-	// mPlotStartTime = new Date().getTime();
-	// mLastRrUpdateTime = INVALID_DATE;
-	// mLastRrTime = INITIAL_RR_START_TIME;
-	// registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-	// Log.d(TAG, "startNow: Starting registerReceiver");
-	//
-	// SharedPreferences prefs = PreferenceManager
-	// .getDefaultSharedPreferences(this);
-	// SharedPreferences.Editor editor = prefs.edit();
-	// editor.putLong(PREF_PLOT_START_TIME, mPlotStartTime);
-	// editor.commit();
-	// createDatasets();
-	// ((XYPlot) mChart.getPlot()).setDataset(0, mHrDataset);
-	// ((XYPlot) mChart.getPlot()).setDataset(1, mRrDataset);
-	// }
-
 	/**
 	 * Refreshes the plot by getting new data.
 	 */
@@ -390,14 +359,14 @@ public class PlotActivity extends Activity implements IConstants {
 	 */
 	private boolean addRrValues(TimeSeries series, long updateTime,
 			String strValue) {
-		if(series == null  || strValue == null) {
+		if (series == null || strValue == null) {
 			return false;
 		}
 		if (strValue.length() == 0) {
 			// Do nothing
 			return true;
 		}
-		if(strValue.equals(INVALID_STRING)) {
+		if (strValue.equals(INVALID_STRING)) {
 			mLastRrUpdateTime = updateTime;
 			mLastRrTime = updateTime - INITIAL_RR_START_TIME;
 			series.addOrUpdate(new FixedMillisecond(updateTime), Double.NaN);
@@ -644,6 +613,7 @@ public class PlotActivity extends Activity implements IConstants {
 	 * @param intent
 	 */
 	private void updateChart(Intent intent) {
+		Log.d(TAG, "updateChart");
 		String strValue;
 		double value = Double.NaN;
 		;
@@ -763,8 +733,8 @@ public class PlotActivity extends Activity implements IConstants {
 		try {
 			if (mDbAdapter != null) {
 				if (mIsSession) {
-					cursor = mDbAdapter.fetchAllHrRrActPaDateDataForStartDate(
-							mPlotSessionStart);
+					cursor = mDbAdapter
+							.fetchAllHrRrActPaDateDataForStartDate(mPlotSessionStart);
 				} else {
 					cursor = mDbAdapter
 							.fetchAllHrRrActPaDateDataStartingAtDate(mPlotStartTime);

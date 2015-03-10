@@ -84,7 +84,6 @@ public interface IConstants {
 
 	// Preferences
 	public static final String PREF_DATA_DIRECTORY = "dataDirectoryPreference";
-	public static final String PREF_PLOT_START_TIME = "plotStartTimePreference";
 	public static final String PREF_MONITOR_HR = "monitorHrPreference";
 	public static final String PREF_MONITOR_CUSTOM = "monitorCustomPreference";
 	public static final String PREF_READ_BATTERY = "readBatteryPreference";
