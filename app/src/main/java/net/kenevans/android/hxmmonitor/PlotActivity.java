@@ -85,18 +85,18 @@ public class PlotActivity extends Activity implements IConstants {
      */
     private final BroadcastReceiver mGattUpdateReceiver = new
             BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-            if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
-                // Log.d(TAG, "onReceive: " + action);
-                updateChart(intent);
-            } else if (HxMBleService.ACTION_ERROR.equals(action)) {
-                Log.d(TAG, "onReceive: " + action);
-                displayError(intent);
-            }
-        }
-    };
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    final String action = intent.getAction();
+                    if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
+                        // Log.d(TAG, "onReceive: " + action);
+                        updateChart(intent);
+                    } else if (HxMBleService.ACTION_ERROR.equals(action)) {
+                        Log.d(TAG, "onReceive: " + action);
+                        displayError(intent);
+                    }
+                }
+            };
 
     /**
      * Make an IntentFilter for the actions in which we are interested.
@@ -378,7 +378,7 @@ public class PlotActivity extends Activity implements IConstants {
             }
             lastRrTime += val;
             times[i] = lastRrTime;
-            values[i] = .001 * val * 1024;
+            values[i] = val / 1.024;
         }
         // Make all times be >= mLastRrUpdateTime
         long deltaTime;
@@ -468,7 +468,7 @@ public class PlotActivity extends Activity implements IConstants {
         XYItemRenderer renderer = plot.getRenderer();
         if (renderer instanceof XYLineAndShapeRenderer) {
             XYLineAndShapeRenderer lineShapeRenderer =
-					(XYLineAndShapeRenderer) renderer;
+                    (XYLineAndShapeRenderer) renderer;
             lineShapeRenderer.setBaseShapesVisible(true);
             lineShapeRenderer.setBaseShapesFilled(true);
             lineShapeRenderer.setDrawSeriesLineAsPath(true);
@@ -716,10 +716,12 @@ public class PlotActivity extends Activity implements IConstants {
             if (mDbAdapter != null) {
                 if (mIsSession) {
                     cursor = mDbAdapter
-                            .fetchAllHrRrActPaDateDataForStartDate(mPlotSessionStart);
+                            .fetchAllHrRrActPaDateDataForStartDate
+                                    (mPlotSessionStart);
                 } else {
                     cursor = mDbAdapter
-                            .fetchAllHrRrActPaDateDataStartingAtDate(mPlotStartTime);
+                            .fetchAllHrRrActPaDateDataStartingAtDate
+                                    (mPlotStartTime);
                 }
                 int indexDate = cursor.getColumnIndex(COL_DATE);
                 int indexHr = mPlotHr ? cursor.getColumnIndex(COL_HR) : -1;
