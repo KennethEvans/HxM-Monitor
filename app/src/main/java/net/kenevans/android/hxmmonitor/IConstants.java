@@ -350,6 +350,11 @@ import java.util.UUID;
      */
      int RESULT_ERROR = 1001;
 
+    /**
+     * Code for requesting ACCESS_COARSE_LOCATION permission.
+     */
+    int PERMISSION_ACCESS_COARSE_LOCATION = 1;
+
     // Plotting
     /**
      * Maximum item age for real-time plot, in ms.
