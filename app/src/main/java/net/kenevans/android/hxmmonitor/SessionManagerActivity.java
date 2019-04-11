@@ -28,6 +28,8 @@ import android.database.Cursor;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -40,16 +42,21 @@ import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.TextView;
 
-public class SessionManagerActivity extends ListActivity implements IConstants {
+public class SessionManagerActivity extends AppCompatActivity implements IConstants {
     private SessionListAdapter mSessionListAdapter;
     private HxMMonitorDbAdapter mDbAdapter;
     private File mDataDir;
     private RestoreTask mRestoreTask;
+    private ListView mListView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getActionBar().setDisplayHomeAsUpEnabled(false);
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setTitle(R.string.title_activity_session_manager);
+            actionBar.setDisplayHomeAsUpEnabled(false);
+        }
 
         // Set result OK in case the user backs out
         setResult(Activity.RESULT_OK);
@@ -63,12 +70,11 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             return;
         }
 
+        setContentView(R.layout.list_view);
+        mListView = findViewById(R.id.mainListView);
+
         // Open the database
         mDataDir = new File(prefString);
-        if (mDataDir == null) {
-            Utils.errMsg(this, "Database directory is null");
-            return;
-        }
         if (!mDataDir.exists()) {
             Utils.errMsg(this, "Cannot find database directory: " + mDataDir);
             mDataDir = null;
@@ -154,9 +160,6 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
     /**
      * Calls the plot activity for the selected sessions.
      */
-    /**
-     * Calls the plot activity.
-     */
     public void plot() {
         ArrayList<Session> checkedSessions = mSessionListAdapter
                 .getCheckedSessions();
@@ -211,14 +214,14 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             return;
         }
         int nErrors = 0;
-        int nWriteErrors = 0;
+        int nWriteErrors;
         String errMsg = "Error saving sessions:\n";
         String fileNames = "Saved to:\n";
         BufferedWriter out = null;
-        String fileName = null;
-        long startDate = INVALID_DATE;
-        File file = null;
-        FileWriter writer = null;
+        String fileName;
+        long startDate;
+        File file;
+        FileWriter writer;
         for (Session session : checkedSessions) {
             startDate = session.getStartDate();
             fileName = session.getName() + ".csv";
@@ -238,7 +241,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
                 errMsg += "  " + session.getName();
             } finally {
                 try {
-                    out.close();
+                    if (out != null) out.close();
                 } catch (Exception ex) {
                     // Do nothing
                 }
@@ -284,15 +287,15 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             }
         });
         int nErrors = 0;
-        int nWriteErrors = 0;
+        int nWriteErrors;
         String errMsg = "Error saving combined sessions:\n";
         String fileNames = "Saved to:\n";
         BufferedWriter out = null;
         // Use the name of the first session
         String fileName = checkedSessions.get(0).getName() + "-Combined.csv";
-        long startDate = INVALID_DATE;
-        File file = null;
-        FileWriter writer = null;
+        long startDate;
+        File file;
+        FileWriter writer;
         try {
             file = new File(mDataDir, fileName);
             writer = new FileWriter(file);
@@ -319,7 +322,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             errMsg += "  " + "Writing combined file";
         } finally {
             try {
-                out.close();
+                if (out != null) out.close();
             } catch (Exception ex) {
                 // Do nothing
             }
@@ -340,9 +343,9 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
      * Writes the session data for the given startDate to the given
      * BufferedWriter.
      *
-     * @param startDate
-     * @param out
-     * @return
+     * @param startDate The startDate.
+     * @param out       The BufferedWRiter.
+     * @return The number of errors.
      */
     private int writeSessionDataToCvsFile(long startDate, BufferedWriter out) {
         Cursor cursor = null;
@@ -358,8 +361,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             // Loop over items
             cursor.moveToFirst();
             String dateStr, hrStr, rrStr, actStr, paStr, line;
-            long dateNum = INVALID_DATE;
-            while (cursor.isAfterLast() == false) {
+            long dateNum;
+            while (!cursor.isAfterLast()) {
                 dateStr = INVALID_STRING;
                 if (indexDate > -1) {
                     dateNum = cursor.getLong(indexDate);
@@ -391,7 +394,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             nErrors++;
         } finally {
             try {
-                cursor.close();
+                if (cursor != null) cursor.close();
             } catch (Exception ex) {
                 // Do nothing
             }
@@ -418,11 +421,11 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
         String fileNames = "Saved to:\n";
         BufferedWriter out = null;
         Cursor cursor = null;
-        String fileName = null;
-        long startDate = INVALID_DATE;
-        File file = null;
-        FileWriter writer = null;
-        String name = "HxM Monitor";
+        String fileName;
+        long startDate;
+        File file;
+        FileWriter writer;
+        String name;
         SimpleDateFormat formatter = new SimpleDateFormat(
                 "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US);
         formatter.setTimeZone(TimeZone.getTimeZone("GMT"));
@@ -450,7 +453,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
                 cursor.moveToFirst();
                 String hrStr, line;
                 long dateNum = INVALID_DATE;
-                while (cursor.isAfterLast() == false) {
+                while (!cursor.isAfterLast()) {
                     if (indexDate > -1) {
                         dateNum = cursor.getLong(indexDate);
                     }
@@ -473,12 +476,12 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
                 errMsg += "  " + session.getName();
             } finally {
                 try {
-                    cursor.close();
+                    if (cursor != null) cursor.close();
                 } catch (Exception ex) {
                     // Do nothing
                 }
                 try {
-                    out.close();
+                    if (out != null) out.close();
                 } catch (Exception ex) {
                     // Do nothing
                 }
@@ -536,7 +539,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             Utils.errMsg(this, "There are no sessions to discard");
             return;
         }
-        long startDate = INVALID_DATE;
+        long startDate;
         for (Session session : checkedSessions) {
             startDate = session.getStartDate();
             mDbAdapter.deleteAllDataForStartDate(startDate);
@@ -559,7 +562,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             SimpleDateFormat df = new SimpleDateFormat(format, Locale.US);
             Date now = new Date();
             String fileName = String.format(SAVE_DATABASE_FILENAME_TEMPLATE,
-                    df.format(now), now.getTime());
+                    df.format(now));
             File file = new File(mDataDir, fileName);
             FileWriter writer = new FileWriter(file);
             out = new BufferedWriter(writer);
@@ -572,10 +575,10 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             int indexPa = cursor.getColumnIndex(COL_PA);
             // Loop over items
             cursor.moveToFirst();
-            String rr, info = "";
+            String rr, info;
             long dateNum, startDateNum;
             int hr, act, pa;
-            while (cursor.isAfterLast() == false) {
+            while (!cursor.isAfterLast()) {
                 dateNum = startDateNum = INVALID_DATE;
                 hr = act = pa = INVALID_INT;
                 rr = " ";
@@ -638,12 +641,12 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             Utils.excMsg(this, "Error saving database", ex);
         } finally {
             try {
-                cursor.close();
+                if (cursor != null) cursor.close();
             } catch (Exception ex) {
                 // Do nothing
             }
             try {
-                out.close();
+                if (out != null) out.close();
             } catch (Exception ex) {
                 // Do nothing
             }
@@ -669,11 +672,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
                     return false;
                 }
                 String name = file.getName();
-                if (name.startsWith(SAVE_DATABASE_FILENAME_PREFIX)
-                        && name.endsWith(SAVE_DATABASE_FILENAME_SUFFIX)) {
-                    return true;
-                }
-                return false;
+                return name.startsWith(SAVE_DATABASE_FILENAME_PREFIX)
+                        && name.endsWith(SAVE_DATABASE_FILENAME_SUFFIX);
             }
         });
         if (files == null || files.length == 0) {
@@ -758,7 +758,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
     public void refresh() {
         // Initialize the list view adapter
         mSessionListAdapter = new SessionListAdapter();
-        setListAdapter(mSessionListAdapter);
+        mListView.setAdapter(mSessionListAdapter);
     }
 
     /**
@@ -774,7 +774,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
         private int mLineNumber;
         private String mExceptionMsg;
 
-        public RestoreTask(File file) {
+        private RestoreTask(File file) {
             super();
             this.file = file;
         }
@@ -783,7 +783,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
         protected void onPreExecute() {
             dialog = new ProgressDialog(SessionManagerActivity.this);
             dialog.setMessage(getString(R.string
-					.restoring_database_progress_text));
+                    .restoring_database_progress_text));
             dialog.setCancelable(false);
             dialog.setIndeterminate(true);
             dialog.show();
@@ -802,12 +802,10 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
                 String rr;
                 long dateNum, startDateNum;
                 int hr, act, pa;
-                String[] tokens = null;
-                String line = null;
+                String[] tokens;
+                String line;
                 while ((line = in.readLine()) != null) {
                     dateNum = startDateNum = INVALID_DATE;
-                    hr = act = pa = INVALID_INT;
-                    rr = " ";
                     mLineNumber++;
                     tokens = line.trim().split(SAVE_DATABASE_DELIM);
                     // Skip blank lines
@@ -819,7 +817,6 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
                         continue;
                     }
                     hr = pa = act = 0;
-                    rr = "";
                     if (tokens.length < 4) {
                         // Utils.errMsg(this, "Found " + tokens.length
                         // + " tokens for line " + lineNum
@@ -891,9 +888,6 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 
         @Override
         protected void onPostExecute(Boolean result) {
-            if (mExceptionMsg != null) {
-
-            }
             Log.d(TAG, this.getClass().getSimpleName()
                     + ": onPostExecute: result=" + result);
             if (dialog != null) {
@@ -919,11 +913,11 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
     /**
      * Sets all the sessions to checked or not.
      *
-     * @param checked
+     * @param checked Whether checked or not.
      */
     public void setAllSessionsChecked(Boolean checked) {
         ArrayList<Session> sessions = mSessionListAdapter.getSessions();
-        CheckBox cb = null;
+        CheckBox cb;
         for (Session session : sessions) {
             session.setChecked(checked);
             cb = session.getCheckBox();
@@ -934,10 +928,10 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
     }
 
     /**
-     * Creates a session name form the given date.
+     * Creates a session name from the given date.
      *
-     * @param date
-     * @return
+     * @param date The date.
+     * @return Session name.
      */
     public static String sessionNameFromDate(long date) {
         return SESSION_NAME_PREFIX + fileNameFormatter.format(new Date(date));
@@ -948,9 +942,9 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
         private ArrayList<Session> mSessions;
         private LayoutInflater mInflator;
 
-        public SessionListAdapter() {
+        private SessionListAdapter() {
             super();
-            mSessions = new ArrayList<Session>();
+            mSessions = new ArrayList<>();
             mInflator = SessionManagerActivity.this.getLayoutInflater();
             Cursor cursor = null;
             int nItems = 0;
@@ -976,10 +970,10 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
 
                     // Loop over items
                     cursor.moveToFirst();
-                    long startDate = INVALID_DATE;
-                    long endDate = INVALID_DATE;
+                    long startDate;
+                    long endDate;
                     String name;
-                    while (cursor.isAfterLast() == false) {
+                    while (!cursor.isAfterLast()) {
                         nItems++;
                         startDate = cursor.getLong(indexStartDate);
                         endDate = cursor.getLong(indexEndDate);
@@ -1006,13 +1000,13 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
                         cursor.moveToNext();
                     }
                 }
-                cursor.close();
+                if (cursor != null) cursor.close();
             } catch (Exception ex) {
                 Utils.excMsg(SessionManagerActivity.this,
                         "Error getting sessions", ex);
             } finally {
                 try {
-                    cursor.close();
+                    if (cursor != null) cursor.close();
                 } catch (Exception ex) {
                     // Do nothing
                 }
@@ -1020,7 +1014,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             Log.d(TAG, "Session list created with " + nItems + " items");
         }
 
-        public void addSession(Session session) {
+        private void addSession(Session session) {
             if (!mSessions.contains(session)) {
                 mSessions.add(session);
             }
@@ -1030,7 +1024,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
             return mSessions.get(position);
         }
 
-        public void clear() {
+        private void clear() {
             mSessions.clear();
         }
 
@@ -1053,17 +1047,17 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
         public View getView(int i, View view, ViewGroup viewGroup) {
             // // DEBUG
             // Log.d(TAG, "getView: " + i);
-            ViewHolder viewHolder = null;
+            ViewHolder viewHolder;
             // General ListView optimization code.
             if (view == null) {
                 view = mInflator.inflate(R.layout.listitem_session, viewGroup,
                         false);
                 viewHolder = new ViewHolder();
-                viewHolder.sessionCheckbox = (CheckBox) view
+                viewHolder.sessionCheckbox = view
                         .findViewById(R.id.session_checkbox);
-                viewHolder.sessionStart = (TextView) view
+                viewHolder.sessionStart = view
                         .findViewById(R.id.session_start);
-                viewHolder.sessionDuration = (TextView) view
+                viewHolder.sessionDuration = view
                         .findViewById(R.id.session_end);
                 view.setTag(viewHolder);
 
@@ -1132,7 +1126,7 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
          *
          * @return
          */
-        public ArrayList<Session> getSessions() {
+        private ArrayList<Session> getSessions() {
             return mSessions;
         }
 
@@ -1141,8 +1135,8 @@ public class SessionManagerActivity extends ListActivity implements IConstants {
          *
          * @return
          */
-        public ArrayList<Session> getCheckedSessions() {
-            ArrayList<Session> checkedSessions = new ArrayList<Session>();
+        private ArrayList<Session> getCheckedSessions() {
+            ArrayList<Session> checkedSessions = new ArrayList<>();
             for (Session session : mSessions) {
                 if (session.isChecked()) {
                     checkedSessions.add(session);

@@ -18,9 +18,8 @@
         android:supportsRtl="false"
         android:theme="@style/AppTheme" >
         <activity
-            android:name=".DeviceMonitorActivity"
-            android:label="@string/app_name"
-            android:theme="@android:style/Theme.Holo" >
+            android:name="net.kenevans.android.hxmmonitor.DeviceMonitorActivity"
+            android:label="@string/app_name" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -28,31 +27,27 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".DeviceScanActivity"
+            android:name="net.kenevans.android.hxmmonitor.DeviceScanActivity"
             android:label="@string/title_activity_device_scan"
-            android:parentActivityName=".DeviceMonitorActivity"
-            android:theme="@android:style/Theme.Holo" >
+            android:parentActivityName=".DeviceMonitorActivity" >
         </activity>
         <activity
-            android:name=".PlotActivity"
+            android:name="net.kenevans.android.hxmmonitor.PlotActivity"
             android:label="@string/title_activity_plot"
-            android:parentActivityName=".DeviceMonitorActivity"
-            android:theme="@android:style/Theme.Holo" >
+            android:parentActivityName=".DeviceMonitorActivity" >
         </activity>
         <activity
-            android:name=".SessionManagerActivity"
+            android:name="net.kenevans.android.hxmmonitor.SessionManagerActivity"
             android:label="@string/title_activity_session_manager"
-            android:parentActivityName=".DeviceMonitorActivity"
-            android:theme="@android:style/Theme.Holo" >
+            android:parentActivityName="net.kenevans.android.hxmmonitor.DeviceMonitorActivity" >
         </activity>
         <activity
-            android:name=".SettingsActivity"
-            android:label="@string/title_activity_settings"
-            android:theme="@android:style/Theme.Holo" >
+            android:name="net.kenevans.android.hxmmonitor.SettingsActivity"
+            android:label="@string/title_activity_settings" >
         </activity>
         
         <service
-            android:name=".HxMBleService"
+            android:name="net.kenevans.android.hxmmonitor.HxMBleService"
             android:enabled="true" >
         </service>
     </application>

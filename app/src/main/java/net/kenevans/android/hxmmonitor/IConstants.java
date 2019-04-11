@@ -32,7 +32,7 @@ import java.util.UUID;
     /**
      * Tag to associate with log messages.
      */
-     String TAG = "HxM Monitor";
+     String TAG = "HxMMonitor";
     /**
      * Name of the package for this application.
      */
@@ -403,4 +403,8 @@ import java.util.UUID;
      SimpleDateFormat millisecTimeFormater = new SimpleDateFormat(
             "hh:mm.ss.SSS", Locale.US);
 
+    /**
+     * Switch to work around invalid first RR value for Corsense.
+     */
+    boolean USE_CORSENSE_FIX = true;
 }

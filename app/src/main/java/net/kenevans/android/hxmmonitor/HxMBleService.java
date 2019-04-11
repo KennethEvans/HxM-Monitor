@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Queue;
 
 import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.bluetooth.BluetoothAdapter;
@@ -36,6 +38,7 @@ import android.bluetooth.BluetoothProfile;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
+import android.os.Build;
 import android.os.IBinder;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.app.NotificationManagerCompat;
@@ -46,7 +49,7 @@ import android.util.Log;
  * hosted on a given Bluetooth LE device.
  */
 public class HxMBleService extends Service implements IConstants {
-	private final static String TAG = "HxM BLEService";
+	private final static String TAG = "HxMBLEService";
 
 	private BluetoothManager mBluetoothManager;
 	private BluetoothAdapter mBluetoothAdapter;
@@ -174,29 +177,69 @@ public class HxMBleService extends Service implements IConstants {
 	public void onCreate() {
 		super.onCreate();
 		// Post a notification the service is running
+        String channnelId = createNotificationChannel(this);
 		Intent activityIntent = new Intent(this, DeviceMonitorActivity.class);
 		PendingIntent viewPendingIntent = PendingIntent.getActivity(this, 0,
 				activityIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-		NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(
-				this)
-				.setSmallIcon(R.drawable.hxmmonitor)
-				.setContentTitle(getString(R.string.service_notification_title))
-				.setContentText(getString(R.string.service_notification_text))
-				.setContentIntent(viewPendingIntent);
-		NotificationManagerCompat notificationManager = NotificationManagerCompat
-				.from(this);
-		notificationManager
-				.notify(NOTIFICATION_ID, notificationBuilder.build());
-	}
+        NotificationCompat.Builder notificationBuilder = new
+                NotificationCompat.Builder(
+                this, channnelId)
+                .setSmallIcon(R.drawable.hxmmonitor)
+                .setContentTitle(getString(R.string.service_notification_title))
+                .setContentText(getString(R.string.service_notification_text))
+                .setContentIntent(viewPendingIntent);
+        NotificationManagerCompat notificationManager =
+                NotificationManagerCompat
+                        .from(this);
+        notificationManager
+                .notify(NOTIFICATION_ID, notificationBuilder.build());
+    }
 
-	@Override
-	public void onDestroy() {
-		// Cancel the notification
-		NotificationManagerCompat notificationManager = NotificationManagerCompat
-				.from(this);
-		notificationManager.cancel(NOTIFICATION_ID);
-		super.onDestroy();
-	}
+    public String createNotificationChannel(Context context) {
+        // NotificationChannels are required for Notifications on O (API 26)
+        // and above.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // The user-visible name of the channel.
+            CharSequence channelName = getString(R.string.app_name);
+            // The user-visible description of the channel.
+            String channelDescription =
+                    getString(R.string.default_notification_description);
+            String channelId =
+                    getString(R.string.default_notification_channel_id);
+            int channelImportance = NotificationManager.IMPORTANCE_LOW;
+            boolean channelEnableVibrate = false;
+
+            // Initializes NotificationChannel.
+            NotificationChannel notificationChannel =
+                    new NotificationChannel(channelId, channelName,
+                            channelImportance);
+            notificationChannel.setDescription(channelDescription);
+            notificationChannel.enableVibration(channelEnableVibrate);
+
+            // Adds NotificationChannel to system. Attempting to create an
+            // existing notificationchannel with its original values performs
+            // no operation, so it's safe to perform the below sequence.
+            NotificationManager notificationManager =
+                    (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            assert notificationManager != null;
+            notificationManager.createNotificationChannel(notificationChannel);
+
+            return channelId;
+        } else {
+            // Returns null for pre-O (26) devices.
+            return null;
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        // Cancel the notification
+        NotificationManagerCompat notificationManager =
+                NotificationManagerCompat
+                        .from(this);
+        notificationManager.cancel(NOTIFICATION_ID);
+        super.onDestroy();
+    }
 
 	// /**
 	// * Broadcast an error using ACTION_ERROR.

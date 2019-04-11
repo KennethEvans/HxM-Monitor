@@ -1,9 +1,5 @@
 package net.kenevans.android.hxmmonitor;
 
-import java.io.File;
-import java.util.List;
-import java.util.UUID;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -23,11 +19,16 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import java.io.File;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * For a given BLE device, this Activity provides the user interface to connect,
@@ -35,11 +36,11 @@ import android.widget.Toast;
  * device. The Activity communicates with {@code HxMBleService}, which in turn
  * interacts with the Bluetooth LE API.
  */
-public class DeviceMonitorActivity extends Activity implements IConstants {
-	private TextView mConnectionState;
-	private TextView mBat;
-	private TextView mHr;
-	private TextView mRr;
+public class DeviceMonitorActivity extends AppCompatActivity implements IConstants {
+    private TextView mConnectionState;
+    private TextView mBat;
+    private TextView mHr;
+    private TextView mRr;
 	private TextView mAct;
 	private TextView mPa;
 	private TextView mStatus;

@@ -1,9 +1,24 @@
 package net.kenevans.android.hxmmonitor;
 
-import java.io.File;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
+import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.database.Cursor;
+import android.graphics.Color;
+import android.graphics.Point;
+import android.graphics.Typeface;
+import android.os.Bundle;
+import android.preference.PreferenceManager;
+import android.support.v7.app.ActionBar;
+import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
+import android.view.Display;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.Window;
 
 import org.afree.chart.AFreeChart;
 import org.afree.chart.ChartFactory;
@@ -26,29 +41,16 @@ import org.afree.graphics.geom.Font;
 import org.afree.graphics.geom.RectShape;
 import org.afree.ui.RectangleInsets;
 
-import android.app.Activity;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.database.Cursor;
-import android.graphics.Color;
-import android.graphics.Point;
-import android.graphics.Typeface;
-import android.os.Bundle;
-import android.preference.PreferenceManager;
-import android.util.Log;
-import android.view.Display;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.Window;
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 
 /**
  * @author evans
  */
-public class PlotActivity extends Activity implements IConstants {
-    private static final String TAG = "HxM Plot";
+public class PlotActivity extends AppCompatActivity implements IConstants {
+    private static final String TAG = "HxMPlot";
     private AFreeChartView mView;
     private AFreeChart mChart;
     private TimeSeriesCollection mHrDataset;
@@ -117,8 +119,12 @@ public class PlotActivity extends Activity implements IConstants {
     protected void onCreate(Bundle savedInstanceState) {
         Log.d(TAG, this.getClass().getSimpleName() + ": onCreate");
         super.onCreate(savedInstanceState);
+        ActionBar actionBar = getSupportActionBar();
+        if (actionBar != null) {
+            actionBar.setTitle(R.string.title_activity_plot);
+            actionBar.setDisplayHomeAsUpEnabled(false);
+        }
         mView = new AFreeChartView(this);
-        requestWindowFeature(Window.FEATURE_NO_TITLE);
         setContentView(mView);
 
         // Get whether to plot a session or current
@@ -147,10 +153,6 @@ public class PlotActivity extends Activity implements IConstants {
 
         // Open the database
         mDataDir = new File(prefString);
-        if (mDataDir == null) {
-            Utils.errMsg(this, "Database directory is null");
-            return;
-        }
         if (!mDataDir.exists()) {
             Utils.errMsg(this, "Cannot find database directory: " + mDataDir);
             mDataDir = null;
@@ -196,8 +198,8 @@ public class PlotActivity extends Activity implements IConstants {
             Log.d(TAG, getClass().getSimpleName() + ".onResume: mView is null");
             returnResult(RESULT_ERROR, "mView is null");
         }
-        // If mSession is true it uses mPlotSessionStart, set in onCreate
-        // If mSession is false it uses mPlotStartTime, set here
+        // If mIsSession is true it uses mPlotSessionStart, set in onCreate
+        // If mIsSession is false it uses mPlotStartTime, set here
         if (!mIsSession) {
             Log.d(TAG, "onResume: Starting registerReceiver");
             registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());

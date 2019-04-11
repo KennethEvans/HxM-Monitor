@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <string name="app_name">HxM Monitor</string>
     <string name="title_activity_session_manager">Sessions</string>
     <string name="title_activity_devices">BLE Device Scan</string>
     <string name="title_activity_device_scan">Select BLE Device</string>
-    <string name="title_activity_plot">HxM Monitor</string>
+    <string name="title_activity_plot">Plot</string>
     <string name="title_activity_settings">Settings</string>
     <string name="device_monitor_name">HxM Monitor</string>
     <string name="hello_world">Hello world!</string>
@@ -16,6 +15,9 @@
     <string name="label_device_address">Device address: </string>
     <string name="label_hr">Heart Rate: </string>
     <string name="label_rr">R-R: </string>
+    <string name="hr_title">HR and RR vs. Time</string>
+    <string name="hr_range_title">HR, /sec RR, ms/10</string>
+    <string name="hr_domain_title">Time</string>
     <string name="label_bat">Battery Level: </string>
     <string name="label_act">Activity: </string>
     <string name="label_pa">Peak Acceleration: </string>
@@ -26,6 +28,11 @@
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
     <string name="bluetooth_not_supported">Bluetooth is not supported.</string>
+    <string name="error_bluetooth_manager">Bluetooth manager not found.</string>
+    <string name="error_bluetooth_adapter">Error getting Bluetooth adapter.</string>
+    <string name="permission_coarse_location">Scanning disabled
+        \n\nACCESS_COARSE_LOCATION permission must be granted to scan for Bluetooth devices.
+        \n\nYou may have to grant this manually for BLE Explorer in Settings.</string>
     <string name="view_info">View Info</string>
     <string name="scan_prompt">The current device may not be found in the scan, since it is still connected.  Continue?</string>
     <string name="session_delete_prompt">Deleting %d sessions.  This cannot be undone.  Continue?</string>
@@ -42,6 +49,8 @@
     <!-- Service -->
     <string name="service_notification_title">HxM Monitor</string>
     <string name="service_notification_text">"HxM BLE Service is running"</string>
+    <string name="default_notification_channel_id">HxM_BLE_Service_Default</string>
+    <string name="default_notification_description">HxM BLE Service</string>
 
     <!-- Menu items -->
     <string name="menu_connect">Connect</string>
@@ -54,6 +63,7 @@
     <string name="menu_plot">Plot</string>
     <string name="menu_discard">Discard</string>
     <string name="menu_merge">Merge</string>
+    <string name="menu_zoom_reset">Reset Pan/Zoom</string>
     <string name="menu_split">Split</string>
     <string name="menu_save">Save Sessions</string>
     <string name="menu_save_combined">Save As Combined Session</string>
@@ -67,12 +77,6 @@
     <string name="menu_restoring">Restoring</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_read_battery_level">Get Battery level</string>
-
-    <string name="error_bluetooth_manager">Bluetooth manager not found.</string>
-    <string name="error_bluetooth_adapter">Error getting Bluetooth adapter.</string>
-    <string name="permission_coarse_location">Scanning disabled
-        \n\nACCESS_COARSE_LOCATION permission must be granted to scan for Bluetooth devices.
-        \n\nYou may have to grant this manually for BLE Explorer in Settings.</string>
 
     <!-- Preferences -->
     <string name="monitor_preferences">Monitor Settings</string>

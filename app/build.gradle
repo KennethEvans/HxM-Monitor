@@ -1,14 +1,14 @@
 apply plugin: 'com.android.application'
 
 android {
+    // AFreeChart does not work with Android 9 (API 28)
     compileSdkVersion 27
-    buildToolsVersion '27.0.3'
     defaultConfig {
         applicationId "net.kenevans.android.hxmmonitor"
         minSdkVersion 18
         targetSdkVersion 27
-        versionCode 6
-        versionName '3.1'
+        versionCode 7
+        versionName '3.2.0'
     }
     buildTypes {
         release {
@@ -23,4 +23,5 @@ android {
 dependencies {
     implementation files('libs/afreechart-0.0.4.jar')
     implementation 'com.android.support:support-v4:27.1.1'
+    implementation 'com.android.support:appcompat-v7:27.1.1'
 }
