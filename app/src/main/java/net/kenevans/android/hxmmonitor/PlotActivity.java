@@ -382,7 +382,7 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             times[i] = lastRrTime;
             values[i] = val / 1.024;
         }
-        // Make all times be >= mLastRrUpdateTime
+        // Make first rr time be >= mLastRrUpdateTime
         long deltaTime;
         long firstTime = times[0];
         if (firstTime < mLastRrUpdateTime) {
