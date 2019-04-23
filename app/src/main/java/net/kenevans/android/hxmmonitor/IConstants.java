@@ -402,9 +402,4 @@ import java.util.UUID;
      */
      SimpleDateFormat millisecTimeFormater = new SimpleDateFormat(
             "hh:mm.ss.SSS", Locale.US);
-
-    /**
-     * Switch to work around invalid first RR value for Corsense.
-     */
-    boolean USE_CORSENSE_FIX = true;
 }
