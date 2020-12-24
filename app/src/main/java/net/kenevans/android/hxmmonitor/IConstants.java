@@ -217,7 +217,7 @@ public interface IConstants {
     // /** Database column for the temporary flag. */
     //  String COL_TMP = "temporary";
 
-    String saveDatabaseTemplate = "HxMDatabase.%s.db";
+    String saveDatabaseTemplate = "HxMMonitor.%s.db";
     /**
      * Prefix for the file name for saving the database.
      */
