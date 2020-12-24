@@ -1,6 +1,6 @@
 package net.kenevans.android.hxmmonitor;
 
-import android.app.Activity;
+import android.Manifest;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothGattCharacteristic;
@@ -15,10 +15,12 @@ import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -26,7 +28,6 @@ import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.File;
 import java.util.List;
 import java.util.UUID;
 
@@ -52,7 +53,6 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
     private boolean mDoBat = true;
     private boolean mDoHr = true;
     private boolean mDoCustom = true;
-    private File mDataDir;
     private BluetoothGattCharacteristic mCharBat;
     private BluetoothGattCharacteristic mCharHr;
     private BluetoothGattCharacteristic mCharCustom;
@@ -61,8 +61,8 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
     /**
      * Manages the service lifecycle.
      */
-    private final ServiceConnection mServiceConnection =
-            new ServiceConnection() {
+    private final ServiceConnection mServiceConnection = new
+            ServiceConnection() {
                 @Override
                 public void onServiceConnected(ComponentName componentName,
                                                IBinder service) {
@@ -115,33 +115,33 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
      */
     private final BroadcastReceiver mGattUpdateReceiver =
             new BroadcastReceiver() {
-                @Override
-                public void onReceive(Context context, Intent intent) {
-                    final String action = intent.getAction();
-                    if (HxMBleService.ACTION_GATT_CONNECTED.equals(action)) {
-                        Log.d(TAG, "onReceive: " + action);
-                        mConnected = true;
-                        updateConnectionState(R.string.connected);
-                        invalidateOptionsMenu();
-                    } else if (HxMBleService.ACTION_GATT_DISCONNECTED.equals(action)) {
-                        Log.d(TAG, "onReceive: " + action);
-                        mConnected = false;
-                        resetDataViews();
-                        updateConnectionState(R.string.disconnected);
-                        invalidateOptionsMenu();
-                    } else if (HxMBleService.ACTION_GATT_SERVICES_DISCOVERED
-                            .equals(action)) {
-                        Log.d(TAG, "onReceive: " + action);
-                        onServicesDiscovered(mHxMBleService.getSupportedGattServices());
-                    } else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
-                        // Log.d(TAG, "onReceive: " + action);
-                        displayData(intent);
-                    } else if (HxMBleService.ACTION_ERROR.equals(action)) {
-                        // Log.d(TAG, "onReceive: " + action);
-                        displayError(intent);
-                    }
-                }
-            };
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (HxMBleService.ACTION_GATT_CONNECTED.equals(action)) {
+                Log.d(TAG, "onReceive: " + action);
+                mConnected = true;
+                updateConnectionState(R.string.connected);
+                invalidateOptionsMenu();
+            } else if (HxMBleService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                Log.d(TAG, "onReceive: " + action);
+                mConnected = false;
+                resetDataViews();
+                updateConnectionState(R.string.disconnected);
+                invalidateOptionsMenu();
+            } else if (HxMBleService.ACTION_GATT_SERVICES_DISCOVERED
+                    .equals(action)) {
+                Log.d(TAG, "onReceive: " + action);
+                onServicesDiscovered(mHxMBleService.getSupportedGattServices());
+            } else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
+                // Log.d(TAG, "onReceive: " + action);
+                displayData(intent);
+            } else if (HxMBleService.ACTION_ERROR.equals(action)) {
+                // Log.d(TAG, "onReceive: " + action);
+                displayError(intent);
+            }
+        }
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -164,8 +164,15 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
 
         // Initializes a Bluetooth adapter. For API level 18 and above, get a
         // reference to BluetoothAdapter through BluetoothManager.
-        final BluetoothManager bluetoothManager =
-                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+        final BluetoothManager bluetoothManager = (BluetoothManager)
+                getSystemService(Context.BLUETOOTH_SERVICE);
+        if (bluetoothManager == null) {
+            String msg = getString(R.string.error_bluetooth_manager);
+            Utils.errMsg(this, msg);
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+            return;
+        }
+
         BluetoothAdapter adapter = bluetoothManager.getAdapter();
 
         // Checks if Bluetooth is supported on the device
@@ -186,24 +193,18 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
 
         ((TextView) findViewById(R.id.device_name)).setText(mDeviceName);
         ((TextView) findViewById(R.id.device_address)).setText(mDeviceAddress);
-        mConnectionState = (TextView) findViewById(R.id.connection_state);
-        mBat = (TextView) findViewById(R.id.bat_value);
-        mHr = (TextView) findViewById(R.id.hr_value);
-        mRr = (TextView) findViewById(R.id.rr_value);
-        mAct = (TextView) findViewById(R.id.act_value);
-        mPa = (TextView) findViewById(R.id.pa_value);
-        mStatus = (TextView) findViewById(R.id.status_value);
+        mConnectionState = findViewById(R.id.connection_state);
+        mBat = findViewById(R.id.bat_value);
+        mHr = findViewById(R.id.hr_value);
+        mRr = findViewById(R.id.rr_value);
+        mStatus = findViewById(R.id.status_value);
         resetDataViews();
 
         Intent gattServiceIntent = new Intent(this, HxMBleService.class);
         bindService(gattServiceIntent, mServiceConnection, BIND_AUTO_CREATE);
 
         // Open the database
-        mDataDir = getDataDirectory();
-        if (mDataDir == null) {
-            return;
-        }
-        mDbAdapter = new HxMMonitorDbAdapter(this, mDataDir);
+        mDbAdapter = new HxMMonitorDbAdapter(this);
         mDbAdapter.open();
     }
 
@@ -270,143 +271,114 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_connect:
-                mHxMBleService.connect(mDeviceAddress);
-                setManuallyDisconnected(false);
-                return true;
-            case R.id.menu_disconnect:
-                mHxMBleService.disconnect();
-                setManuallyDisconnected(true);
-                return true;
-            case android.R.id.home:
-                onBackPressed();
-                return true;
-            case R.id.menu_select_device:
-                selectDevice();
-                return true;
-            case R.id.menu_session_manager:
-                startSessionManager();
-                return true;
-            case R.id.menu_plot:
-                plot();
-                return true;
-            case R.id.menu_read_battery_level:
-                readBatteryLevel();
-                return true;
-            case R.id.menu_settings:
-                showSettings();
-                return true;
+        if (item.getItemId() == R.id.menu_connect) {
+            mHxMBleService.connect(mDeviceAddress);
+            setManuallyDisconnected(false);
+            return true;
+        } else if (item.getItemId() == R.id.menu_disconnect) {
+            mHxMBleService.disconnect();
+            setManuallyDisconnected(true);
+            return true;
+        } else if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        } else if (item.getItemId() == R.id.menu_select_device) {
+            selectDevice();
+            return true;
+        } else if (item.getItemId() == R.id.menu_session_manager) {
+            startSessionManager();
+            return true;
+        } else if (item.getItemId() == R.id.menu_plot) {
+            plot();
+            return true;
+        } else if (item.getItemId() == R.id.menu_read_battery_level) {
+            readBatteryLevel();
+            return true;
+        } else if (item.getItemId() == R.id.info) {
+            info();
+            return true;
+        } else if (item.getItemId() == R.id.choose_data_directory) {
+            chooseDataDirectory();
+            return true;
+//        } else if (item.getItemId() == R.id.help) {
+//            showHelp();
+//            return true;
+        } else if (item.getItemId() == R.id.menu_settings) {
+            showSettings();
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode,
-                                    Intent data) {
-        switch (requestCode) {
-            case REQUEST_SELECT_DEVICE_CODE:
-                if (resultCode == Activity.RESULT_OK) {
-                    mDeviceName = data.getStringExtra(DEVICE_NAME_CODE);
-                    mDeviceAddress = data.getStringExtra(DEVICE_ADDRESS_CODE);
-                    // Use this instead of getPreferences to be application-wide
-                    SharedPreferences.Editor editor = PreferenceManager
-                            .getDefaultSharedPreferences(this).edit();
-                    editor.putString(DEVICE_NAME_CODE, mDeviceName);
-                    editor.putString(DEVICE_ADDRESS_CODE, mDeviceAddress);
-                    editor.commit();
-                    ((TextView) findViewById(R.id.device_name))
-                            .setText(mDeviceName);
-                    ((TextView) findViewById(R.id.device_address))
-                            .setText(mDeviceAddress);
-                }
-                break;
-            case REQUEST_PLOT_CODE:
-                String msg = null;
-                if (data != null) {
-                    msg = data.getStringExtra(MSG_CODE);
-                }
-                if (resultCode == RESULT_ERROR) {
-                    if (msg != null) {
-                        Utils.errMsg(this, msg);
-                    } else {
-                        Utils.errMsg(this, "Unknown error plotting");
-                    }
-                    // } else if (resultCode == RESULT_CANCELED) {
-                    // if (msg != null) {
-                    // Utils.errMsg(this, msg);
-                    // } else {
-                    // Utils.errMsg(this, "Canceled");
-                    // }
-                }
-                break;
-            case REQUEST_SETTINGS_CODE:
-                Log.d(TAG, "onActivityResult: REQUEST_SETTINGS_CODE resultCode="
-                        + resultCode);
-                // Get the settings
-                SharedPreferences prefs = PreferenceManager
-                        .getDefaultSharedPreferences(this);
-                boolean doBat = prefs.getBoolean(PREF_READ_BATTERY, true);
-                boolean doHr = prefs.getBoolean(PREF_MONITOR_HR, true);
-                boolean doCustom = prefs.getBoolean(PREF_MONITOR_CUSTOM, true);
-                if (doHr == mDoHr && doCustom == mDoCustom && doBat == mDoBat) {
-                    // No changes
-                    break;
-                }
-                mDoBat = doBat;
-                mDoHr = doHr;
-                mDoCustom = doCustom;
-                // resetDataViews();
-                // if (mHxMBleService != null &&
-                // mHxMBleService.getSessionInProgress()) {
-                // setEnabledFlags();
-                // }
-                break;
+    protected void onActivityResult(int requestCode, int resultCode, Intent
+            intent) {
+        if (requestCode == REQ_GET_TREE && resultCode == RESULT_OK) {
+            Uri treeUri;
+            // Get Uri from Storage Access Framework.
+            treeUri = intent.getData();
+            // Keep them from accumulating
+            net.kenevans.android.hxmmonitor.UriUtils.releaseAllPermissions(this);
+            SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE)
+                    .edit();
+            if (treeUri != null) {
+                editor.putString(PREF_TREE_URI, treeUri.toString());
+            } else {
+                editor.putString(PREF_TREE_URI, null);
+            }
+            editor.apply();
+
+            // Persist access permissions.
+            final int takeFlags = intent.getFlags()
+                    & (Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+            if (treeUri != null) {
+                this.getContentResolver().takePersistableUriPermission(treeUri,
+                        takeFlags);
+            } else {
+                Utils.errMsg(this, "Failed to get presistent access " +
+                        "permissions");
+            }
+        } else if (requestCode == resultCode && resultCode == RESULT_OK) {
+            mDeviceName = intent.getStringExtra(DEVICE_NAME_CODE);
+            mDeviceAddress = intent.getStringExtra(DEVICE_ADDRESS_CODE);
+            // Use this instead of getPreferences to be application-wide
+            SharedPreferences.Editor editor = PreferenceManager
+                    .getDefaultSharedPreferences(this).edit();
+            editor.putString(DEVICE_NAME_CODE, mDeviceName);
+            editor.putString(DEVICE_ADDRESS_CODE, mDeviceAddress);
+            editor.apply();
+            ((TextView) findViewById(R.id.device_name))
+                    .setText(mDeviceName);
+            ((TextView) findViewById(R.id.device_address))
+                    .setText(mDeviceAddress);
+        } else if (requestCode == REQ_SETTINGS_CODE && resultCode == RESULT_OK) {
+            Log.d(TAG, "onActivityResult: REQUEST_SETTINGS_CODE resultCode="
+                    + resultCode);
+            // resetDataViews();
+            // if (mBLECardiacBleService != null &&
+            // mBLECardiacBleService.getSessionInProgress()) {
+            // setEnabledFlags();
+            // }
         }
-        super.onActivityResult(requestCode, resultCode, data);
+        super.onActivityResult(requestCode, resultCode, intent);
     }
 
     /**
-     * Gets the current data directory and sets the default preference for
-     * PREF_DATA_DIRECTORY.
-     *
-     * @return GThe directory or null on failure.
+     * Sets the current data directory
      */
-    public File getDataDirectory() {
-        SharedPreferences prefs = PreferenceManager
-                .getDefaultSharedPreferences(this);
-        String dataDirName = prefs.getString(PREF_DATA_DIRECTORY, null);
-        File dataDir = null;
-        if (dataDirName != null) {
-            dataDir = new File(dataDirName);
-        } else {
-            File sdCardRoot = Environment.getExternalStorageDirectory();
-            if (sdCardRoot != null) {
-                dataDir = new File(sdCardRoot, SD_CARD_DB_DIRECTORY);
-                // Change the stored value (even if it is null)
-                SharedPreferences.Editor editor = prefs.edit();
-                editor.putString(PREF_DATA_DIRECTORY, dataDir.getPath());
-                editor.commit();
-            }
-        }
-        if (dataDir == null) {
-            Utils.errMsg(this, "Data directory is null");
-        }
-        if (!dataDir.exists()) {
-            boolean res = dataDir.mkdir();
-            if (!res) {
-                Utils.errMsg(this, "Cannot find or create directory: "
-                        + dataDir);
-                return null;
-            }
-        }
-        return dataDir;
+    private void chooseDataDirectory() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION &
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+//        intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, uriToLoad);
+        startActivityForResult(intent, REQ_GET_TREE);
     }
 
     /**
      * Updates the connection state view on the UI thread.
      *
-     * @param resourceId
+     * @param resourceId The resource ID.
      */
     private void updateConnectionState(final int resourceId) {
         runOnUiThread(new Runnable() {
@@ -438,14 +410,14 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
                                             DeviceMonitorActivity.this,
                                             DeviceScanActivity.class);
                                     startActivityForResult(intent,
-                                            REQUEST_SELECT_DEVICE_CODE);
+                                            REQ_SELECT_DEVICE_CODE);
                                 }
 
                             }).setNegativeButton(R.string.cancel, null).show();
         } else {
             Intent intent = new Intent(DeviceMonitorActivity.this,
                     DeviceScanActivity.class);
-            startActivityForResult(intent, REQUEST_SELECT_DEVICE_CODE);
+            startActivityForResult(intent, REQ_SELECT_DEVICE_CODE);
         }
     }
 
@@ -463,8 +435,71 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
                 PlotActivity.class);
         // Plot the current data, not a session
         intent.putExtra(PLOT_SESSION_CODE, false);
-        startActivityForResult(intent, REQUEST_PLOT_CODE);
+        startActivityForResult(intent, REQ_PLOT_CODE);
     }
+
+    /**
+     * Displays info about the current configuration
+     */
+    private void info() {
+        try {
+            StringBuilder info = new StringBuilder();
+            info.append("Device Name: ").append(mDeviceName).append("\n");
+            info.append("Device Address: ").append(mDeviceAddress).append("\n");
+            info.append("Connected: ").append(mConnected).append("\n");
+            info.append("Battery: ").append(mBat.getText()).append("\n");
+            SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+            if (Build.VERSION.SDK_INT >= 23
+                    && ContextCompat.checkSelfPermission(this, Manifest
+                    .permission.ACCESS_COARSE_LOCATION) != PackageManager
+                    .PERMISSION_GRANTED) {
+                info.append("No permission granted for " +
+                        "ACCESS_COARSE_LOCATION\n");
+            }
+//            if (Build.VERSION.SDK_INT >= 23
+//                    && ContextCompat.checkSelfPermission(this, Manifest
+//                    .permission.ACCESS_BACKGROUND_LOCATION) != PackageManager
+//                    .PERMISSION_GRANTED
+//                    && ContextCompat.checkSelfPermission(this, Manifest
+//                    .permission.ACCESS_BACKGROUND_LOCATION) != PackageManager
+//                    .PERMISSION_GRANTED) {
+//                info.append("No permission granted for " +
+//                        "ACCESS_BACKGROUND_LOCATION\n");
+//            }
+            String treeUriStr = prefs.getString(PREF_TREE_URI, null);
+            if (treeUriStr == null) {
+                info.append("Data Directory: Not set");
+            } else {
+                Uri treeUri = Uri.parse(treeUriStr);
+                if (treeUri == null) {
+                    info.append("Data Directory: Not set");
+                } else {
+                    info.append("Data Directory: ").append(treeUri.getPath());
+                }
+            }
+            Utils.infoMsg(this, info.toString());
+        } catch (Throwable t) {
+            Utils.excMsg(this, "Error showing info", t);
+        }
+    }
+
+
+//    /**
+//     * Show the help.
+//     */
+//    private void showHelp() {
+//        try {
+//            // Start theInfoActivity
+//            Intent intent = new Intent();
+//            intent.setClass(this, InfoActivity.class);
+//            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
+//                    | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+//            intent.putExtra(INFO_URL, "file:///android_asset/bcm.html");
+//            startActivity(intent);
+//        } catch (Exception ex) {
+//            Utils.excMsg(this, getString(R.string.help_show_error), ex);
+//        }
+//    }
 
     /**
      * Calls the settings activity.
@@ -473,7 +508,7 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
         Intent intent = new Intent(DeviceMonitorActivity.this,
                 SettingsActivity.class);
         intent.putExtra(SETTINGS_CODE, false);
-        startActivityForResult(intent, REQUEST_SETTINGS_CODE);
+        startActivityForResult(intent, REQ_SETTINGS_CODE);
     }
 
     /**
@@ -482,62 +517,63 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
     public void startSessionManager() {
         Intent intent = new Intent(DeviceMonitorActivity.this,
                 SessionManagerActivity.class);
-        startActivityForResult(intent, REQUEST_SESSION_MANAGER_CODE);
+        startActivityForResult(intent, REQ_SESSION_MANAGER_CODE);
     }
 
     /**
      * Displays the data from an ACTION_DATA_AVAILABLE callback.
      *
-     * @param intent
+     * @param intent The intent.
      */
     private void displayData(Intent intent) {
-        String uuidString = null;
-        UUID uuid = null;
+        String uuidString;
+        UUID uuid;
         String value;
         try {
             uuidString = intent.getStringExtra(EXTRA_UUID);
             if (uuidString == null) {
-                mStatus.setText("Received null uuid");
+                mStatus.setText(R.string.null_uuid_msg);
                 return;
             }
             uuid = UUID.fromString(uuidString);
             if (uuid.equals(UUID_HEART_RATE_MEASUREMENT)) {
                 value = intent.getStringExtra(EXTRA_HR);
                 if (value == null) {
-                    mHr.setText("NA");
+                    mHr.setText(R.string.not_available);
                 } else {
                     mHr.setText(value);
                 }
                 value = intent.getStringExtra(EXTRA_RR);
                 if (value == null) {
-                    mRr.setText("NA");
+                    mRr.setText(R.string.not_available);
                 } else {
                     mRr.setText(value);
                 }
             } else if (uuid.equals(UUID_BATTERY_LEVEL)) {
                 value = intent.getStringExtra(EXTRA_BAT);
                 if (value == null) {
-                    mBat.setText("NA");
+                    mBat.setText(R.string.not_available);
                 } else {
                     mBat.setText(value);
                 }
             } else if (uuid.equals(UUID_CUSTOM_MEASUREMENT)) {
                 value = intent.getStringExtra(EXTRA_ACT);
                 if (value == null) {
-                    mAct.setText("NA");
+                    mAct.setText(R.string.not_available);
                 } else {
                     mAct.setText(value);
                 }
                 value = intent.getStringExtra(EXTRA_PA);
                 if (value == null) {
-                    mPa.setText("NA");
+                    mPa.setText(R.string.not_available);
                 } else {
                     mPa.setText(value);
                 }
             }
         } catch (Exception ex) {
             Log.d(TAG, "Error displaying data", ex);
-            mStatus.setText("Exception: " + ex.getMessage());
+            mStatus.setText(this.getString(R.string.exception_msg_format,
+                    ex.getMessage()));
             // Don't use Utils here as there may be many
             // Utils.excMsg(this, "Error displaying message", ex);
         }
@@ -547,33 +583,34 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
      * Sets the PREF_MANUALLY_DISCONNECTED preference in PreferenceManager
      * .getDefaultSharedPreferences.
      *
-     * @param state
+     * @param state The value for PREF_MANUALLY_DISCONNECTED.
      */
     private void setManuallyDisconnected(boolean state) {
         SharedPreferences.Editor editor = PreferenceManager
                 .getDefaultSharedPreferences(this).edit();
         editor.putBoolean(PREF_MANUALLY_DISCONNECTED, state);
-        editor.commit();
+        editor.apply();
     }
 
     /**
      * Displays the error from an ACTION_ERROR callback.
      *
-     * @param intent
+     * @param intent The intent.
      */
     private void displayError(Intent intent) {
         String msg = null;
         try {
             msg = intent.getStringExtra(EXTRA_MSG);
             if (msg == null) {
-                mStatus.setText("Received null error message");
+                mStatus.setText(R.string.null_error_msg);
                 Utils.errMsg(this, "Received null error message");
                 return;
             }
             Utils.errMsg(this, msg);
         } catch (Exception ex) {
             Log.d(TAG, "Error displaying error", ex);
-            mStatus.setText("Exception: " + ex.getMessage());
+            mStatus.setText(this.getString(R.string.exception_msg_format,
+                    ex.getMessage()));
             Utils.excMsg(this, msg, ex);
         }
     }
@@ -630,18 +667,16 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
      * Resets the data view to show default values
      */
     public void resetDataViews() {
-        mBat.setText("NA");
-        mHr.setText("NA");
-        mRr.setText("NA");
-        mAct.setText("NA");
-        mPa.setText("NA");
+        mBat.setText(R.string.not_available);
+        mHr.setText(R.string.not_available);
+        mRr.setText(R.string.not_available);
         mStatus.setText("");
     }
 
     /**
      * Sets up read or notify for this characteristic if possible.
      *
-     * @param characteristic
+     * @param characteristic The Characteristic found.
      */
     private void onCharacteristicFound(
             BluetoothGattCharacteristic characteristic) {
@@ -718,7 +753,7 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
     /**
      * Make an IntentFilter for the actions in which we are interested.
      *
-     * @return
+     * @return The IntentFilter.
      */
     private static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
@@ -732,7 +767,7 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
     /**
      * Called when services are discovered.
      *
-     * @param gattServices
+     * @param gattServices The list of Gatt services.
      */
     private void onServicesDiscovered(List<BluetoothGattService> gattServices) {
         if (gattServices == null) {
@@ -740,8 +775,8 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
         }
         // Loop through available GATT Services
         mTimer = null;
-        UUID serviceUuid = null;
-        UUID charUuid = null;
+        UUID serviceUuid;
+        UUID charUuid;
         mCharBat = null;
         mCharHr = null;
         mCharCustom = null;

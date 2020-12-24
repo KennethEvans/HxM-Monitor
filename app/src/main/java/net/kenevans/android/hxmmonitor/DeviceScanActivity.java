@@ -6,6 +6,9 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothManager;
+import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanResult;
+import android.bluetooth.le.ScanSettings;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -29,6 +32,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Activity for scanning and displaying available Bluetooth LE devices.
@@ -62,15 +66,15 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
             }
         });
 
-		// Use this check to determine whether BLE is supported on the device.
-		// Then you can selectively disable BLE-related features.
-		if (!getPackageManager().hasSystemFeature(
-				PackageManager.FEATURE_BLUETOOTH_LE)) {
-			String msg = getString(R.string.ble_not_supported);
-			Utils.errMsg(this, msg);
-			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-			finish();
-		}
+        // Use this check to determine whether BLE is supported on the device.
+        // Then you can selectively disable BLE-related features.
+        if (!getPackageManager().hasSystemFeature(
+                PackageManager.FEATURE_BLUETOOTH_LE)) {
+            String msg = getString(R.string.ble_not_supported);
+            Utils.errMsg(this, msg);
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+            finish();
+        }
 
         // Initializes a Bluetooth adapter. For API level 18 and above, get a
         // reference to BluetoothAdapter through BluetoothManager.
@@ -90,51 +94,49 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
                     Toast.LENGTH_LONG).show();
         }
 
-		// Checks if Bluetooth is supported on the device
-		if (mBluetoothAdapter == null) {
-			String msg = getString(R.string.bluetooth_not_supported);
-			Utils.errMsg(this, msg);
-			Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-			finish();
-			return;
-		}
+        // Checks if Bluetooth is supported on the device
+        if (mBluetoothAdapter == null) {
+            String msg = getString(R.string.bluetooth_not_supported);
+            Utils.errMsg(this, msg);
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
 
-		// Set result CANCELED in case the user backs out
-		setResult(Activity.RESULT_CANCELED);
-	}
+        // Set result CANCELED in case the user backs out
+        setResult(Activity.RESULT_CANCELED);
+    }
 
-	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		getMenuInflater().inflate(R.menu.menu_device_scan, menu);
-		if (!mScanning) {
-			menu.findItem(R.id.menu_stop).setVisible(false);
-			menu.findItem(R.id.menu_scan).setVisible(true);
-			menu.findItem(R.id.menu_refresh).setActionView(null);
-		} else {
-			menu.findItem(R.id.menu_stop).setVisible(true);
-			menu.findItem(R.id.menu_scan).setVisible(false);
-			menu.findItem(R.id.menu_refresh).setActionView(
-					R.layout.actionbar_indeterminate_progress);
-		}
-		return true;
-	}
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_device_scan, menu);
+        if (!mScanning) {
+            menu.findItem(R.id.menu_stop).setVisible(false);
+            menu.findItem(R.id.menu_scan).setVisible(true);
+            menu.findItem(R.id.menu_refresh).setActionView(null);
+        } else {
+            menu.findItem(R.id.menu_stop).setVisible(true);
+            menu.findItem(R.id.menu_scan).setVisible(false);
+            menu.findItem(R.id.menu_refresh).setActionView(
+                    R.layout.actionbar_indeterminate_progress);
+        }
+        return true;
+    }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case R.id.menu_scan:
-                mLeDeviceListAdapter.clear();
-                startScan();
-                break;
-            case R.id.menu_stop:
-                endScan();
-                break;
+        if (item.getItemId() == R.id.menu_scan) {
+            mLeDeviceListAdapter.clear();
+            startScan();
+        } else if (item.getItemId() == R.id.menu_stop) {
+            endScan();
         }
         return true;
     }
 
     @Override
     protected void onResume() {
+        Log.d(TAG, this.getClass().getSimpleName() + ": onResume");
         super.onResume();
         // Ensures Bluetooth is enabled on the device. If Bluetooth is not
         // currently enabled,
@@ -143,7 +145,7 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
         if (!mBluetoothAdapter.isEnabled()) {
             Intent enableBtIntent = new Intent(
                     BluetoothAdapter.ACTION_REQUEST_ENABLE);
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT_CODE);
+            startActivityForResult(enableBtIntent, REQ_ENABLE_BT_CODE);
         } else {
             // Initialize the list view adapter
             mLeDeviceListAdapter = new LeDeviceListAdapter();
@@ -155,18 +157,16 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[]
             permissions, @NonNull int[] grantResults) {
-        switch (requestCode) {
-            case PERMISSION_ACCESS_COARSE_LOCATION:
-                // COARSE_LOCATION
-                if (grantResults.length > 0 && grantResults[0] ==
-                        PackageManager.PERMISSION_GRANTED) {
-                    mAllowScan = true;
-                    startScan();
-                } else if (grantResults.length > 0 && grantResults[0] ==
-                        PackageManager.PERMISSION_DENIED) {
-                    mAllowScan = false;
-                }
-                break;
+        if (requestCode == PERMISSION_ACCESS_COARSE_LOCATION) {
+            // COARSE_LOCATION
+            if (grantResults.length > 0 && grantResults[0] ==
+                    PackageManager.PERMISSION_GRANTED) {
+                mAllowScan = true;
+                startScan();
+            } else if (grantResults.length > 0 && grantResults[0] ==
+                    PackageManager.PERMISSION_DENIED) {
+                mAllowScan = false;
+            }
         }
     }
 
@@ -174,7 +174,7 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
     protected void onActivityResult(int requestCode, int resultCode, Intent
             data) {
         // User chose not to enable Bluetooth.
-        if (requestCode == REQUEST_ENABLE_BT_CODE
+        if (requestCode == REQ_ENABLE_BT_CODE
                 && resultCode == Activity.RESULT_CANCELED) {
             finish();
             return;
@@ -182,35 +182,34 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-	protected void onListItemClick(ListView l, View v, int position, long id) {
-		final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
-		if (device == null) {
-			return;
-		}
-		if (mScanning) {
-			mBluetoothAdapter.stopLeScan(mLeScanCallback);
-			mScanning = false;
-		}
-		final Intent data = new Intent();
-		data.putExtra(DEVICE_NAME_CODE, device.getName());
-		data.putExtra(DEVICE_ADDRESS_CODE, device.getAddress());
-		setResult(RESULT_OK, data);
-		finish();
-	}
+    protected void onListItemClick(ListView l, View v, int position, long id) {
+        final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
+        if (device == null) {
+            return;
+        }
+        if (mScanning) {
+            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
+            mScanning = false;
+        }
+        final Intent data = new Intent();
+        data.putExtra(DEVICE_NAME_CODE, device.getName());
+        data.putExtra(DEVICE_ADDRESS_CODE, device.getAddress());
+        setResult(RESULT_OK, data);
+        finish();
+    }
 
     private void endScan() {
         Log.d(TAG, "endScan");
         // Stop
         if (mScanning) {
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+            mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
         }
         mScanning = false;
         invalidateOptionsMenu();
     }
 
     private void startScan() {
-        Log.d(TAG, "startScan");
-
+        Log.d(TAG, this.getClass().getSimpleName() + ": startScan");
         // Check for coarse location permission
         if (ContextCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_COARSE_LOCATION)
@@ -241,13 +240,18 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
                 @Override
                 public void run() {
                     mScanning = false;
-                    mBluetoothAdapter.stopLeScan(mLeScanCallback);
+                    mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
                     invalidateOptionsMenu();
                 }
             }, DEVICE_SCAN_PERIOD);
 
             mScanning = true;
-            mBluetoothAdapter.startLeScan(mLeScanCallback);
+            mBluetoothAdapter.getBluetoothLeScanner().startScan(null,
+                    new ScanSettings.Builder()
+                            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+                            .setReportDelay(1000)
+                            .build(),
+                    mLeScanCallback);
         }
         invalidateOptionsMenu();
     }
@@ -278,20 +282,20 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
             mLeDevices.clear();
         }
 
-		@Override
-		public int getCount() {
-			return mLeDevices.size();
-		}
+        @Override
+        public int getCount() {
+            return mLeDevices.size();
+        }
 
-		@Override
-		public Object getItem(int i) {
-			return mLeDevices.get(i);
-		}
+        @Override
+        public Object getItem(int i) {
+            return mLeDevices.get(i);
+        }
 
-		@Override
-		public long getItemId(int i) {
-			return i;
-		}
+        @Override
+        public long getItemId(int i) {
+            return i;
+        }
 
         @Override
         public View getView(int i, View view, ViewGroup viewGroup) {
@@ -309,39 +313,67 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
                 viewHolder = (ViewHolder) view.getTag();
             }
 
-			BluetoothDevice device = mLeDevices.get(i);
-			final String deviceName = device.getName();
-			if (deviceName != null && deviceName.length() > 0) {
-				viewHolder.deviceName.setText(deviceName);
-				viewHolder.deviceAddress.setText(device.getAddress());
-			} else {
-				viewHolder.deviceName.setText(R.string.unknown_device);
-				viewHolder.deviceAddress.setText("");
-			}
-			return view;
-		}
-	}
+            BluetoothDevice device = mLeDevices.get(i);
+            final String deviceName = device.getName();
+            if (deviceName != null && deviceName.length() > 0) {
+                viewHolder.deviceName.setText(deviceName);
+                viewHolder.deviceAddress.setText(device.getAddress());
+            } else {
+                viewHolder.deviceName.setText(R.string.unknown_device);
+                viewHolder.deviceAddress.setText("");
+            }
+            return view;
+        }
+    }
 
     // Device scan callback.
-    private BluetoothAdapter.LeScanCallback mLeScanCallback = new
-            BluetoothAdapter.LeScanCallback() {
+    private ScanCallback mLeScanCallback = new
+            ScanCallback() {
+                @Override
+                public void onScanResult(int callbackType, ScanResult result) {
+                    Log.d(TAG, this.getClass().getSimpleName() + ": " +
+                            "onScanResult");
+                    final BluetoothDevice device = result.getDevice();
+                    String deviceAddress = device.getAddress();
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            mLeDeviceListAdapter.addDevice(device);
+                            mLeDeviceListAdapter.notifyDataSetChanged();
+                        }
+                    });
+                }
 
-		@Override
-		public void onLeScan(final BluetoothDevice device, int rssi,
-				byte[] scanRecord) {
-			runOnUiThread(new Runnable() {
-				@Override
-				public void run() {
-					mLeDeviceListAdapter.addDevice(device);
-					mLeDeviceListAdapter.notifyDataSetChanged();
-				}
-			});
-		}
-	};
+                @Override
+                public void onBatchScanResults(List<ScanResult> results) {
+                    Log.d(TAG, this.getClass().getSimpleName() + ": " +
+                            "onBatchScanResults"
+                            + " nResults=" + results.size());
+                    // Results is non-null
+                    for (ScanResult result : results) {
+                        final BluetoothDevice device = result.getDevice();
+                        Log.d(TAG, "    device=" + device.getName()
+                                + " " + device.getAddress());
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                mLeDeviceListAdapter.addDevice(device);
+                                mLeDeviceListAdapter.notifyDataSetChanged();
+                            }
+                        });
+                    }
+                }
 
-	static class ViewHolder {
-		TextView deviceName;
-		TextView deviceAddress;
-	}
+                @Override
+                public void onScanFailed(int errorCode) {
+                    Log.d(TAG, this.getClass().getSimpleName() + ": " +
+                            "onScanFailed");
+                }
+            };
+
+    static class ViewHolder {
+        TextView deviceName;
+        TextView deviceAddress;
+    }
 
 }

@@ -18,7 +18,6 @@ import android.util.Log;
 import android.view.Display;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.Window;
 
 import org.afree.chart.AFreeChart;
 import org.afree.chart.ChartFactory;
@@ -103,7 +102,7 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
     /**
      * Make an IntentFilter for the actions in which we are interested.
      *
-     * @return
+     * @return The intent filter.
      */
     private static IntentFilter makeGattUpdateIntentFilter() {
         final IntentFilter intentFilter = new IntentFilter();
@@ -158,7 +157,7 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             mDataDir = null;
             return;
         }
-        mDbAdapter = new HxMMonitorDbAdapter(this, mDataDir);
+        mDbAdapter = new HxMMonitorDbAdapter(this);
         mDbAdapter.open();
 
         // Set result CANCELED in case the user backs out
@@ -241,13 +240,12 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-        switch (id) {
-            case R.id.menu_refresh:
-                refresh();
-                return true;
-            case R.id.get_view_info:
-                Utils.infoMsg(this, getViewInfo());
-                return true;
+        if (id == R.id.menu_refresh) {
+            refresh();
+            return true;
+        } else if (id == R.id.get_view_info) {
+            Utils.infoMsg(this, getViewInfo());
+            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -269,7 +267,7 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
     /**
      * Displays the error from an ACTION_ERROR callback.
      *
-     * @param intent
+     * @param intent The intent.
      */
     private void displayError(Intent intent) {
         String msg = null;
@@ -371,7 +369,7 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
         long[] times = new long[nTokens];
         double[] values = new double[nTokens];
         long lastRrTime = mLastRrTime;
-        double val = Double.NaN;
+        double val;
         for (int i = 0; i < nTokens; i++) {
             try {
                 val = Double.parseDouble(tokens[i]);
@@ -488,14 +486,13 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
         // HR
         if (mPlotHr) {
             final int axisNum = 1;
-            SolidColor color = hrColor;
             NumberAxis axis = new NumberAxis(null);
             plot.setRangeAxis(axisNum, axis);
             plot.setDataset(axisNum, mHrDataset);
             plot.mapDatasetToRangeAxis(axisNum, axisNum);
             plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_LEFT);
             XYItemRenderer itemRenderer = new StandardXYItemRenderer();
-            itemRenderer.setSeriesPaintType(0, color);
+            itemRenderer.setSeriesPaintType(0, hrColor);
             itemRenderer.setBaseStroke(strokeSize);
             itemRenderer.setSeriesStroke(0, strokeSize);
             plot.setRenderer(axisNum, itemRenderer);
@@ -505,22 +502,21 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             axis.setTickUnit(new NumberTickUnit(5));
             // yAxis0.setLabelFont(font);
             // yAxis0.setLabelPaintType(color);
-            axis.setAxisLinePaintType(color);
+            axis.setAxisLinePaintType(hrColor);
             axis.setTickLabelFont(font);
-            axis.setTickLabelPaintType(color);
+            axis.setTickLabelPaintType(hrColor);
         }
 
         // RR
         if (mPlotRr) {
             final int axisNum = 2;
-            SolidColor color = rrColor;
             NumberAxis axis = new NumberAxis(null);
             plot.setRangeAxis(axisNum, axis);
             plot.setDataset(axisNum, mRrDataset);
             plot.mapDatasetToRangeAxis(axisNum, axisNum);
             plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_RIGHT);
             XYItemRenderer itemRenderer = new StandardXYItemRenderer();
-            itemRenderer.setSeriesPaintType(0, color);
+            itemRenderer.setSeriesPaintType(0, rrColor);
             itemRenderer.setBaseStroke(strokeSize);
             itemRenderer.setSeriesStroke(0, strokeSize);
             plot.setRenderer(axisNum, itemRenderer);
@@ -530,23 +526,22 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             // axis.setTickUnit(new NumberTickUnit(.1));
             // yAxis1.setLabelFont(font);
             // yAxis1.setLabelPaintType(color);
-            axis.setLabelPaintType(color);
-            axis.setAxisLinePaintType(color);
+            axis.setLabelPaintType(rrColor);
+            axis.setAxisLinePaintType(rrColor);
             axis.setTickLabelFont(font);
-            axis.setTickLabelPaintType(color);
+            axis.setTickLabelPaintType(rrColor);
         }
 
         // Activity
         if (mPlotAct) {
             final int axisNum = 3;
-            SolidColor color = actColor;
             NumberAxis axis = new NumberAxis(null);
             plot.setRangeAxis(axisNum, axis);
             plot.setDataset(axisNum, mActDataset);
             plot.mapDatasetToRangeAxis(axisNum, axisNum);
             plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_LEFT);
             XYItemRenderer itemRenderer = new StandardXYItemRenderer();
-            itemRenderer.setSeriesPaintType(0, color);
+            itemRenderer.setSeriesPaintType(0, actColor);
             itemRenderer.setBaseStroke(strokeSize);
             itemRenderer.setSeriesStroke(0, strokeSize);
             plot.setRenderer(axisNum, itemRenderer);
@@ -556,23 +551,22 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             // axis.setTickUnit(new NumberTickUnit(.1));
             // yAxis1.setLabelFont(font);
             // yAxis1.setLabelPaintType(color);
-            axis.setLabelPaintType(color);
-            axis.setAxisLinePaintType(color);
+            axis.setLabelPaintType(actColor);
+            axis.setAxisLinePaintType(actColor);
             axis.setTickLabelFont(font);
-            axis.setTickLabelPaintType(color);
+            axis.setTickLabelPaintType(actColor);
         }
 
         // PA
         if (mPlotPa) {
             final int axisNum = 4;
-            SolidColor color = paColor;
             NumberAxis axis = new NumberAxis(null);
             plot.setRangeAxis(axisNum, axis);
             plot.setDataset(axisNum, mPaDataset);
             plot.mapDatasetToRangeAxis(axisNum, axisNum);
             plot.setRangeAxisLocation(axisNum, AxisLocation.BOTTOM_OR_RIGHT);
             XYItemRenderer itemRenderer = new StandardXYItemRenderer();
-            itemRenderer.setSeriesPaintType(0, color);
+            itemRenderer.setSeriesPaintType(0, paColor);
             itemRenderer.setBaseStroke(strokeSize);
             itemRenderer.setSeriesStroke(0, strokeSize);
             plot.setRenderer(axisNum, itemRenderer);
@@ -582,10 +576,10 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             // axis.setTickUnit(new NumberTickUnit(.1));
             // yAxis1.setLabelFont(font);
             // yAxis1.setLabelPaintType(color);
-            axis.setLabelPaintType(color);
-            axis.setAxisLinePaintType(color);
+            axis.setLabelPaintType(paColor);
+            axis.setAxisLinePaintType(paColor);
             axis.setTickLabelFont(font);
-            axis.setTickLabelPaintType(color);
+            axis.setTickLabelPaintType(paColor);
         }
 
         return chart;
@@ -594,19 +588,18 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
     /**
      * Updates the chart when data is received from the HxMBleService.
      *
-     * @param intent
+     * @param intent The intent.
      */
     private void updateChart(Intent intent) {
         Log.d(TAG, "updateChart");
         String strValue;
-        double value = Double.NaN;
-        ;
+        double value;
+
         long date = intent.getLongExtra(EXTRA_DATE, INVALID_DATE);
         if (date == INVALID_DATE) {
             return;
         }
         if (mPlotHr && mHrSeries != null) {
-            value = Double.NaN;
             strValue = intent.getStringExtra(EXTRA_HR);
             if (strValue != null && strValue.length() > 0) {
                 try {
@@ -626,7 +619,6 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
                 mLastRrUpdateTime = date;
                 mLastRrTime = date;
             }
-            value = Double.NaN;
             strValue = intent.getStringExtra(EXTRA_RR);
             if (strValue != null && strValue.length() > 0) {
                 // boolean res = addRrValues(mRrSeries, date, strValue);
@@ -635,7 +627,6 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             }
         }
         if (mPlotAct && mActSeries != null) {
-            value = Double.NaN;
             strValue = intent.getStringExtra(EXTRA_ACT);
             if (strValue != null && strValue.length() > 0) {
                 try {
@@ -651,7 +642,6 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             }
         }
         if (mPlotPa && mPaSeries != null) {
-            value = Double.NaN;
             strValue = intent.getStringExtra(EXTRA_PA);
             if (strValue != null && strValue.length() > 0) {
                 try {
@@ -733,10 +723,10 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
 
                 // Loop over items
                 cursor.moveToFirst();
-                long date = INVALID_DATE;
+                long date;
                 double hr, act, pa;
                 String rrString;
-                while (cursor.isAfterLast() == false) {
+                while (!cursor.isAfterLast()) {
                     date = cursor.getLong(indexDate);
                     if (indexHr > -1) {
                         hr = cursor.getInt(indexHr);
@@ -783,7 +773,7 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             Utils.excMsg(this, "Error creating datasets", ex);
         } finally {
             try {
-                cursor.close();
+                if (cursor != null) cursor.close();
             } catch (Exception ex) {
                 // Do nothing
             }
