@@ -40,7 +40,6 @@ import org.afree.graphics.geom.Font;
 import org.afree.graphics.geom.RectShape;
 import org.afree.ui.RectangleInsets;
 
-import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -66,7 +65,6 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
     private boolean mPlotPa = true;
     private int mPlotInterval = PLOT_MAXIMUM_AGE;
     private HxMMonitorDbAdapter mDbAdapter;
-    private File mDataDir;
     private long mPlotStartTime = INVALID_DATE;
     private long mPlotSessionStart = INVALID_DATE;
     private boolean mIsSession = false;
@@ -151,12 +149,6 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
         }
 
         // Open the database
-        mDataDir = new File(prefString);
-        if (!mDataDir.exists()) {
-            Utils.errMsg(this, "Cannot find database directory: " + mDataDir);
-            mDataDir = null;
-            return;
-        }
         mDbAdapter = new HxMMonitorDbAdapter(this);
         mDbAdapter.open();
 
@@ -695,8 +687,13 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
             mPaSeries = null;
         }
         if (!mIsSession) {
-            mHrSeries.setMaximumItemAge(mPlotInterval);
-            mRrSeries.setMaximumItemAge(mPlotInterval);
+            try {
+                mHrSeries.setMaximumItemAge(mPlotInterval);
+                mRrSeries.setMaximumItemAge(mPlotInterval);
+            } catch (Exception ex) {
+                Utils.excMsg(this, "createDatasets: Error setting maximum age" +
+                        ".", ex);
+            }
         }
         mLastRrTime = INVALID_DATE;
         mLastRrUpdateTime = INVALID_DATE;

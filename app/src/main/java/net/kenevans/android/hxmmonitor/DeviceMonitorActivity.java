@@ -329,17 +329,15 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
             editor.apply();
 
             // Persist access permissions.
-            final int takeFlags = intent.getFlags()
-                    & (Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             if (treeUri != null) {
                 this.getContentResolver().takePersistableUriPermission(treeUri,
-                        takeFlags);
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                                Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             } else {
                 Utils.errMsg(this, "Failed to get presistent access " +
                         "permissions");
             }
-        } else if (requestCode == resultCode && resultCode == RESULT_OK) {
+        } else if (requestCode == REQ_SELECT_DEVICE_CODE && resultCode == RESULT_OK) {
             mDeviceName = intent.getStringExtra(DEVICE_NAME_CODE);
             mDeviceAddress = intent.getStringExtra(DEVICE_ADDRESS_CODE);
             // Use this instead of getPreferences to be application-wide
@@ -381,12 +379,7 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
      * @param resourceId The resource ID.
      */
     private void updateConnectionState(final int resourceId) {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mConnectionState.setText(resourceId);
-            }
-        });
+        runOnUiThread(() -> mConnectionState.setText(resourceId));
     }
 
     /**
@@ -402,17 +395,12 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
                     .setTitle(R.string.confirm)
                     .setMessage(R.string.scan_prompt)
                     .setPositiveButton(R.string.ok,
-                            new DialogInterface.OnClickListener() {
-                                @Override
-                                public void onClick(DialogInterface dialog,
-                                                    int which) {
-                                    Intent intent = new Intent(
-                                            DeviceMonitorActivity.this,
-                                            DeviceScanActivity.class);
-                                    startActivityForResult(intent,
-                                            REQ_SELECT_DEVICE_CODE);
-                                }
-
+                            (dialog, which) -> {
+                                Intent intent = new Intent(
+                                        DeviceMonitorActivity.this,
+                                        DeviceScanActivity.class);
+                                startActivityForResult(intent,
+                                        REQ_SELECT_DEVICE_CODE);
                             }).setNegativeButton(R.string.cancel, null).show();
         } else {
             Intent intent = new Intent(DeviceMonitorActivity.this,
@@ -732,15 +720,13 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
                                 "onFinish: New session has been started " +
                                         "anyway");
                         if (!res) {
-                            runOnUiThread(new Runnable() {
-                                public void run() {
-                                    Log.d(TAG,
-                                            "onFinish: Failed to start new " +
-                                                    "session anyway");
-                                    Utils.errMsg(DeviceMonitorActivity.this,
-                                            "onFinish: Failed to start new " +
-                                                    "session");
-                                }
+                            runOnUiThread(() -> {
+                                Log.d(TAG,
+                                        "onFinish: Failed to start new " +
+                                                "session anyway");
+                                Utils.errMsg(DeviceMonitorActivity.this,
+                                        "onFinish: Failed to start new " +
+                                                "session");
                             });
                         }
                     }

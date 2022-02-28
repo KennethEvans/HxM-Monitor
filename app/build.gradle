@@ -8,8 +8,8 @@ android {
         applicationId "net.kenevans.android.hxmmonitor"
         minSdkVersion 21
         targetSdkVersion 27
-        versionCode 8
-        versionName "3.3.0"
+        versionCode 9
+        versionName "3.3.1"
     }
     buildTypes {
         release {
