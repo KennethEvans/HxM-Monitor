@@ -107,7 +107,6 @@ public interface IConstants {
     String SD_CARD_DB_DIRECTORY = "HxM Monitor";
 
     // Preferences
-    String PREF_DATA_DIRECTORY = "dataDirectoryPreference";
     String PREF_MONITOR_HR = "monitorHrPreference";
     String PREF_MONITOR_CUSTOM = "monitorCustomPreference";
     String PREF_READ_BATTERY = "readBatteryPreference";

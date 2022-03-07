@@ -5,7 +5,6 @@ import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.ContentResolver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
@@ -23,7 +22,6 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.CheckBox;
@@ -32,16 +30,11 @@ import android.widget.TextView;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -140,9 +133,6 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
         } else if (item.getItemId() == R.id.menu_restore_database_cvs) {
             checkRestoreDatabaseFromCvs();
             return true;
-        } else if (item.getItemId() == R.id.menu_save_database) {
-            saveDatabase();
-            return true;
         }
         return super.onOptionsItemSelected(item);
     }
@@ -170,23 +160,21 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
         // Plot the session
         intent.putExtra(PLOT_SESSION_CODE, true);
         intent.putExtra(PLOT_SESSION_START_TIME_CODE, startDate);
-        // // This is not currently used
-        // intent.putExtra(PLOT_SESSION_END_TIME_CODE, endDate);
-        startActivityForResult(intent, REQ_PLOT_CODE);
+        startActivity(intent);
     }
 
     /**
      * Merges the selected sessions.
      */
     public void mergeSessions() {
-        Utils.infoMsg(this, "Not implented yet");
+        Utils.infoMsg(this, "Not implemented yet");
     }
 
     /**
      * Splits the selected sessions.
      */
     public void splitSessions() {
-        Utils.infoMsg(this, "Not implented yet");
+        Utils.infoMsg(this, "Not implemented yet");
     }
 
     /**
@@ -282,12 +270,8 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
         Uri treeUri = Uri.parse(treeUriStr);
         String treeDocumentId = DocumentsContract.getTreeDocumentId(treeUri);
         // Need to sort in order of increasing startTime
-        Collections.sort(checkedSessions, new Comparator<Session>() {
-            @Override
-            public int compare(Session lhs, Session rhs) {
-                return Long.compare(lhs.getStartDate(), rhs.getStartDate());
-            }
-        });
+        Collections.sort(checkedSessions, (lhs, rhs) ->
+                Long.compare(lhs.getStartDate(), rhs.getStartDate()));
         int nErrors = 0;
         int nWriteErrors;
         String errMsg = "Error saving combined sessions:\n";
@@ -527,13 +511,9 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
                 .setTitle(R.string.confirm)
                 .setMessage(msg)
                 .setPositiveButton(R.string.ok,
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog,
-                                                int which) {
-                                dialog.dismiss();
-                                doDiscardSession();
-                            }
+                        (dialog, which) -> {
+                            dialog.dismiss();
+                            doDiscardSession();
                         }).setNegativeButton(R.string.cancel, null).show();
     }
 
@@ -558,74 +538,6 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
     /**
      * Saves the database as a CSV file with a .txt extension.
      */
-    private void saveDatabase() {
-        SharedPreferences prefs = getSharedPreferences(MAIN_ACTIVITY,
-                MODE_PRIVATE);
-        String treeUriStr = prefs.getString(PREF_TREE_URI, null);
-        if (treeUriStr == null) {
-            Utils.errMsg(this, "There is no data directory set");
-            return;
-        }
-        FileInputStream inputStream = null;
-        OutputStream outputStream = null;
-        try {
-            String format = "yyyy-MM-dd-HHmmss";
-            SimpleDateFormat df = new SimpleDateFormat(format, Locale.US);
-            Date now = new Date();
-            String fileName = String.format(saveDatabaseTemplate,
-                    df.format(now));
-            Uri treeUri = Uri.parse(treeUriStr);
-            String treeDocumentId =
-                    DocumentsContract.getTreeDocumentId(treeUri);
-            Uri docTreeUri =
-                    DocumentsContract.buildDocumentUriUsingTree(treeUri,
-                            treeDocumentId);
-            ContentResolver resolver = this.getContentResolver();
-            Uri docUri = DocumentsContract.createDocument(resolver, docTreeUri,
-                    "application/vnd.sqlite3", fileName);
-            if (docUri == null) {
-                Utils.errMsg(this, "Could not create document Uri");
-                return;
-            }
-            Log.d(TAG, "saveDatabase: docUri=" + docUri);
-            try {
-                // Close the database
-                if (mDbAdapter != null) {
-                    mDbAdapter.close();
-                }
-                File file = new File(getExternalFilesDir(null), DB_NAME);
-                inputStream = new FileInputStream(file);
-                ParcelFileDescriptor pfd = getContentResolver().
-                        openFileDescriptor(docUri, "w");
-                outputStream =
-                        new FileOutputStream(pfd.getFileDescriptor());
-                byte[] buff = new byte[1024];
-                int read;
-                while ((read = inputStream.read(buff, 0, buff.length)) > 0)
-                    outputStream.write(buff, 0, read);
-            } catch (Exception ex) {
-                String msg =
-                        "Failed to save database";
-                Utils.excMsg(this, msg, ex);
-                Log.e(TAG, msg, ex);
-            } finally {
-                if (inputStream != null) inputStream.close();
-                if (outputStream != null) outputStream.close();
-                if (mDbAdapter != null) {
-                    mDbAdapter.open();
-                }
-            }
-            Utils.infoMsg(this, "Wrote " + docUri.getLastPathSegment());
-        } catch (Exception ex) {
-            String msg = "Error saving to SD card";
-            Utils.excMsg(this, msg, ex);
-            Log.e(TAG, msg, ex);
-        }
-    }
-
-    /**
-     * Saves the database as a CSV file with a .txt extension.
-     */
     private void saveDatabaseAsCsv() {
         // Get the saved tree Uri
         SharedPreferences prefs = getSharedPreferences(MAIN_ACTIVITY,
@@ -636,7 +548,7 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
             return;
         }
         // Determine the filename
-        String format = "yyyy-MM-dd-HHmmss";
+        String format = "yyyy-MM-dd_HH:mm:ss";
         SimpleDateFormat df = new SimpleDateFormat(format, Locale.US);
         Date now = new Date();
         String fileName = String.format(SAVE_DATABASE_FILENAME_TEMPLATE,
@@ -739,10 +651,8 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
     }
 
     /**
-     * Does the preliminary checking for restoring data, prompts if it is
-     * OK to
-     * delete the current data, and call restoreData to actually do the
-     * delete
+     * Does the preliminary checking for restoring data, prompts if it is OK to
+     * delete the current data, and call restoreData to actually do the delete
      * and restore.
      */
     private void checkRestoreDatabaseFromCvs() {
@@ -764,18 +674,14 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
         }
         if (uriList == null || uriList.size() == 0) {
             Utils.errMsg(this,
-                    "There are no saved database files in the data " +
-                            "directory");
+                    "There are no saved database files in the data directory");
             return;
         }
 
         // Sort them by date with newest first
         final int len = uriList.size();
-        Collections.sort(uriList, new Comparator<UriData>() {
-            public int compare(UriData data1, UriData data2) {
-                return Long.compare(data2.lastModified, data1.lastModified);
-            }
-        });
+        Collections.sort(uriList, (data1, data2) ->
+                Long.compare(data2.lastModified, data1.lastModified));
 
         // Prompt for the file to use
         final CharSequence[] items = new CharSequence[uriList.size()];
@@ -785,51 +691,39 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle(getText(R.string.select_restore_file));
         builder.setSingleChoiceItems(items, 0,
-                new DialogInterface.OnClickListener() {
-                    public void onClick(DialogInterface dialog, final int
-                            item) {
-                        dialog.dismiss();
-                        if (item < 0 || item >= len) {
-                            Utils.errMsg(SessionManagerActivity.this,
-                                    "Invalid item");
-                            return;
-                        }
-                        // Confirm the user wants to delete all the
-                        // current data
-                        new AlertDialog.Builder(SessionManagerActivity.this)
-                                .setIcon(android.R.drawable.ic_dialog_alert)
-                                .setTitle(R.string.confirm)
-                                .setMessage(R.string.delete_prompt)
-                                .setPositiveButton(R.string.ok,
-                                        new DialogInterface.OnClickListener() {
-                                            @Override
-                                            public void onClick(
-                                                    DialogInterface dialog,
-                                                    int which) {
-                                                dialog.dismiss();
-                                                restoreDatabaseFromCvs(uriList.get(item).uri);
-                                            }
-
-                                        })
-                                .setNegativeButton(R.string.cancel, null)
-                                .show();
+                (dialog, item) -> {
+                    dialog.dismiss();
+                    if (item < 0 || item >= len) {
+                        Utils.errMsg(SessionManagerActivity.this,
+                                "Invalid item");
+                        return;
                     }
+                    // Confirm the user wants to delete all the current data
+                    new AlertDialog.Builder(SessionManagerActivity.this)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setTitle(R.string.confirm)
+                            .setMessage(R.string.delete_prompt)
+                            .setPositiveButton(R.string.ok,
+                                    (dialog1, which) -> {
+                                        dialog1.dismiss();
+                                        restoreDatabaseFromCvs(uriList.get(item).uri);
+                                    })
+                            .setNegativeButton(R.string.cancel, null)
+                            .show();
                 });
         AlertDialog alert = builder.create();
         alert.show();
     }
 
     /**
-     * Deletes the existing data without prompting and restores the new
-     * data.
+     * Deletes the existing data without prompting and restores the new data.
      */
     private void restoreDatabaseFromCvs(Uri uri) {
         if (mRestoreTask != null) {
             // Don't do anything if we are updating
             Log.d(TAG,
                     this.getClass().getSimpleName()
-                            + ": restoreDatabase: restoreTask is not null" +
-                            " for "
+                            + ": restoreDatabase: restoreTask is not null for "
                             + uri.getLastPathSegment());
             return;
         }
@@ -981,8 +875,7 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
                         try {
                             dateNum = Long.parseLong(tokens[0]);
                         } catch (Exception ex) {
-                            Log.d(TAG, "Long.parseLong failed for dateNum" +
-                                    " @ " +
+                            Log.d(TAG, "Long.parseLong failed for dateNum @ " +
                                     "line "
                                     + mLineNumber);
                         }
@@ -990,16 +883,14 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
                             startDateNum = Long.parseLong(tokens[1]);
                         } catch (Exception ex) {
                             Log.d(TAG,
-                                    "Long.parseLong failed for " +
-                                            "startDateNum @" +
+                                    "Long.parseLong failed for startDateNum @" +
                                             " line "
                                             + mLineNumber);
                         }
                         try {
                             hr = Integer.parseInt(tokens[2]);
                         } catch (Exception ex) {
-                            Log.d(TAG, "Integer.parseInt failed for hr @ " +
-                                    "line "
+                            Log.d(TAG, "Integer.parseInt failed for hr @ line "
                                     + mLineNumber);
                         }
                         rr = tokens[3].trim();
@@ -1023,9 +914,8 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
                             }
                         }
                         // Write the row
-                        long id = mDbAdapter.createData(dateNum, startDateNum
-                                , hr,
-                                rr, act, pa);
+                        long id = mDbAdapter.createData(dateNum, startDateNum,
+                                hr, rr, act, pa);
                         if (id < 0) {
                             mErrors++;
                         }
@@ -1129,7 +1019,6 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
                         nItems++;
                         startDate = cursor.getLong(indexStartDate);
                         endDate = cursor.getLong(indexEndDate);
-
                         // // DEBUG
                         // double duration = endDate - startDate;
                         // int durationHours = (int) (duration / 3600000.);
@@ -1202,8 +1091,7 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
             ViewHolder viewHolder;
             // General ListView optimization code.
             if (view == null) {
-                view = mInflator.inflate(R.layout.listitem_session,
-                        viewGroup,
+                view = mInflator.inflate(R.layout.listitem_session, viewGroup,
                         false);
                 viewHolder = new ViewHolder();
                 viewHolder.sessionCheckbox = view
@@ -1215,19 +1103,16 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
                 view.setTag(viewHolder);
 
                 viewHolder.sessionCheckbox
-                        .setOnClickListener(new OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                CheckBox cb = (CheckBox) v;
-                                Session session = (Session) cb.getTag();
-                                boolean checked = cb.isChecked();
-                                session.setChecked(checked);
-                                // // DEBUG
-                                // Log.d(TAG,
-                                // "sessionCheckbox.onClickListener: "
-                                // + session.getName() + " "
-                                // + session.isChecked());
-                            }
+                        .setOnClickListener(v -> {
+                            CheckBox cb = (CheckBox) v;
+                            Session session = (Session) cb.getTag();
+                            boolean checked = cb.isChecked();
+                            session.setChecked(checked);
+                            // // DEBUG
+                            // Log.d(TAG,
+                            // "sessionCheckbox.onClickListener: "
+                            // + session.getName() + " "
+                            // + session.isChecked());
                         });
             } else {
                 viewHolder = (ViewHolder) view.getTag();
@@ -1243,8 +1128,7 @@ public class SessionManagerActivity extends AppCompatActivity implements IConsta
                 double duration = session.getDuration();
                 int durationDays = (int) (duration / (3600000. * 24));
 
-                int durationHours =
-                        (int) (duration / 3600000.) - durationDays;
+                int durationHours = (int) (duration / 3600000.) - durationDays;
                 int durationMin = (int) (duration / 60000.) - durationHours
                         * 60;
                 int durationSec = (int) (duration / 1000.) - durationHours

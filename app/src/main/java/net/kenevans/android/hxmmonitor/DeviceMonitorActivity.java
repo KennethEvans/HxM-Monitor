@@ -8,8 +8,8 @@ import android.bluetooth.BluetoothGattService;
 import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
@@ -19,7 +19,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
 import android.preference.PreferenceManager;
+import android.provider.DocumentsContract;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -28,7 +30,15 @@ import android.view.MenuItem;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.nio.channels.FileChannel;
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
@@ -115,33 +125,33 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
      */
     private final BroadcastReceiver mGattUpdateReceiver =
             new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            final String action = intent.getAction();
-            if (HxMBleService.ACTION_GATT_CONNECTED.equals(action)) {
-                Log.d(TAG, "onReceive: " + action);
-                mConnected = true;
-                updateConnectionState(R.string.connected);
-                invalidateOptionsMenu();
-            } else if (HxMBleService.ACTION_GATT_DISCONNECTED.equals(action)) {
-                Log.d(TAG, "onReceive: " + action);
-                mConnected = false;
-                resetDataViews();
-                updateConnectionState(R.string.disconnected);
-                invalidateOptionsMenu();
-            } else if (HxMBleService.ACTION_GATT_SERVICES_DISCOVERED
-                    .equals(action)) {
-                Log.d(TAG, "onReceive: " + action);
-                onServicesDiscovered(mHxMBleService.getSupportedGattServices());
-            } else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
-                // Log.d(TAG, "onReceive: " + action);
-                displayData(intent);
-            } else if (HxMBleService.ACTION_ERROR.equals(action)) {
-                // Log.d(TAG, "onReceive: " + action);
-                displayError(intent);
-            }
-        }
-    };
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    final String action = intent.getAction();
+                    if (HxMBleService.ACTION_GATT_CONNECTED.equals(action)) {
+                        Log.d(TAG, "onReceive: " + action);
+                        mConnected = true;
+                        updateConnectionState(R.string.connected);
+                        invalidateOptionsMenu();
+                    } else if (HxMBleService.ACTION_GATT_DISCONNECTED.equals(action)) {
+                        Log.d(TAG, "onReceive: " + action);
+                        mConnected = false;
+                        resetDataViews();
+                        updateConnectionState(R.string.disconnected);
+                        invalidateOptionsMenu();
+                    } else if (HxMBleService.ACTION_GATT_SERVICES_DISCOVERED
+                            .equals(action)) {
+                        Log.d(TAG, "onReceive: " + action);
+                        onServicesDiscovered(mHxMBleService.getSupportedGattServices());
+                    } else if (HxMBleService.ACTION_DATA_AVAILABLE.equals(action)) {
+                        // Log.d(TAG, "onReceive: " + action);
+                        displayData(intent);
+                    } else if (HxMBleService.ACTION_ERROR.equals(action)) {
+                        // Log.d(TAG, "onReceive: " + action);
+                        displayError(intent);
+                    }
+                }
+            };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -247,13 +257,26 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
 
     @Override
     protected void onDestroy() {
+        Log.d(TAG, this.getClass().getSimpleName() + ": onDestroy");
         super.onDestroy();
         unbindService(mServiceConnection);
+        // Stop the service
+        Intent intent = new Intent(this, HxMBleService.class);
+        mHxMBleService.stopService(intent);
         mHxMBleService = null;
         if (mDbAdapter != null) {
             mDbAdapter.close();
             mDbAdapter = null;
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        // This seems to be necessary with Android 12
+        // Otherwise onDestroy is not called
+        Log.d(TAG, this.getClass().getSimpleName() + ": onBackPressed");
+        finish();
+        super.onBackPressed();
     }
 
     @Override
@@ -297,6 +320,12 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
         } else if (item.getItemId() == R.id.info) {
             info();
             return true;
+        } else if (item.getItemId() == R.id.menu_save_database) {
+            saveDatabase();
+            return true;
+        } else if (item.getItemId() == R.id.menu_replace_database) {
+            checkReplaceDatabase();
+            return true;
         } else if (item.getItemId() == R.id.choose_data_directory) {
             chooseDataDirectory();
             return true;
@@ -319,8 +348,8 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
             treeUri = intent.getData();
             // Keep them from accumulating
             net.kenevans.android.hxmmonitor.UriUtils.releaseAllPermissions(this);
-            SharedPreferences.Editor editor = getPreferences(MODE_PRIVATE)
-                    .edit();
+            SharedPreferences.Editor editor = PreferenceManager
+                    .getDefaultSharedPreferences(this).edit();
             if (treeUri != null) {
                 editor.putString(PREF_TREE_URI, treeUri.toString());
             } else {
@@ -353,11 +382,6 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
         } else if (requestCode == REQ_SETTINGS_CODE && resultCode == RESULT_OK) {
             Log.d(TAG, "onActivityResult: REQUEST_SETTINGS_CODE resultCode="
                     + resultCode);
-            // resetDataViews();
-            // if (mBLECardiacBleService != null &&
-            // mBLECardiacBleService.getSessionInProgress()) {
-            // setEnabledFlags();
-            // }
         }
         super.onActivityResult(requestCode, resultCode, intent);
     }
@@ -369,8 +393,7 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION &
                 Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
-//        intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, uriToLoad);
-        startActivityForResult(intent, REQ_GET_TREE);
+				        startActivityForResult(intent, REQ_GET_TREE);
     }
 
     /**
@@ -399,8 +422,7 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
                                 Intent intent = new Intent(
                                         DeviceMonitorActivity.this,
                                         DeviceScanActivity.class);
-                                startActivityForResult(intent,
-                                        REQ_SELECT_DEVICE_CODE);
+                                startActivity(intent);
                             }).setNegativeButton(R.string.cancel, null).show();
         } else {
             Intent intent = new Intent(DeviceMonitorActivity.this,
@@ -444,16 +466,6 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
                 info.append("No permission granted for " +
                         "ACCESS_COARSE_LOCATION\n");
             }
-//            if (Build.VERSION.SDK_INT >= 23
-//                    && ContextCompat.checkSelfPermission(this, Manifest
-//                    .permission.ACCESS_BACKGROUND_LOCATION) != PackageManager
-//                    .PERMISSION_GRANTED
-//                    && ContextCompat.checkSelfPermission(this, Manifest
-//                    .permission.ACCESS_BACKGROUND_LOCATION) != PackageManager
-//                    .PERMISSION_GRANTED) {
-//                info.append("No permission granted for " +
-//                        "ACCESS_BACKGROUND_LOCATION\n");
-//            }
             String treeUriStr = prefs.getString(PREF_TREE_URI, null);
             if (treeUriStr == null) {
                 info.append("Data Directory: Not set");
@@ -583,7 +595,7 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
     /**
      * Displays the error from an ACTION_ERROR callback.
      *
-     * @param intent The intent.
+     * @param intent The Intent with the message for the error.
      */
     private void displayError(Intent intent) {
         String msg = null;
@@ -661,6 +673,183 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
         mStatus.setText("");
     }
 
+    private void saveDatabase() {
+        SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+        String treeUriStr = prefs.getString(PREF_TREE_URI, null);
+        if (treeUriStr == null) {
+            Utils.errMsg(this, "There is no data directory set");
+            return;
+        }
+        try {
+            String format = "yyyy-MM-dd-HHmmss";
+            SimpleDateFormat df = new SimpleDateFormat(format, Locale.US);
+            Date now = new Date();
+            String fileName = String.format(saveDatabaseTemplate,
+                    df.format(now));
+            Uri treeUri = Uri.parse(treeUriStr);
+            String treeDocumentId =
+                    DocumentsContract.getTreeDocumentId(treeUri);
+            Uri docTreeUri =
+                    DocumentsContract.buildDocumentUriUsingTree(treeUri,
+                            treeDocumentId);
+            ContentResolver resolver = this.getContentResolver();
+            Uri docUri = DocumentsContract.createDocument(resolver, docTreeUri,
+                    "application/vnd.sqlite3", fileName);
+            if (docUri == null) {
+                Utils.errMsg(this, "Could not create document Uri");
+                return;
+            }
+            ParcelFileDescriptor pfd = getContentResolver().
+                    openFileDescriptor(docUri, "rw");
+            File src = new File(getExternalFilesDir(null), DB_NAME);
+            Log.d(TAG, "saveDatabase: docUri=" + docUri);
+            try (FileChannel in =
+                         new FileInputStream(src).getChannel();
+                 FileChannel out =
+                         new FileOutputStream(pfd.getFileDescriptor()).getChannel()) {
+                out.transferFrom(in, 0, in.size());
+            } catch (Exception ex) {
+                String msg = "Error copying source database from "
+                        + docUri.getLastPathSegment() + " to "
+                        + src.getPath();
+                Log.e(TAG, msg, ex);
+                Utils.excMsg(this, msg, ex);
+            }
+            Utils.infoMsg(this, "Wrote " + docUri.getLastPathSegment());
+        } catch (Exception ex) {
+            String msg = "Error saving to SD card";
+            Utils.excMsg(this, msg, ex);
+            Log.e(TAG, msg, ex);
+        }
+    }
+
+    /**
+     * Does the preliminary checking for restoring the database, prompts if
+     * it is OK to delete the current one, and call restoreDatabase to actually
+     * do the replace.
+     */
+    private void checkReplaceDatabase() {
+        Log.d(TAG, "checkReplaceDatabase");
+        // Find the .db files in the data directory
+        SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+        String treeUriStr = prefs.getString(PREF_TREE_URI, null);
+        if (treeUriStr == null) {
+            Utils.errMsg(this, "There is no tree Uri set");
+            return;
+        }
+        Uri treeUri = Uri.parse(treeUriStr);
+        final List<UriUtils.UriData> children =
+                UriUtils.getChildren(this, treeUri, ".db");
+        final int len = children.size();
+        if (len == 0) {
+            Utils.errMsg(this, "There are no .db files in the data directory");
+            return;
+        }
+        // Sort them by date with newest first
+        Collections.sort(children,
+                (data1, data2) -> Long.compare(data2.modifiedTime,
+                        data1.modifiedTime));
+
+        // Prompt for the file to use
+        final CharSequence[] items = new CharSequence[children.size()];
+        String displayName;
+        UriUtils.UriData uriData;
+        for (int i = 0; i < len; i++) {
+            uriData = children.get(i);
+            displayName = uriData.displayName;
+            if (displayName == null) {
+                displayName = uriData.uri.getLastPathSegment();
+            }
+            items[i] = displayName;
+        }
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(getText(R.string.select_replace_database));
+        builder.setSingleChoiceItems(items, 0,
+                (dialog, item) -> {
+                    dialog.dismiss();
+                    if (item < 0 || item >= len) {
+                        Utils.errMsg(DeviceMonitorActivity.this,
+                                "Invalid item");
+                        return;
+                    }
+                    // Confirm the user wants to delete all the current data
+                    new AlertDialog.Builder(DeviceMonitorActivity.this)
+                            .setIcon(android.R.drawable.ic_dialog_alert)
+                            .setTitle(R.string.confirm)
+                            .setMessage(R.string.delete_prompt)
+                            .setPositiveButton(R.string.ok,
+                                    (dialog1, which) -> {
+                                        dialog1.dismiss();
+                                        Log.d(TAG, "Calling replaceDatabase: " +
+                                                "uri="
+                                                + children.get(item).uri);
+                                        replaceDatabase(children.get(item).uri);
+                                    })
+                            .setNegativeButton(R.string.cancel, null)
+                            .show();
+                });
+        AlertDialog alert = builder.create();
+        alert.show();
+    }
+
+    /**
+     * Replaces the database without prompting.
+     *
+     * @param uri The Uri.
+     */
+    private void replaceDatabase(Uri uri) {
+        Log.d(TAG, "replaceDatabase: uri=" + uri.getLastPathSegment());
+        if (uri == null) {
+            Log.d(TAG, this.getClass().getSimpleName()
+                    + "replaceDatabase: Source database is null");
+            Utils.errMsg(this, "Source database is null");
+            return;
+        }
+        String lastSeg = uri.getLastPathSegment();
+        if (!UriUtils.exists(this, uri)) {
+            String msg = "Source database does not exist " + lastSeg;
+            Log.d(TAG, this.getClass().getSimpleName()
+                    + "replaceDatabase: " + msg);
+            Utils.errMsg(this, msg);
+            return;
+        }
+        // Copy the data base to app storage
+        File dest = null;
+        try {
+            String destFileName = UriUtils.getFileNameFromUri(uri);
+            dest = new File(getExternalFilesDir(null), destFileName);
+            dest.createNewFile();
+            ParcelFileDescriptor pfd = getContentResolver().
+                    openFileDescriptor(uri, "rw");
+            try (FileChannel in =
+                         new FileInputStream(pfd.getFileDescriptor()).getChannel();
+                 FileChannel out =
+                         new FileOutputStream(dest).getChannel()) {
+                out.transferFrom(in, 0, in.size());
+            } catch (Exception ex) {
+                String msg = "Error copying source database from "
+                        + uri.getLastPathSegment() + " to "
+                        + dest.getPath();
+                Log.e(TAG, msg, ex);
+                Utils.excMsg(this, msg, ex);
+            }
+        } catch (Exception ex) {
+            String msg = "Error getting source database" + uri;
+            Log.e(TAG, msg, ex);
+            Utils.excMsg(this, msg, ex);
+        }
+        try {
+            // Replace (Use null for default alias)
+            mDbAdapter.replaceDatabase(dest.getPath(), null);
+            Utils.infoMsg(this,
+                    "Restored database from " + uri.getLastPathSegment());
+        } catch (Exception ex) {
+            String msg = "Error replacing data from " + dest.getPath();
+            Log.e(TAG, msg, ex);
+            Utils.excMsg(this, msg, ex);
+        }
+    }
+
     /**
      * Sets up read or notify for this characteristic if possible.
      *
@@ -717,15 +906,18 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
                         // Start it anyway
                         boolean res = startSession();
                         Log.d(TAG,
-                                "onFinish: New session has been started " +
+                                "onTick: onFinish: New session has been " +
+                                        "started " +
                                         "anyway");
                         if (!res) {
                             runOnUiThread(() -> {
                                 Log.d(TAG,
-                                        "onFinish: Failed to start new " +
+                                        "onTick: onFinish: Failed to start " +
+                                                "new " +
                                                 "session anyway");
                                 Utils.errMsg(DeviceMonitorActivity.this,
-                                        "onFinish: Failed to start new " +
+                                        "onTick: onFinish: Failed to start " +
+                                                "new " +
                                                 "session");
                             });
                         }
@@ -760,7 +952,6 @@ public class DeviceMonitorActivity extends AppCompatActivity implements IConstan
             return;
         }
         // Loop through available GATT Services
-        mTimer = null;
         UUID serviceUuid;
         UUID charUuid;
         mCharBat = null;

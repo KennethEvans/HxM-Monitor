@@ -19,23 +19,25 @@ public class HxMMonitorDbAdapter implements IConstants {
     private SQLiteDatabase mDb;
     private final Context mCtx;
 
-	/** Database creation SQL statement */
-	private static final String DB_CREATE_DATA_TABLE = "create table "
-			+ DB_DATA_TABLE + " (_id integer primary key autoincrement, "
-			+ COL_DATE + " integer not null, " + COL_START_DATE
-			+ " integer not null, " + COL_HR + " integer not null, " + COL_RR
-			+ " text not null, " + COL_ACT + " integer not null," + COL_PA
-			+ " integer not null);";
+    /**
+     * Database creation SQL statement
+     */
+    private static final String DB_CREATE_DATA_TABLE = "create table "
+            + DB_DATA_TABLE + " (_id integer primary key autoincrement, "
+            + COL_DATE + " integer not null, " + COL_START_DATE
+            + " integer not null, " + COL_HR + " integer not null, " + COL_RR
+            + " text not null, " + COL_ACT + " integer not null," + COL_PA
+            + " integer not null);";
 
     /**
      * Constructor - takes the context to allow the database to be
      * opened/created
      *
-     * @param ctx     The context.
+     * @param ctx The context.
      */
     public HxMMonitorDbAdapter(Context ctx) {
         mCtx = ctx;
-	}
+    }
 
     /**
      * Open the database. If it cannot be opened, try to create a new instance
@@ -78,58 +80,58 @@ public class HxMMonitorDbAdapter implements IConstants {
         mDbHelper.close();
     }
 
-	/**
-	 * Create new data using the parameters provided. If the data is
-	 * successfully created return the new rowId for that entry, otherwise
-	 * return a -1 to indicate failure.
-	 * 
-     * @param date The date.
+    /**
+     * Create new data using the parameters provided. If the data is
+     * successfully created return the new rowId for that entry, otherwise
+     * return a -1 to indicate failure.
+     *
+     * @param date      The date.
      * @param startDate The start date.
-     * @param hr The HR.
-     * @param rr The RR.
-	 * @param activity The Activity.
-	 * @param pa The peak acceleration.
-	 * @return The rowId or -1 on failure.
-	 */
-	public long createData(long date, long startDate, int hr, String rr,
-			int activity, int pa) {
-		if (mDb == null) {
+     * @param hr        The HR.
+     * @param rr        The RR.
+     * @param activity  The Activity.
+     * @param pa        The peak acceleration.
+     * @return The rowId or -1 on failure.
+     */
+    public long createData(long date, long startDate, int hr, String rr,
+                           int activity, int pa) {
+        if (mDb == null) {
             Utils.errMsg(mCtx, "Failed to create data. Database is null.");
-			return -1;
-		}
-		ContentValues values = new ContentValues();
-		values.put(COL_DATE, date);
-		values.put(COL_START_DATE, startDate);
-		values.put(COL_HR, hr);
-		values.put(COL_RR, rr);
-		values.put(COL_ACT, activity);
-		values.put(COL_PA, pa);
+            return -1;
+        }
+        ContentValues values = new ContentValues();
+        values.put(COL_DATE, date);
+        values.put(COL_START_DATE, startDate);
+        values.put(COL_HR, hr);
+        values.put(COL_RR, rr);
+        values.put(COL_ACT, activity);
+        values.put(COL_PA, pa);
 
-		return mDb.insert(DB_DATA_TABLE, null, values);
-	}
+        return mDb.insert(DB_DATA_TABLE, null, values);
+    }
 
     /**
      * Delete all the data and recreate the table.
-     *
      */
     public void recreateDataTable() {
         mDb.execSQL("DROP TABLE IF EXISTS " + DB_DATA_TABLE);
         mDb.execSQL(DB_CREATE_DATA_TABLE);
     }
 
-	/**
-	 * Return a Cursor over the list of all items in the database.
-	 * 
-	 * @return Cursor over items.
-	 */
-	public Cursor fetchAllData(String filter) {
-		if (mDb == null) {
-			return null;
-		}
-		return mDb.query(DB_DATA_TABLE, new String[] { COL_ID, COL_DATE,
-				COL_START_DATE, COL_HR, COL_RR, COL_ACT, COL_PA }, filter,
-				null, null, null, SORT_ASCENDING);
-	}
+    /**
+     * Return a Cursor over the list of all items in the database.
+     *
+     * @return Cursor over items.
+     */
+    public Cursor fetchAllData(String filter) {
+        if (mDb == null) {
+            return null;
+        }
+        return mDb.query(DB_DATA_TABLE, new String[]{COL_ID, COL_DATE,
+                        COL_START_DATE, COL_HR, COL_RR, COL_ACT, COL_PA},
+				filter,
+                null, null, null, SORT_ASCENDING);
+    }
 
     /**
      * Delete the data with the given rowId.
@@ -158,31 +160,32 @@ public class HxMMonitorDbAdapter implements IConstants {
         return mCursor;
     }
 
-	/**
-	 * Update the data using the details provided. The data to be updated is
-	 * specified using the rowId, and it is altered to use the values passed in.
-	 * 
-	 * @param rowId The row id.
-	 * @param date The date.
-	 * @param startDate The start date.
-	 * @param hr The HR.
-	 * @param rr The RR.
-	 * @param activity The activity.
-	 * @param pa The peak acceleration.
-	 * @return Whether successful.
-	 */
-	public boolean updateData(long rowId, long date, long startDate, int hr,
-			String rr, int activity, int pa) {
-		ContentValues values = new ContentValues();
-		values.put(COL_DATE, date);
-		values.put(COL_START_DATE, startDate);
-		values.put(COL_HR, hr);
-		values.put(COL_RR, rr);
-		values.put(COL_ACT, activity);
-		values.put(COL_PA, pa);
+    /**
+     * Update the data using the details provided. The data to be updated is
+     * specified using the rowId, and it is altered to use the values passed
+     * in.
+     *
+     * @param rowId     The row id.
+     * @param date      The date.
+     * @param startDate The start date.
+     * @param hr        The HR.
+     * @param rr        The RR.
+     * @param activity  The activity.
+     * @param pa        The peak acceleration.
+     * @return Whether successful.
+     */
+    public boolean updateData(long rowId, long date, long startDate, int hr,
+                              String rr, int activity, int pa) {
+        ContentValues values = new ContentValues();
+        values.put(COL_DATE, date);
+        values.put(COL_START_DATE, startDate);
+        values.put(COL_HR, hr);
+        values.put(COL_RR, rr);
+        values.put(COL_ACT, activity);
+        values.put(COL_PA, pa);
 
-		return mDb.update(DB_DATA_TABLE, values, COL_ID + "=" + rowId, null) > 0;
-	}
+        return mDb.update(DB_DATA_TABLE, values, COL_ID + "=" + rowId, null) > 0;
+    }
 
     /**
      * Return a Cursor over the list of start and ending times, sorted in
@@ -231,51 +234,51 @@ public class HxMMonitorDbAdapter implements IConstants {
                 SORT_ASCENDING);
     }
 
-	/**
-	 * Return a Cursor over the HR, RR, Activity, and PA items in the database
-	 * having the given the start date
-	 * 
-	 * @param date The date.
-	 * @return Cursor over items.
-	 */
-	public Cursor fetchAllHrRrActPaDateDataForStartDate(long date) {
-		if (mDb == null) {
-			return null;
-		}
-		return mDb.query(DB_DATA_TABLE, new String[] { COL_DATE, COL_HR,
-				COL_RR, COL_ACT, COL_PA },
-				COL_START_DATE + "=" + date, null, null, null,
-				SORT_ASCENDING);
-	}
+    /**
+     * Return a Cursor over the HR, RR, Activity, and PA items in the database
+     * having the given the start date
+     *
+     * @param date The date.
+     * @return Cursor over items.
+     */
+    public Cursor fetchAllHrRrActPaDateDataForStartDate(long date) {
+        if (mDb == null) {
+            return null;
+        }
+        return mDb.query(DB_DATA_TABLE, new String[]{COL_DATE, COL_HR,
+                        COL_RR, COL_ACT, COL_PA},
+                COL_START_DATE + "=" + date, null, null, null,
+                SORT_ASCENDING);
+    }
 
     // /////////////////////////////////////////////////////////////////////////
     // Get data for start date through end date (ForDate) /////////////////////
     // /////////////////////////////////////////////////////////////////////////
 
-	/**
-	 * Return a Cursor over the HR items in the database for a given start and
-	 * end times.
-	 * 
-	 * @param start The start time.
-	 * @param end The end time.
-	 * @return Cursor over items.
-	 */
-	public Cursor fetchAllHrDateDataForDates(long start, long end) {
-		if (mDb == null) {
-			return null;
-		}
-		return mDb.query(DB_DATA_TABLE, new String[] { COL_DATE, COL_HR },
-				COL_DATE + ">=" + start + " AND " + COL_DATE
-						+ "<=" + end, null, null, null,
-				SORT_ASCENDING);
-	}
+    /**
+     * Return a Cursor over the HR items in the database for a given start and
+     * end times.
+     *
+     * @param start The start time.
+     * @param end   The end time.
+     * @return Cursor over items.
+     */
+    public Cursor fetchAllHrDateDataForDates(long start, long end) {
+        if (mDb == null) {
+            return null;
+        }
+        return mDb.query(DB_DATA_TABLE, new String[]{COL_DATE, COL_HR},
+                COL_DATE + ">=" + start + " AND " + COL_DATE
+                        + "<=" + end, null, null, null,
+                SORT_ASCENDING);
+    }
 
     /**
      * Return a Cursor over the HR and RR items in the database for a given
      * start and end times.
      *
      * @param start The start time.
-     * @param end The end time.
+     * @param end   The end time.
      * @return Cursor over items.
      */
     public Cursor fetchAllHrRrDateDataForDates(long start, long end) {
@@ -288,46 +291,46 @@ public class HxMMonitorDbAdapter implements IConstants {
                         + end, null, null, null, SORT_ASCENDING);
     }
 
-	/**
-	 * Return a Cursor over the Activity and PA items in the database for a
-	 * given start and end times.
-	 * 
-	 * @param start The start time.
-	 * @param end The end time.
-	 * @return Cursor over items.
-	 */
-	public Cursor fetchAllActPaDateDataForDates(long start, long end) {
-		if (mDb == null) {
-			return null;
-		}
-		return mDb.query(DB_DATA_TABLE, new String[] { COL_DATE, COL_ACT,
-				COL_PA }, COL_DATE + ">=" + start + " AND "
-				+ COL_DATE + "<=" + end, null, null, null,
-				SORT_ASCENDING);
-	}
+    /**
+     * Return a Cursor over the Activity and PA items in the database for a
+     * given start and end times.
+     *
+     * @param start The start time.
+     * @param end   The end time.
+     * @return Cursor over items.
+     */
+    public Cursor fetchAllActPaDateDataForDates(long start, long end) {
+        if (mDb == null) {
+            return null;
+        }
+        return mDb.query(DB_DATA_TABLE, new String[]{COL_DATE, COL_ACT,
+                        COL_PA}, COL_DATE + ">=" + start + " AND "
+                        + COL_DATE + "<=" + end, null, null, null,
+                SORT_ASCENDING);
+    }
 
-	/**
-	 * Return a Cursor over the HR, RR, Activity, and PA items in the database
-	 * for a given start and end times.
-	 * 
-	 * @param start The start time.
-	 * @param end The end time.
-	 * @return Cursor over items.
-	 */
-	public Cursor fetchAllHrRrActPaDateDataForDates(long start, long end) {
-		if (mDb == null) {
-			return null;
-		}
-		return mDb.query(DB_DATA_TABLE, new String[] { COL_DATE, COL_HR,
-				COL_RR, COL_ACT, COL_PA },
-				COL_DATE + ">=" + start + " AND " + COL_DATE
-						+ "<=" + end, null, null, null,
-				SORT_ASCENDING);
-	}
+    /**
+     * Return a Cursor over the HR, RR, Activity, and PA items in the database
+     * for a given start and end times.
+     *
+     * @param start The start time.
+     * @param end   The end time.
+     * @return Cursor over items.
+     */
+    public Cursor fetchAllHrRrActPaDateDataForDates(long start, long end) {
+        if (mDb == null) {
+            return null;
+        }
+        return mDb.query(DB_DATA_TABLE, new String[]{COL_DATE, COL_HR,
+                        COL_RR, COL_ACT, COL_PA},
+                COL_DATE + ">=" + start + " AND " + COL_DATE
+                        + "<=" + end, null, null, null,
+                SORT_ASCENDING);
+    }
 
-	///////////////////////////////////////////////////////////////////////////
-	// Get data for start date and later (StartingAtDate) /////////////////////
-	///////////////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////
+    // Get data for start date and later (StartingAtDate) /////////////////////
+    ///////////////////////////////////////////////////////////////////////////
 
     /**
      * Return a Cursor over the list of all items in the database for a given
@@ -360,41 +363,62 @@ public class HxMMonitorDbAdapter implements IConstants {
         return mDb
                 .query(DB_DATA_TABLE,
                         new String[]{COL_DATE, COL_HR, COL_RR}, COL_DATE
-								+ ">=" + date, null, null, null,
-						SORT_ASCENDING);
-	}
-
-	/**
-	 * Return a Cursor over the Activity and PA items in the database for a
-	 * given time and later.
-	 *
-	 * @param date The date.
-	 * @return Cursor over items.
-	 */
-	public Cursor fetchAllActPaDateDataStartingAtDate(long date) {
-		if (mDb == null) {
-			return null;
-		}
-		return mDb.query(DB_DATA_TABLE, new String[] { COL_DATE, COL_ACT,
-				COL_PA }, COL_DATE + ">=" + date, null, null,
-				null, SORT_ASCENDING);
-	}
-
-	/**
-	 * Return a Cursor over the HR, RR, Activity, and PA items in the database
-	 * for a given time and later.
-	 *
-	 * @param date The dtae.
-	 * @return Cursor over items.
-	 */
-	public Cursor fetchAllHrRrActPaDateDataStartingAtDate(long date) {
-		if (mDb == null) {
-			return null;
-		}
-		return mDb.query(DB_DATA_TABLE, new String[] { COL_DATE, COL_HR,
-				COL_RR, COL_ACT, COL_PA },
-				COL_DATE + ">=" + date, null, null, null,
+                                + ">=" + date, null, null, null,
                         SORT_ASCENDING);
+    }
+
+    /**
+     * Return a Cursor over the Activity and PA items in the database for a
+     * given time and later.
+     *
+     * @param date The date.
+     * @return Cursor over items.
+     */
+    public Cursor fetchAllActPaDateDataStartingAtDate(long date) {
+        if (mDb == null) {
+            return null;
+        }
+        return mDb.query(DB_DATA_TABLE, new String[]{COL_DATE, COL_ACT,
+                        COL_PA}, COL_DATE + ">=" + date, null, null,
+                null, SORT_ASCENDING);
+    }
+
+    /**
+     * Return a Cursor over the HR, RR, Activity, and PA items in the database
+     * for a given time and later.
+     *
+     * @param date The dtae.
+     * @return Cursor over items.
+     */
+    public Cursor fetchAllHrRrActPaDateDataStartingAtDate(long date) {
+        if (mDb == null) {
+            return null;
+        }
+        return mDb.query(DB_DATA_TABLE, new String[]{COL_DATE, COL_HR,
+                        COL_RR, COL_ACT, COL_PA},
+                COL_DATE + ">=" + date, null, null, null,
+                SORT_ASCENDING);
+    }
+
+    /**
+     * Clears the working database, attaches the new one, copies all data,
+     * detaches the old one.
+     *
+     * @param newFileName Path to the new database.
+     * @param alias       Name for the new database or null to use "SourceDb"
+     */
+    public void replaceDatabase(String newFileName, String alias) {
+        if (alias == null) alias = "TEMP_DB";
+        // Clear the working database
+        recreateDataTable();
+        // Attach the new database
+        mDb.execSQL("ATTACH DATABASE '" + newFileName
+                + "' AS " + alias);
+        // Copy the data
+        mDb.execSQL("INSERT INTO " + DB_DATA_TABLE + " SELECT * FROM "
+                + alias + "." + DB_DATA_TABLE);
+        // Detach the new database
+        mDb.execSQL("DETACH DATABASE " + alias);
     }
 
     /**

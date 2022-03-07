@@ -142,7 +142,7 @@ public class PlotActivity extends AppCompatActivity implements IConstants {
         // Get the database name from the default preferences
         SharedPreferences prefs = PreferenceManager
                 .getDefaultSharedPreferences(this);
-        String prefString = prefs.getString(PREF_DATA_DIRECTORY, null);
+        String prefString = prefs.getString(PREF_TREE_URI, null);
         if (prefString == null) {
             Utils.errMsg(this, "Cannot find the name of the data directory");
             return;

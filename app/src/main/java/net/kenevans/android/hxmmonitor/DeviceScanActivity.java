@@ -25,7 +25,6 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -58,13 +57,7 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
         setContentView(R.layout.list_view);
         mHandler = new Handler();
         mListView = findViewById(R.id.mainListView);
-        mListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> parent, View view,
-                                    int position, long id) {
-                onListItemClick(mListView, view, position, id);
-            }
-        });
+        mListView.setOnItemClickListener((parent, view, position, id) -> onListItemClick(mListView, view, position, id));
 
         // Use this check to determine whether BLE is supported on the device.
         // Then you can selectively disable BLE-related features.
@@ -236,13 +229,10 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
 
         if (mAllowScan) {
             // Stops scanning after a pre-defined scan period.
-            mHandler.postDelayed(new Runnable() {
-                @Override
-                public void run() {
-                    mScanning = false;
-                    mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
-                    invalidateOptionsMenu();
-                }
+            mHandler.postDelayed(() -> {
+                mScanning = false;
+                mBluetoothAdapter.getBluetoothLeScanner().stopScan(mLeScanCallback);
+                invalidateOptionsMenu();
             }, DEVICE_SCAN_PERIOD);
 
             mScanning = true;
@@ -334,13 +324,9 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
                     Log.d(TAG, this.getClass().getSimpleName() + ": " +
                             "onScanResult");
                     final BluetoothDevice device = result.getDevice();
-                    String deviceAddress = device.getAddress();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            mLeDeviceListAdapter.addDevice(device);
-                            mLeDeviceListAdapter.notifyDataSetChanged();
-                        }
+                    runOnUiThread(() -> {
+                        mLeDeviceListAdapter.addDevice(device);
+                        mLeDeviceListAdapter.notifyDataSetChanged();
                     });
                 }
 
@@ -354,12 +340,9 @@ public class DeviceScanActivity extends AppCompatActivity implements IConstants 
                         final BluetoothDevice device = result.getDevice();
                         Log.d(TAG, "    device=" + device.getName()
                                 + " " + device.getAddress());
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                mLeDeviceListAdapter.addDevice(device);
-                                mLeDeviceListAdapter.notifyDataSetChanged();
-                            }
+                        runOnUiThread(() -> {
+                            mLeDeviceListAdapter.addDevice(device);
+                            mLeDeviceListAdapter.notifyDataSetChanged();
                         });
                     }
                 }

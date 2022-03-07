@@ -46,6 +46,7 @@
     <string name="select_restore_file">Select File to Restore</string>
     <string name="delete_prompt">All existing data will be deleted and it may take a while</string>
     <string name="restoring_database_progress_text">Restoring&#8230;\n(Can take a long time)</string>
+    <string name="select_replace_database">Select replacement database</string>
     <string name="null_uuid_msg">Received null uuid</string>
     <string name="null_error_msg">Received null error message</string>
 
@@ -77,9 +78,10 @@
     <string name="menu_start_now">Start Now</string>
     <string name="menu_check_all">Check All</string>
     <string name="menu_check_none">Check None</string>
+    <string name="menu_save_database_cvs">Save Database as CSV</string>
+    <string name="menu_restore_database_cvs">Restore Database from CSV</string>
     <string name="menu_save_database">Save Database</string>
-    <string name="menu_save_database_cvs">Save Database as CVS</string>
-    <string name="menu_restore_database_cvs">Restore Database from CVS</string>
+    <string name="menu_restore_database">Replace Database</string>
     <string name="menu_restoring">Restoring</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_read_battery_level">Get Battery level</string>
